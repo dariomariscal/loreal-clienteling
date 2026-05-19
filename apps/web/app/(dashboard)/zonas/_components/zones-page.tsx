@@ -122,44 +122,46 @@ export function ZonesPage({ user }: ZonesPageProps) {
                     const isFocused = focusedZoneId === z.id;
                     return (
                       <li key={z.id}>
-                        <button
-                          type="button"
-                          onClick={() => setFocusedZoneId(isFocused ? null : z.id)}
+                        <div
                           className={`group flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-all duration-150 ${
                             isFocused
                               ? "border-foreground/20 bg-muted/60 shadow-sm"
                               : "border-border/60 bg-card hover:border-foreground/10 hover:bg-muted/30"
                           }`}
                         >
-                          <span
-                            aria-hidden
-                            className="size-3 shrink-0 rounded-full ring-2 ring-white"
-                            style={{ backgroundColor: z.color }}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] font-medium">{z.displayName}</div>
-                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                              <StoreIcon className="size-3" />
-                              {storeCount}
-                              <span aria-hidden>·</span>
-                              {z.municipalityIds.length}{" "}
-                              {z.municipalityIds.length === 1 ? "alcaldía" : "alcaldías"}
+                          <button
+                            type="button"
+                            onClick={() => setFocusedZoneId(isFocused ? null : z.id)}
+                            className="flex min-w-0 flex-1 items-center gap-2.5 text-left outline-none"
+                            aria-pressed={isFocused}
+                          >
+                            <span
+                              aria-hidden
+                              className="size-3 shrink-0 rounded-full ring-2 ring-white"
+                              style={{ backgroundColor: z.color }}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-[13px] font-medium">{z.displayName}</div>
+                              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                <StoreIcon className="size-3" />
+                                {storeCount}
+                                <span aria-hidden>·</span>
+                                {z.municipalityIds.length}{" "}
+                                {z.municipalityIds.length === 1 ? "alcaldía" : "alcaldías"}
+                              </div>
                             </div>
-                          </div>
+                          </button>
                           {can(role, "zone.edit") && (
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditing(z);
-                              }}
-                              className="opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                              onClick={() => setEditing(z)}
+                              className="shrink-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                               aria-label={`Editar ${z.displayName}`}
                             >
                               <PencilIcon className="size-3.5 text-muted-foreground" />
                             </button>
                           )}
-                        </button>
+                        </div>
                       </li>
                     );
                   })}
