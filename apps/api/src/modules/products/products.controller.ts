@@ -1,8 +1,13 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, Inject } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
+import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiOperation } from "@nestjs/swagger";
 import { Roles, Session } from "@thallesp/nestjs-better-auth";
 import { ProductsService } from "./products.service";
-import { CreateProductDto, UpdateProductDto, UpdateAvailabilityDto } from "../../dtos/products.dto";
+import {
+  BulkCreateProductsDto,
+  CreateProductDto,
+  UpdateProductDto,
+  UpdateAvailabilityDto,
+} from "../../dtos/products.dto";
 import { PaginationDto } from "../../dtos/common.dto";
 import type { UserSession } from "../../common/types/session";
 
@@ -33,6 +38,18 @@ export class ProductsController {
   @ApiBody({ type: CreateProductDto })
   create(@Body() body: CreateProductDto) {
     return this.productsService.create(body);
+  }
+
+  @Post("bulk")
+  @Roles(["admin"])
+  @ApiOperation({
+    summary: "Bulk import products",
+    description:
+      "Validates all rows up-front (SKU uniqueness, brand FK) and inserts in a single transaction. atomic mode aborts the whole batch on any failure; best_effort inserts valid rows and reports failures per row.",
+  })
+  @ApiBody({ type: BulkCreateProductsDto })
+  bulkCreate(@Body() body: BulkCreateProductsDto) {
+    return this.productsService.bulkCreate(body);
   }
 
   @Patch(":id")

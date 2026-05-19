@@ -8,9 +8,19 @@ import {
   IsNumber,
   IsPositive,
   IsInt,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-import { PRODUCT_CATEGORIES, STOCK_STATUSES } from "@loreal/contracts";
+import {
+  PRODUCT_CATEGORIES,
+  STOCK_STATUSES,
+  BULK_PRODUCT_LIMIT,
+  type BulkImportMode,
+} from "@loreal/contracts";
 
 export class CreateProductDto {
   @ApiProperty({ type: String, example: "SKU-001", minLength: 1, maxLength: 50 })
@@ -63,4 +73,27 @@ export class UpdateAvailabilityDto {
   @ApiProperty({ type: String, enum: STOCK_STATUSES, example: "available" })
   @IsIn(STOCK_STATUSES)
   stockStatus: string;
+}
+
+export class BulkCreateProductsDto {
+  @ApiProperty({
+    type: [CreateProductDto],
+    description: `Rows to insert. Maximum ${BULK_PRODUCT_LIMIT} per request.`,
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(BULK_PRODUCT_LIMIT)
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductDto)
+  products: CreateProductDto[];
+
+  @ApiPropertyOptional({
+    enum: ["atomic", "best_effort"],
+    default: "atomic",
+    description:
+      "atomic: rollback the whole batch if any row fails. best_effort: insert valid rows and report errors per row.",
+  })
+  @IsOptional()
+  @IsIn(["atomic", "best_effort"])
+  mode?: BulkImportMode;
 }
