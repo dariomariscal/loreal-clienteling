@@ -1,6 +1,7 @@
 "use client";
 
 import { useCreateZone, useUpdateZone, type Zone } from "@/lib/hooks";
+import { findPresetForMunicipality } from "@/lib/zone-presets";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -44,6 +45,14 @@ export function ZoneFormSheet({
     }
   }
 
+  // When the admin clicks a single municipality on the map, look up its
+  // canonical preset region (CDMX cuadrante or EdoMex zona metropolitana) and
+  // prefill the whole sibling group. They can still edit anything.
+  const presetMatch =
+    presetMunicipalityIds?.length === 1
+      ? findPresetForMunicipality(presetMunicipalityIds[0])
+      : null;
+
   const defaults = zone
     ? {
         code: zone.code,
@@ -52,9 +61,16 @@ export function ZoneFormSheet({
         icon: zone.icon,
         municipalityIds: zone.municipalityIds,
       }
-    : presetMunicipalityIds && presetMunicipalityIds.length > 0
-      ? { municipalityIds: presetMunicipalityIds }
-      : undefined;
+    : presetMatch
+      ? {
+          code: presetMatch.code,
+          displayName: presetMatch.displayName,
+          color: presetMatch.color,
+          municipalityIds: presetMatch.municipalityIds,
+        }
+      : presetMunicipalityIds && presetMunicipalityIds.length > 0
+        ? { municipalityIds: presetMunicipalityIds }
+        : undefined;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
