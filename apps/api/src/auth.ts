@@ -86,9 +86,13 @@ export const auth = betterAuth({
     "http://localhost:3000", // Next.js web
     "http://localhost:8081", // Expo Metro
     "loreal-clienteling://", // Expo production scheme
-    ...(process.env.NODE_ENV === "development"
-      ? ["exp://", "exp://**", "exp://192.168.*.*:*/**"]
-      : []),
+    "exp://",
+    "exp://*",
+    "exp://**",
+    "exp://192.168.*.*:*",
+    "exp://192.168.*.*:*/**",
+    "exp://10.*.*.*:*",
+    "exp://10.*.*.*:*/**",
   ],
 
   plugins: [
