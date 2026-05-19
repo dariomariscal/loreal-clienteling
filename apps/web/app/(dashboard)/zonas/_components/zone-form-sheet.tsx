@@ -18,9 +18,16 @@ interface ZoneFormSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   zone?: Zone;
+  /** When creating a new zone from the "ungrouped" chip, preselect these municipalities. */
+  presetMunicipalityIds?: string[];
 }
 
-export function ZoneFormSheet({ open, onOpenChange, zone }: ZoneFormSheetProps) {
+export function ZoneFormSheet({
+  open,
+  onOpenChange,
+  zone,
+  presetMunicipalityIds,
+}: ZoneFormSheetProps) {
   const isEdit = Boolean(zone);
   const createZone = useCreateZone();
   const updateZone = useUpdateZone();
@@ -37,6 +44,18 @@ export function ZoneFormSheet({ open, onOpenChange, zone }: ZoneFormSheetProps) 
     }
   }
 
+  const defaults = zone
+    ? {
+        code: zone.code,
+        displayName: zone.displayName,
+        color: zone.color,
+        icon: zone.icon,
+        municipalityIds: zone.municipalityIds,
+      }
+    : presetMunicipalityIds && presetMunicipalityIds.length > 0
+      ? { municipalityIds: presetMunicipalityIds }
+      : undefined;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="default">
@@ -45,9 +64,7 @@ export function ZoneFormSheet({ open, onOpenChange, zone }: ZoneFormSheetProps) 
         </SheetHeader>
         <SheetBody>
           <ZoneForm
-            defaultValues={
-              zone ? { ...zone, region: zone.region ?? undefined } : undefined
-            }
+            defaultValues={defaults}
             onSubmit={handleSubmit}
             isPending={isPending}
           />

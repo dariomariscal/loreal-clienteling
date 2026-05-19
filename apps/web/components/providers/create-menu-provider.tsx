@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 
 export type CreatableEntity =
   | "brand"
-  | "zone"
   | "store"
   | "user"
   | "product"

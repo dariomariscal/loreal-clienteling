@@ -4,7 +4,6 @@ import { Menu } from "@base-ui/react/menu"
 import {
   PlusIcon,
   TagIcon,
-  MapIcon,
   StoreIcon,
   UserPlusIcon,
   PackageIcon,
@@ -29,7 +28,6 @@ interface CreateMenuItem {
 
 const ITEMS: readonly CreateMenuItem[] = [
   { entity: "brand", label: "Marca", icon: TagIcon, permission: "brand.create" },
-  { entity: "zone", label: "Zona", icon: MapIcon, permission: "zone.create" },
   { entity: "store", label: "Tienda", icon: StoreIcon, permission: "store.create" },
   { entity: "user", label: "Beauty Advisor", icon: UserPlusIcon, permission: "user.manage" },
   { entity: "product", label: "Producto", icon: PackageIcon, permission: "product.create" },

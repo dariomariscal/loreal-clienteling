@@ -4,7 +4,6 @@ import {
   useStore,
   useCreateStore,
   useUpdateStore,
-  useZones,
   useBrands,
   type Store,
 } from "@/lib/hooks";
@@ -33,7 +32,6 @@ export function StoreFormSheet({
   store,
 }: StoreFormSheetProps) {
   const isEdit = Boolean(store);
-  const { data: zones = [] } = useZones();
   const { data: brands = [] } = useBrands();
   const { data: storeDetail } = useStore(store?.id ?? "");
   const createStore = useCreateStore();
@@ -56,10 +54,11 @@ export function StoreFormSheet({
         code: store.code,
         displayName: store.displayName,
         chain: store.chain,
-        zoneId: store.zoneId ?? undefined,
         address: store.address ?? undefined,
         city: store.city ?? undefined,
         state: store.state ?? undefined,
+        district: store.district ?? undefined,
+        postcode: store.postcode ?? undefined,
         lat: store.lat ?? undefined,
         lng: store.lng ?? undefined,
         brandIds: storeDetail?.brandIds ?? [],
@@ -75,7 +74,6 @@ export function StoreFormSheet({
         <SheetBody>
           <StoreForm
             defaultValues={defaults}
-            zones={zones}
             brands={brands}
             onSubmit={handleSubmit}
             isPending={isPending}

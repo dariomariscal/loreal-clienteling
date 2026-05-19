@@ -2,7 +2,6 @@
 
 import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { BrandFormSheet } from "@/app/(dashboard)/marcas/_components/brand-form-sheet";
-import { ZoneFormSheet } from "@/app/(dashboard)/zonas/_components/zone-form-sheet";
 import { StoreFormSheet } from "@/app/(dashboard)/tiendas/_components/store-form-sheet";
 import { UserFormSheet } from "@/app/(dashboard)/equipo/_components/user-form-sheet";
 import { CustomerFormSheet } from "@/app/(dashboard)/clientes/_components/customer-form-sheet";
@@ -20,10 +19,6 @@ export function GlobalCreateSheets() {
     <>
       <BrandFormSheet
         open={openEntity === "brand"}
-        onOpenChange={(o) => !o && close()}
-      />
-      <ZoneFormSheet
-        open={openEntity === "zone"}
         onOpenChange={(o) => !o && close()}
       />
       <StoreFormSheet
