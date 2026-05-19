@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   useCreateUser,
   useInviteUser,
@@ -19,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { UserForm, type UserFormData } from "./user-form";
+import { CredentialsDialog } from "./credentials-dialog";
 
 type Mode = "create" | "invite";
 
@@ -39,71 +41,78 @@ export function UserFormSheet({
   const createUser = useCreateUser();
   const inviteUser = useInviteUser();
 
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+
   const isInvite = mode === "invite";
   const isPending = createUser.isPending || inviteUser.isPending;
 
   function handleSubmit(data: UserFormData) {
     if (isInvite) {
-      inviteUser.mutate(
-        {
-          email: data.email,
-          fullName: data.fullName,
-          role: data.role,
-          storeId: data.storeId,
-          zoneId: data.zoneId,
-          brandId: data.brandId,
-        },
-        { onSuccess: () => onOpenChange(false) },
-      );
-    } else {
-      createUser.mutate(
-        { ...data, name: data.fullName },
-        { onSuccess: () => onOpenChange(false) },
-      );
+      inviteUser.mutate(data, { onSuccess: () => onOpenChange(false) });
+      return;
     }
+    createUser.mutate(data, {
+      onSuccess: (user) => {
+        onOpenChange(false);
+        setCreatedUserId(user.id);
+      },
+    });
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="lg">
-        <SheetHeader>
-          <SheetTitle>
-            {isInvite ? "Invitar usuario" : "Nuevo usuario"}
-          </SheetTitle>
-          {isInvite && (
-            <SheetDescription>
-              Se enviará una invitación por correo. El usuario aparecerá como
-              &quot;Pendiente&quot; hasta que la acepte.
-            </SheetDescription>
-          )}
-        </SheetHeader>
-        <SheetBody>
-          <UserForm
-            stores={stores}
-            brands={brands}
-            zones={zones}
-            onSubmit={handleSubmit}
-            isPending={isPending}
-            hidePassword={isInvite}
-          />
-        </SheetBody>
-        <SheetFooter>
-          <SheetClose>
-            <Button variant="outline" disabled={isPending}>
-              Cancelar
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent size="lg">
+          <SheetHeader>
+            <SheetTitle>
+              {isInvite ? "Invitar usuario" : "Nuevo usuario"}
+            </SheetTitle>
+            {isInvite ? (
+              <SheetDescription>
+                Se enviará una invitación por correo. El usuario aparecerá como
+                &quot;Pendiente&quot; hasta que la acepte.
+              </SheetDescription>
+            ) : (
+              <SheetDescription>
+                Se creará una cuenta activa con una contraseña generada automáticamente.
+                Podrás verla y copiarla al finalizar.
+              </SheetDescription>
+            )}
+          </SheetHeader>
+          <SheetBody>
+            <UserForm
+              stores={stores}
+              brands={brands}
+              zones={zones}
+              onSubmit={handleSubmit}
+              isPending={isPending}
+            />
+          </SheetBody>
+          <SheetFooter>
+            <SheetClose>
+              <Button variant="outline" disabled={isPending}>
+                Cancelar
+              </Button>
+            </SheetClose>
+            <Button type="submit" form="user-form" disabled={isPending}>
+              {isPending
+                ? isInvite
+                  ? "Enviando..."
+                  : "Creando..."
+                : isInvite
+                  ? "Enviar invitación"
+                  : "Crear usuario"}
             </Button>
-          </SheetClose>
-          <Button type="submit" form="user-form" disabled={isPending}>
-            {isPending
-              ? isInvite
-                ? "Enviando..."
-                : "Creando..."
-              : isInvite
-                ? "Enviar invitación"
-                : "Crear usuario"}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <CredentialsDialog
+        userId={createdUserId}
+        open={!!createdUserId}
+        onOpenChange={(o) => !o && setCreatedUserId(null)}
+        autoReveal
+      />
+    </>
   );
 }

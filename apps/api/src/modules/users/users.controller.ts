@@ -61,6 +61,21 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
+  @Post()
+  @Roles(["admin"])
+  create(
+    @Body() body: { email: string; fullName: string; role: string; storeId?: string; zoneId?: string; brandId?: string },
+    @Session() session: UserSession,
+  ) {
+    return this.usersService.create(body, session.user);
+  }
+
+  @Get(":id/password")
+  @Roles(["admin"])
+  revealPassword(@Param("id") id: string, @Session() session: UserSession) {
+    return this.usersService.revealPassword(id, session.user);
+  }
+
   @Post("invite")
   @Roles(["admin"])
   invite(

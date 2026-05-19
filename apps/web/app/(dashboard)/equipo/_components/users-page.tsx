@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { KeyRoundIcon } from "lucide-react";
 import { useUsers, useStores, useBrands, type User } from "@/lib/hooks";
 import { can } from "@/lib/permissions";
 import { useCreateMenu } from "@/components/providers/create-menu-provider";
@@ -19,6 +20,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { UserFormSheet } from "./user-form-sheet";
+import { CredentialsDialog } from "./credentials-dialog";
 
 const ROLE_LABEL: Record<string, string> = {
   ba: "Beauty Advisor",
@@ -53,6 +55,9 @@ export function UsersPage({ user }: UsersPageProps) {
 
   const { open: openCreate } = useCreateMenu();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [credentialsUserId, setCredentialsUserId] = useState<string | null>(null);
+
+  const isAdmin = role === "admin";
 
   const storeMap = Object.fromEntries(stores.map((s) => [s.id, s.displayName]));
   const brandMap = Object.fromEntries(brands.map((b) => [b.id, b.displayName]));
@@ -106,6 +111,26 @@ export function UsersPage({ user }: UsersPageProps) {
       },
     },
   ];
+
+  if (isAdmin) {
+    columns.push({
+      key: "id",
+      label: "Credenciales",
+      render: (_v, row) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCredentialsUserId(row.id);
+          }}
+        >
+          <KeyRoundIcon className="size-4" />
+          Ver
+        </Button>
+      ),
+    });
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -173,6 +198,12 @@ export function UsersPage({ user }: UsersPageProps) {
         open={inviteOpen}
         onOpenChange={setInviteOpen}
         mode="invite"
+      />
+
+      <CredentialsDialog
+        userId={credentialsUserId}
+        open={!!credentialsUserId}
+        onOpenChange={(o) => !o && setCredentialsUserId(null)}
       />
     </div>
   );

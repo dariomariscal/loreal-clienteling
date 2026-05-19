@@ -52,6 +52,11 @@ export const users = pgTable("users", {
   invitationStatus: text("invitation_status"), // pending | accepted | expired
   invitedAt: timestamp("invited_at", { withTimezone: true }),
   invitedByUserId: text("invited_by_user_id"),
+
+  // Admin-visible credential. AES-256-GCM payload (iv:tag:ciphertext, base64).
+  // Only present for users created by an admin with a generated password;
+  // null for users that set their own password via invitation flow.
+  encryptedPassword: text("encrypted_password"),
 });
 
 export const sessions = pgTable(

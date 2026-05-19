@@ -103,35 +103,28 @@ export function useUpdateUser() {
   });
 }
 
-// Keep legacy mutations for compatibility
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: {
-      name: string;
+    mutationFn: (data: {
       email: string;
-      password: string;
-      role: string;
       fullName: string;
+      role: string;
       storeId?: string;
       zoneId?: string;
       brandId?: string;
-    }) => {
-      const res = await authClient.admin.createUser({
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        role: data.role as "admin",
-        data: {
-          fullName: data.fullName,
-          storeId: data.storeId,
-          zoneId: data.zoneId,
-          brandId: data.brandId,
-        },
-      });
-      return res.data as unknown as User;
-    },
+    }) => api.post<User>("/users", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useUserPassword(userId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["users", userId, "password"],
+    queryFn: () => api.get<{ password: string }>(`/users/${userId}/password`),
+    enabled: enabled && !!userId,
+    staleTime: 0,
+    gcTime: 0,
   });
 }
 

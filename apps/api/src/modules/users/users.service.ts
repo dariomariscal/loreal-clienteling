@@ -1,10 +1,12 @@
-import { Injectable, Inject, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Injectable, Inject, NotFoundException, ForbiddenException, ConflictException } from "@nestjs/common";
 import { eq, and, sql, count, ilike } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { users, stores, zones, brands } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
+import { PasswordCryptoService } from "../../common/services/password-crypto.service";
+import { auth } from "../../auth";
 
 interface UserFilters {
   role?: string;
@@ -36,12 +38,22 @@ interface UpdateUserData {
   fullName?: string;
 }
 
+interface CreateUserData {
+  email: string;
+  fullName: string;
+  role: string;
+  storeId?: string;
+  zoneId?: string;
+  brandId?: string;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
+    @Inject(PasswordCryptoService) private passwordCrypto: PasswordCryptoService,
   ) {}
 
   async findAll(user: SessionUser, filters: UserFilters = {}) {
@@ -150,6 +162,108 @@ export class UsersService {
 
     if (!row) throw new NotFoundException("User not found");
     return row;
+  }
+
+  /**
+   * Create an admin-provisioned user with a generated password. The cleartext
+   * password is AES-encrypted and stored on `users.encryptedPassword` so
+   * admins can reveal it later via `revealPassword`. The hashed copy lives in
+   * `accounts.password` as Better Auth requires.
+   */
+  async create(data: CreateUserData, createdBy: SessionUser) {
+    if (!data.email.toLowerCase().endsWith("@loreal.mx")) {
+      throw new ConflictException("El correo debe terminar en @loreal.mx");
+    }
+
+    const [existing] = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, data.email.toLowerCase()));
+    if (existing) {
+      throw new ConflictException("Ya existe un usuario con ese correo");
+    }
+
+    // Auto-derive zone from store when not provided explicitly.
+    let zoneId = data.zoneId;
+    if (data.storeId && !zoneId) {
+      const [store] = await this.db
+        .select({ zoneId: stores.zoneId })
+        .from(stores)
+        .where(eq(stores.id, data.storeId));
+      if (store?.zoneId) zoneId = store.zoneId;
+    }
+
+    const password = this.passwordCrypto.generate(14);
+
+    // Use Better Auth to create the user + hashed credential. The admin plugin
+    // forbids setting `role` / business fields through signUpEmail, so we
+    // sign-up with just the core fields and patch the rest right after.
+    const result = (await auth.api.signUpEmail({
+      body: {
+        email: data.email.toLowerCase(),
+        password,
+        name: data.fullName,
+        fullName: data.fullName,
+      } as any,
+    })) as { user: { id: string } };
+
+    const userId = result.user.id;
+
+    await this.db
+      .update(users)
+      .set({
+        emailVerified: true,
+        active: true,
+        invitationStatus: "accepted",
+        invitedByUserId: createdBy.id,
+        encryptedPassword: this.passwordCrypto.encrypt(password),
+        role: data.role,
+        fullName: data.fullName,
+        name: data.fullName,
+        storeId: data.storeId ?? null,
+        zoneId: zoneId ?? null,
+        brandId: data.brandId ?? null,
+      })
+      .where(eq(users.id, userId));
+
+    await this.auditService.log(
+      createdBy,
+      "user_created",
+      "user",
+      userId,
+      { email: data.email, role: data.role },
+    );
+
+    return this.findOne(userId);
+  }
+
+  /**
+   * Returns the cleartext password of a user — admin-only. Throws if there is
+   * no stored encrypted credential (e.g. the user set their own password).
+   */
+  async revealPassword(id: string, requester: SessionUser): Promise<{ password: string }> {
+    if (requester.role !== "admin") {
+      throw new ForbiddenException("Solo administradores pueden ver credenciales");
+    }
+    const [row] = await this.db
+      .select({ encryptedPassword: users.encryptedPassword, email: users.email })
+      .from(users)
+      .where(eq(users.id, id));
+    if (!row) throw new NotFoundException("User not found");
+    if (!row.encryptedPassword) {
+      throw new NotFoundException("Este usuario no tiene credenciales recuperables");
+    }
+    const password = this.passwordCrypto.decrypt(row.encryptedPassword);
+
+    await this.auditService.log(
+      requester,
+      "user_password_revealed",
+      "user",
+      id,
+      { email: row.email },
+    );
+
+    return { password };
   }
 
   async invite(data: InviteUserData, invitedBy: SessionUser) {
