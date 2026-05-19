@@ -4,6 +4,7 @@ import { AuthModule } from "@thallesp/nestjs-better-auth";
 import { DatabaseModule } from "./config/database.module";
 import { CommonModule } from "./common/common.module";
 import { ZonesModule } from "./modules/zones/zones.module";
+import { GeoModule } from "./modules/geo/geo.module";
 import { BrandsModule } from "./modules/brands/brands.module";
 import { StoresModule } from "./modules/stores/stores.module";
 import { ProductsModule } from "./modules/products/products.module";
@@ -34,6 +35,7 @@ import { auth } from "./auth";
     AuthModule.forRoot({ auth }),
     CommonModule,
     ZonesModule,
+    GeoModule,
     BrandsModule,
     StoresModule,
     ProductsModule,

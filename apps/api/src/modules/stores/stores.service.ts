@@ -13,6 +13,9 @@ type CreateStoreInput = {
   address?: string;
   city?: string;
   state?: string;
+  district?: string;
+  municipalityId?: string;
+  postcode?: string;
   lat?: number;
   lng?: number;
   brandIds?: string[];

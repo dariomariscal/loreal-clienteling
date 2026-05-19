@@ -10,6 +10,7 @@ import {
   Max,
   IsArray,
   ArrayUnique,
+  Length,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { STORE_CHAINS } from "@loreal/contracts";
@@ -53,6 +54,24 @@ export class CreateStoreDto {
   @IsString()
   @MaxLength(100)
   state?: string;
+
+  @ApiPropertyOptional({ type: String, example: "Miguel Hidalgo", maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  district?: string;
+
+  @ApiPropertyOptional({ type: String, example: "09016" })
+  @IsOptional()
+  @IsString()
+  @Length(5, 5)
+  municipalityId?: string;
+
+  @ApiPropertyOptional({ type: String, example: "11560", maxLength: 10 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  postcode?: string;
 
   @ApiPropertyOptional({ type: Number, example: 19.4326 })
   @IsOptional()

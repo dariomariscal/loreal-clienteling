@@ -1,4 +1,13 @@
-import { IsString, MinLength, MaxLength, IsOptional } from "class-validator";
+import {
+  IsString,
+  MinLength,
+  MaxLength,
+  IsOptional,
+  IsHexColor,
+  IsArray,
+  ArrayUnique,
+  Length,
+} from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 
 export class CreateZoneDto {
@@ -14,11 +23,27 @@ export class CreateZoneDto {
   @MaxLength(200)
   displayName: string;
 
-  @ApiPropertyOptional({ type: String, example: "Centro", maxLength: 200 })
+  @ApiPropertyOptional({ type: String, example: "#D4AF37" })
+  @IsOptional()
+  @IsHexColor()
+  color?: string;
+
+  @ApiPropertyOptional({ type: String, example: "map-pin", maxLength: 50 })
   @IsOptional()
   @IsString()
-  @MaxLength(200)
-  region?: string;
+  @MaxLength(50)
+  icon?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ["09015", "09016"],
+    description: "INEGI 5-digit municipality codes that compose this zone",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @Length(5, 5, { each: true })
+  municipalityIds?: string[];
 }
 
 export class UpdateZoneDto extends PartialType(CreateZoneDto) {}

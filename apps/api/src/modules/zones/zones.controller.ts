@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Patch, Param, Body, Inject } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
+import { Controller, Get, Post, Patch, Param, Body, Inject, Query, BadRequestException } from "@nestjs/common";
+import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from "@nestjs/swagger";
 import { Roles, Session } from "@thallesp/nestjs-better-auth";
 import { ZonesService } from "./zones.service";
 import { CreateZoneDto, UpdateZoneDto } from "../../dtos/zones.dto";
@@ -15,6 +15,19 @@ export class ZonesController {
   @Roles(["admin", "supervisor"])
   findAll(@Session() session: UserSession) {
     return this.zonesService.findAll(session.user);
+  }
+
+  @Get("by-point")
+  @Roles(["admin", "supervisor", "manager", "ba"])
+  @ApiQuery({ name: "lat", type: Number })
+  @ApiQuery({ name: "lng", type: Number })
+  findByPoint(@Query("lat") lat: string, @Query("lng") lng: string) {
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
+      throw new BadRequestException("lat and lng must be numbers");
+    }
+    return this.zonesService.findByPoint(latNum, lngNum);
   }
 
   @Get(":id")
