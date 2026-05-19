@@ -36,12 +36,12 @@ export class BrandsService {
     return { ...brand, config: config ?? null };
   }
 
-  async create(data: { code: string; displayName: string; tier: string }) {
+  async create(data: { code: string; displayName: string; tier: string; logoUrl?: string }) {
     const [brand] = await this.db.insert(brands).values(data).returning();
     return brand;
   }
 
-  async update(id: string, data: Partial<{ code: string; displayName: string; tier: string; active: boolean }>) {
+  async update(id: string, data: Partial<{ code: string; displayName: string; tier: string; logoUrl: string; active: boolean }>) {
     const [brand] = await this.db
       .update(brands)
       .set({ ...data, updatedAt: new Date() })

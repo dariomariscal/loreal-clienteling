@@ -568,14 +568,14 @@ async function seed() {
       const status = scheduledAt > now ? pick(["scheduled", "confirmed"]) : pick(statuses);
       const chosenEventType = pick(eventTypes);
       const matchedEventType = eventTypeByCode[chosenEventType];
+      if (!matchedEventType) continue;
       await db.insert(schema.appointments).values({
         customerId: c.id,
         baUserId: ba.id,
         storeId: c.registeredAtStoreId,
-        eventType: chosenEventType,
-        eventTypeId: matchedEventType?.id ?? null,
+        eventTypeId: matchedEventType.id,
         scheduledAt,
-        durationMinutes: matchedEventType?.durationMinutes ?? pick([30, 45, 60, 90]),
+        durationMinutes: matchedEventType.durationMinutes ?? pick([30, 45, 60, 90]),
         status,
         comments: Math.random() < 0.4 ? "Tratamiento facial personalizado" : null,
         isVirtual: Math.random() < 0.1,

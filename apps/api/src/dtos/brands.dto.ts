@@ -18,6 +18,12 @@ export class CreateBrandDto {
   @ApiProperty({ type: String, enum: BRAND_TIERS, example: "luxury" })
   @IsIn(BRAND_TIERS)
   tier: string;
+
+  @ApiPropertyOptional({ type: String, maxLength: 500, example: "/logos/lancome.svg" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  logoUrl?: string;
 }
 
 export class UpdateBrandDto extends PartialType(CreateBrandDto) {

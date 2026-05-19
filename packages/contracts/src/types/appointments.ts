@@ -1,6 +1,6 @@
 export interface CreateAppointment {
   customerId: string;
-  eventType: string;
+  eventTypeId: string;
   scheduledAt: Date;
   durationMinutes: number;
   comments?: string;

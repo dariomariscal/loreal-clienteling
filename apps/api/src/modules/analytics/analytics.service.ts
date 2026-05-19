@@ -490,7 +490,7 @@ export class AnalyticsService {
         id: appointments.id,
         scheduledAt: appointments.scheduledAt,
         durationMinutes: appointments.durationMinutes,
-        eventType: appointments.eventType,
+        eventTypeId: appointments.eventTypeId,
         eventTypeName: appointmentEventTypes.displayName,
         status: appointments.status,
         comments: appointments.comments,

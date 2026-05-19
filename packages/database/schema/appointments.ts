@@ -26,10 +26,9 @@ export const appointments = pgTable(
     storeId: uuid("store_id")
       .notNull()
       .references(() => stores.id),
-    eventType: varchar("event_type", { length: 30 }).notNull(), // cabin_service | facial | anniversary_event | vip_cabin | product_followup | custom
-    eventTypeId: uuid("event_type_id").references(
-      () => appointmentEventTypes.id,
-    ),
+    eventTypeId: uuid("event_type_id")
+      .notNull()
+      .references(() => appointmentEventTypes.id),
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
     durationMinutes: integer("duration_minutes").notNull(),
     status: varchar("status", { length: 20 }).notNull().default("scheduled"), // scheduled | confirmed | rescheduled | cancelled | completed | no_show

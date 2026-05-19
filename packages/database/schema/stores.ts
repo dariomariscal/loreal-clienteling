@@ -3,6 +3,7 @@ import {
   uuid,
   varchar,
   boolean,
+  numeric,
   timestamp,
 } from "drizzle-orm/pg-core";
 import { zones } from "./zones";
@@ -16,6 +17,8 @@ export const stores = pgTable("stores", {
   address: varchar("address", { length: 500 }),
   city: varchar("city", { length: 100 }),
   state: varchar("state", { length: 100 }),
+  lat: numeric("lat", { precision: 10, scale: 7 }),
+  lng: numeric("lng", { precision: 10, scale: 7 }),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

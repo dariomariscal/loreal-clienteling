@@ -24,7 +24,7 @@ export class AppointmentRemindersCron {
         customerId: appointments.customerId,
         baUserId: appointments.baUserId,
         storeId: appointments.storeId,
-        eventType: appointments.eventType,
+        eventTypeId: appointments.eventTypeId,
         scheduledAt: appointments.scheduledAt,
         durationMinutes: appointments.durationMinutes,
         status: appointments.status,

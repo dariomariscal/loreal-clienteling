@@ -13,16 +13,16 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { APPOINTMENT_EVENT_TYPES, APPOINTMENT_STATUSES } from "@loreal/contracts";
+import { APPOINTMENT_STATUSES } from "@loreal/contracts";
 
 export class CreateAppointmentDto {
   @ApiProperty({ type: String, format: "uuid" })
   @IsUUID()
   customerId: string;
 
-  @ApiProperty({ type: String, enum: APPOINTMENT_EVENT_TYPES, example: "cabin_service" })
-  @IsIn(APPOINTMENT_EVENT_TYPES)
-  eventType: string;
+  @ApiProperty({ type: String, format: "uuid", description: "FK to appointment_event_types.id" })
+  @IsUUID()
+  eventTypeId: string;
 
   @ApiProperty({ type: String, format: "date-time" })
   @IsDate()

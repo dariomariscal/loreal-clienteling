@@ -17,6 +17,7 @@ export { brands } from "./brands";
 export { brandConfigs } from "./brand-configs";
 export { zones } from "./zones";
 export { stores } from "./stores";
+export { brandStores } from "./brand-stores";
 export { customers } from "./customers";
 export { beautyProfiles, beautyProfileShades } from "./beauty-profiles";
 export { products, productAvailability } from "./products";

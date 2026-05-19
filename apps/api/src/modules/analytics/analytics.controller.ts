@@ -10,7 +10,7 @@ const COLUMN_LABELS: Record<string, string> = {
   id: "ID",
   scheduledAt: "Fecha y hora",
   durationMinutes: "Duración (min)",
-  eventType: "Tipo de evento",
+  eventTypeId: "ID tipo de evento",
   eventTypeName: "Nombre del evento",
   status: "Estado",
   comments: "Comentarios",

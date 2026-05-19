@@ -22,6 +22,13 @@
       "when": 1778611434099,
       "tag": "0002_pretty_greymalkin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779208408043,
+      "tag": "0003_wild_marvel_boy",
+      "breakpoints": true
     }
   ]
 }
