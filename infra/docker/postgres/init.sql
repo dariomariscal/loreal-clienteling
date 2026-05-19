@@ -1,3 +1,6 @@
+-- Enable PostGIS (geometry, geography, spatial indexes, point-in-polygon)
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 

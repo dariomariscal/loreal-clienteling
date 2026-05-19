@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    build:
+      context: ./postgres
+    image: loreal-postgres:pg16-postgis34-pgvector
     container_name: loreal-postgres
     restart: unless-stopped
     ports:

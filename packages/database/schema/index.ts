@@ -15,7 +15,8 @@ export {
 // Domain tables
 export { brands } from "./brands";
 export { brandConfigs } from "./brand-configs";
-export { zones } from "./zones";
+export { municipalities } from "./municipalities";
+export { zones, zoneMunicipalities } from "./zones";
 export { stores } from "./stores";
 export { brandStores } from "./brand-stores";
 export { customers } from "./customers";
