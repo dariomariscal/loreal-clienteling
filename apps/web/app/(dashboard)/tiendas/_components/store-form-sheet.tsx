@@ -59,8 +59,8 @@ export function StoreFormSheet({
         state: store.state ?? undefined,
         district: store.district ?? undefined,
         postcode: store.postcode ?? undefined,
-        lat: store.lat ?? undefined,
-        lng: store.lng ?? undefined,
+        lat: store.lat != null ? Number(store.lat) : undefined,
+        lng: store.lng != null ? Number(store.lng) : undefined,
         brandIds: storeDetail?.brandIds ?? [],
       }
     : undefined;

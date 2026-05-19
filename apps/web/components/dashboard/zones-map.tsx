@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -74,20 +74,26 @@ function storesFeatureCollection(stores: Store[], zones: Zone[]) {
   return {
     type: "FeatureCollection" as const,
     features: stores
-      .filter((s) => typeof s.lat === "number" && typeof s.lng === "number")
-      .map((s) => ({
-        type: "Feature" as const,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [Number(s.lng), Number(s.lat)],
-        },
-        properties: {
-          id: s.id,
-          name: s.displayName,
-          chain: s.chain,
-          zoneColor: s.zoneId ? zoneColorById.get(s.zoneId) ?? "#1F2937" : "#9CA3AF",
-        },
-      })),
+      .map((s) => {
+        // Postgres numeric is serialized as string by the pg driver — accept both.
+        const lat = s.lat == null ? NaN : Number(s.lat);
+        const lng = s.lng == null ? NaN : Number(s.lng);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+        return {
+          type: "Feature" as const,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [lng, lat],
+          },
+          properties: {
+            id: s.id,
+            name: s.displayName,
+            chain: s.chain,
+            zoneColor: s.zoneId ? zoneColorById.get(s.zoneId) ?? "#1F2937" : "#9CA3AF",
+          },
+        };
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null),
   };
 }
 
@@ -106,7 +112,9 @@ export function ZonesMap({
 }: ZonesMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const loadedRef = useRef(false);
+  // Re-renders dependent effects when the map style finishes loading, so
+  // setData on freshly-resolved queries actually runs instead of being lost.
+  const [mapReady, setMapReady] = useState(false);
   const token = getMapboxToken();
 
   // Keep latest values reachable from event handlers without re-binding them.
@@ -137,7 +145,6 @@ export function ZonesMap({
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-right");
 
     map.on("load", () => {
-      loadedRef.current = true;
 
       // Sources are added empty; setData populates them once queries resolve.
       map.addSource("municipalities", {
@@ -249,6 +256,9 @@ export function ZonesMap({
       map.on("mouseleave", "stores-pins", () => {
         map.getCanvas().style.cursor = "";
       });
+
+      // Mark ready last so dependent effects below run after sources/layers exist.
+      setMapReady(true);
     });
 
     mapRef.current = map;
@@ -256,7 +266,7 @@ export function ZonesMap({
     return () => {
       map.remove();
       mapRef.current = null;
-      loadedRef.current = false;
+      setMapReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -264,17 +274,17 @@ export function ZonesMap({
   // ── Update sources when data changes ─────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !loadedRef.current || !boundaries) return;
+    if (!map || !mapReady || !boundaries) return;
     const src = map.getSource("municipalities") as mapboxgl.GeoJSONSource | undefined;
     src?.setData(boundaries as unknown as GeoJSON.FeatureCollection);
-  }, [boundaries]);
+  }, [boundaries, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !loadedRef.current) return;
+    if (!map || !mapReady) return;
     const src = map.getSource("stores") as mapboxgl.GeoJSONSource | undefined;
     src?.setData(storesFeatureCollection(stores, zones) as unknown as GeoJSON.FeatureCollection);
-  }, [stores, zones]);
+  }, [stores, zones, mapReady]);
 
   // ── Update fill color (zones / selection / focus) ───────────────
   const fillExpression = useMemo(
@@ -284,14 +294,14 @@ export function ZonesMap({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !loadedRef.current) return;
+    if (!map || !mapReady) return;
     map.setPaintProperty("muni-fill", "fill-color", fillExpression);
-  }, [fillExpression]);
+  }, [fillExpression, mapReady]);
 
   // Focus dimming
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !loadedRef.current) return;
+    if (!map || !mapReady) return;
     if (!focusedZoneId) {
       map.setPaintProperty("muni-fill", "fill-opacity", [
         "case",
@@ -309,7 +319,7 @@ export function ZonesMap({
       0.65,
       0.08,
     ] as unknown as mapboxgl.ExpressionSpecification);
-  }, [focusedZoneId, zones]);
+  }, [focusedZoneId, zones, mapReady]);
 
   // ── Render fallback if no token ──────────────────────────────────
   if (!token) {
