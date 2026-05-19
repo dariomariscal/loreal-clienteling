@@ -78,7 +78,15 @@ export function ProductsPage({ user }: ProductsPageProps) {
         description={`${products.length} productos en catálogo`}
         action={
           can(role, "product.create") ? (
-            <Button onClick={handleCreateClick}>Nuevo producto</Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => router.push("/productos/importar")}
+              >
+                Importar CSV
+              </Button>
+              <Button onClick={handleCreateClick}>Nuevo producto</Button>
+            </div>
           ) : undefined
         }
       />
@@ -147,12 +155,20 @@ export function ProductsPage({ user }: ProductsPageProps) {
         <EmptyState
           illustration={<ProductsIllustration className="w-full" />}
           title="Catálogo vacío"
-          description="Empieza añadiendo tu primer producto. Podrás subir imágenes, asignarlo a una marca y definir su precio."
+          description="Empieza añadiendo productos uno por uno o importa varios desde un CSV."
           action={
             can(role, "product.create") ? (
-              <Button onClick={handleCreateClick}>
-                Crear primer producto
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/productos/importar")}
+                >
+                  Importar CSV
+                </Button>
+                <Button onClick={handleCreateClick}>
+                  Crear primer producto
+                </Button>
+              </div>
             ) : undefined
           }
         />

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import type { BulkCreateProducts, BulkImportResult } from "@loreal/contracts";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -80,6 +81,19 @@ export function useCreateProduct() {
     mutationFn: (data: Record<string, unknown>) =>
       api.post<Product>("/products", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+  });
+}
+
+export function useBulkCreateProducts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: BulkCreateProducts) =>
+      api.post<BulkImportResult>("/products/bulk", data),
+    onSuccess: (result) => {
+      if (result.inserted > 0) {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+      }
+    },
   });
 }
 
