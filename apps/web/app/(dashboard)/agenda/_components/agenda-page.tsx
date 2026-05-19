@@ -39,7 +39,7 @@ import {
 import { WeekCalendar } from "./week-calendar";
 import type { AppointmentFormData } from "./appointment-form";
 import { AppointmentForm } from "./appointment-form";
-import { STATUS_LABEL, STATUS_VARIANT, EVENT_LABEL } from "./appointment-card";
+import { STATUS_LABEL, STATUS_VARIANT } from "./appointment-card";
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ export function AgendaPage({ user }: AgendaPageProps) {
     updateAppointment.mutate(
       {
         id: dialog.appointment.id,
-        status: statusUpdate as any,
+        status: statusUpdate,
       },
       { onSuccess: () => setDialog(null) },
     );
@@ -245,7 +245,7 @@ export function AgendaPage({ user }: AgendaPageProps) {
           showBa={storeView && role !== "ba"}
           onAppointmentClick={(appt) => {
             setStatusUpdate(appt.status);
-            setDialog({ mode: "detail", appointment: appt as CalendarAppointment });
+            setDialog({ mode: "detail", appointment: appt });
           }}
         />
       )}
@@ -335,9 +335,7 @@ export function AgendaPage({ user }: AgendaPageProps) {
                         />
                       )}
                       <Badge variant="secondary">
-                        {dialog.appointment.eventTypeName ??
-                          EVENT_LABEL[dialog.appointment.eventType] ??
-                          dialog.appointment.eventType}
+                        {dialog.appointment.eventTypeName ?? "Evento"}
                       </Badge>
                     </dd>
                   </div>

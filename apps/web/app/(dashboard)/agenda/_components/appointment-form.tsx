@@ -2,20 +2,17 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { APPOINTMENT_EVENT_TYPES } from "@loreal/contracts";
 import { z } from "zod";
-import { useState } from "react";
-import { useCustomerSearch, type Customer } from "@/lib/hooks";
+import { useEffect, useState } from "react";
+import {
+  useCustomerSearch,
+  useAppointmentEventTypes,
+  type Customer,
+} from "@/lib/hooks";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Form,
   FormField,
@@ -25,18 +22,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-const EVENT_LABELS: Record<string, string> = {
-  cabin_service: "Servicio cabina",
-  facial: "Facial",
-  anniversary_event: "Evento aniversario",
-  vip_cabin: "Cabina VIP",
-  product_followup: "Seguimiento producto",
-  custom: "Personalizado",
-};
-
 const appointmentFormSchema = z.object({
-  customerId: z.string().min(1, "Clienta requerida"),
-  eventType: z.enum(APPOINTMENT_EVENT_TYPES as [string, ...string[]]),
+  customerId: z.string().uuid("Clienta requerida"),
+  eventTypeId: z.string().uuid("Tipo de evento requerido"),
   scheduledAt: z.string().min(1, "Fecha requerida"),
   durationMinutes: z.coerce.number().min(1).max(480),
   comments: z.string().max(1000).optional(),
@@ -64,12 +52,13 @@ export function AppointmentForm({
   const [showResults, setShowResults] = useState(false);
 
   const { data: searchResults = [] } = useCustomerSearch(searchQuery);
+  const { data: eventTypes = [] } = useAppointmentEventTypes();
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       customerId: defaultValues?.customerId ?? "",
-      eventType: defaultValues?.eventType ?? APPOINTMENT_EVENT_TYPES[0],
+      eventTypeId: defaultValues?.eventTypeId ?? "",
       scheduledAt: defaultValues?.scheduledAt?.slice(0, 16) ?? "",
       durationMinutes: defaultValues?.durationMinutes ?? 60,
       comments: defaultValues?.comments ?? "",
@@ -78,19 +67,41 @@ export function AppointmentForm({
     },
   });
 
+  // When event types load, auto-select the first one for new appointments
+  useEffect(() => {
+    if (!form.getValues("eventTypeId") && eventTypes.length > 0) {
+      form.setValue("eventTypeId", eventTypes[0].id);
+      if (!defaultValues?.durationMinutes && eventTypes[0].durationMinutes) {
+        form.setValue("durationMinutes", eventTypes[0].durationMinutes);
+      }
+    }
+  }, [eventTypes, form, defaultValues]);
+
   const isVirtual = form.watch("isVirtual");
 
   function handleSubmit(data: AppointmentFormValues) {
     onSubmit({
       ...data,
       comments: data.comments || undefined,
-      videoLink: data.isVirtual ? (data.videoLink || undefined) : undefined,
+      videoLink: data.isVirtual ? data.videoLink || undefined : undefined,
     });
   }
 
+  const eventTypeOptions = eventTypes.map((et) => ({
+    value: et.id,
+    label: et.displayName,
+    description: et.durationMinutes
+      ? `${et.durationMinutes} min`
+      : undefined,
+  }));
+
   return (
     <Form {...form}>
-      <form id="appointment-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <form
+        id="appointment-form"
+        onSubmit={form.handleSubmit(handleSubmit)}
+        className="space-y-4"
+      >
         {!defaultValues?.customerId && (
           <div className="relative space-y-2">
             <FormField
@@ -147,26 +158,25 @@ export function AppointmentForm({
 
         <FormField
           control={form.control}
-          name="eventType"
+          name="eventTypeId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Tipo de evento</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger disabled={isPending}>
-                    <SelectValue placeholder="Seleccionar tipo">
-                      {field.value ? EVENT_LABELS[field.value] ?? field.value : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {APPOINTMENT_EVENT_TYPES.map((et) => (
-                    <SelectItem key={et} value={et}>
-                      {EVENT_LABELS[et] ?? et}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Combobox
+                  options={eventTypeOptions}
+                  value={field.value || undefined}
+                  onChange={(value) => {
+                    field.onChange(value);
+                    const selected = eventTypes.find((et) => et.id === value);
+                    if (selected?.durationMinutes) {
+                      form.setValue("durationMinutes", selected.durationMinutes);
+                    }
+                  }}
+                  placeholder="Seleccionar tipo"
+                  disabled={isPending}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

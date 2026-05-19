@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { APPOINTMENT_EVENT_TYPES, APPOINTMENT_STATUSES } from "@loreal/contracts";
+import { APPOINTMENT_STATUSES } from "@loreal/contracts";
 
 export const createAppointmentSchema = z.object({
   customerId: z.string().uuid(),
-  eventType: z.enum(APPOINTMENT_EVENT_TYPES as [string, ...string[]]),
+  eventTypeId: z.string().uuid(),
   scheduledAt: z.coerce.date(),
   durationMinutes: z.number().int().positive().max(480),
   comments: z.string().max(1000).optional(),

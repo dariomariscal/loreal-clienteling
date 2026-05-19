@@ -2,13 +2,14 @@
 
 import { cn } from "@/lib/utils";
 import { AppointmentCard } from "./appointment-card";
+import type { CalendarAppointment } from "@/lib/hooks";
 
 const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 interface WeekCalendarProps {
-  appointments: Record<string, any>[];
+  appointments: CalendarAppointment[];
   weekStart: Date;
-  onAppointmentClick: (appt: any) => void;
+  onAppointmentClick: (appt: CalendarAppointment) => void;
   showBa?: boolean;
 }
 

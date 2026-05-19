@@ -9,7 +9,7 @@ export interface Appointment {
   customerId: string;
   baUserId: string;
   storeId: string;
-  eventType: string;
+  eventTypeId: string;
   scheduledAt: string;
   durationMinutes: number;
   status: string;
@@ -49,7 +49,7 @@ export interface CalendarAppointment {
   id: string;
   scheduledAt: string;
   durationMinutes: number;
-  eventType: string;
+  eventTypeId: string;
   eventTypeName: string | null;
   eventTypeColor: string | null;
   status: string;
@@ -96,8 +96,7 @@ export function useCreateAppointment() {
   return useMutation({
     mutationFn: (data: CreateAppointment) =>
       api.post<Appointment>("/appointments", data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["appointments"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
 }
 
@@ -106,7 +105,6 @@ export function useUpdateAppointment() {
   return useMutation({
     mutationFn: ({ id, ...data }: { id: string } & UpdateAppointment) =>
       api.patch<Appointment>(`/appointments/${id}`, data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["appointments"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
 }

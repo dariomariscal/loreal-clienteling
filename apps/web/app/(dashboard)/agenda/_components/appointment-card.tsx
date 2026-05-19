@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import type { CalendarAppointment } from "@/lib/hooks";
 
 export const STATUS_LABEL: Record<string, string> = {
   scheduled: "Programada",
@@ -11,22 +12,16 @@ export const STATUS_LABEL: Record<string, string> = {
   no_show: "No asistió",
 };
 
-export const STATUS_VARIANT: Record<string, "default" | "info" | "success" | "warning" | "destructive"> = {
+export const STATUS_VARIANT: Record<
+  string,
+  "default" | "info" | "success" | "warning" | "destructive"
+> = {
   scheduled: "default",
   confirmed: "info",
   rescheduled: "warning",
   cancelled: "destructive",
   completed: "success",
   no_show: "destructive",
-};
-
-export const EVENT_LABEL: Record<string, string> = {
-  cabin_service: "Servicio cabina",
-  facial: "Facial",
-  anniversary_event: "Aniversario",
-  vip_cabin: "Cabina VIP",
-  product_followup: "Seguimiento",
-  custom: "Personalizado",
 };
 
 const SEGMENT_LABEL: Record<string, string> = {
@@ -36,45 +31,33 @@ const SEGMENT_LABEL: Record<string, string> = {
   at_risk: "En riesgo",
 };
 
-const SEGMENT_VARIANT: Record<string, "info" | "success" | "warning" | "destructive"> = {
+const SEGMENT_VARIANT: Record<
+  string,
+  "info" | "success" | "warning" | "destructive" | "secondary"
+> = {
   new: "info",
-  returning: "default" as any,
+  returning: "secondary",
   vip: "success",
   at_risk: "warning",
 };
 
-interface AppointmentCardData {
-  id: string;
-  scheduledAt: string;
-  durationMinutes: number;
-  eventType: string;
-  eventTypeName?: string | null;
-  eventTypeColor?: string | null;
-  status: string;
-  comments: string | null;
-  isVirtual: boolean;
-  customerName?: string | null;
-  customerPhone?: string | null;
-  customerSegment?: string | null;
-  baName?: string | null;
-  storeName?: string | null;
-  [key: string]: any;
-}
-
 interface AppointmentCardProps {
-  appointment: Record<string, any>;
+  appointment: CalendarAppointment;
   onClick: () => void;
   showBa?: boolean;
 }
 
-export function AppointmentCard({ appointment, onClick, showBa }: AppointmentCardProps) {
+export function AppointmentCard({
+  appointment,
+  onClick,
+  showBa,
+}: AppointmentCardProps) {
   const time = new Date(appointment.scheduledAt).toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  const status = appointment.status;
-  const eventLabel = appointment.eventTypeName ?? EVENT_LABEL[appointment.eventType] ?? appointment.eventType;
+  const eventLabel = appointment.eventTypeName ?? "Evento";
   const colorBar = appointment.eventTypeColor ?? "#6B6B6B";
 
   return (
@@ -93,7 +76,9 @@ export function AppointmentCard({ appointment, onClick, showBa }: AppointmentCar
           {/* Row 1: Time + Duration */}
           <div className="mb-1 flex items-center justify-between">
             <span className="font-semibold tabular-nums">{time}</span>
-            <span className="text-muted-foreground">{appointment.durationMinutes} min</span>
+            <span className="text-muted-foreground">
+              {appointment.durationMinutes} min
+            </span>
           </div>
 
           {/* Row 2: Client name (the most important info) */}
@@ -104,11 +89,14 @@ export function AppointmentCard({ appointment, onClick, showBa }: AppointmentCar
               </span>
               {appointment.customerSegment && (
                 <Badge
-                  variant={SEGMENT_VARIANT[appointment.customerSegment] ?? "secondary"}
+                  variant={
+                    SEGMENT_VARIANT[appointment.customerSegment] ?? "secondary"
+                  }
                   size="sm"
                   className="text-[10px]"
                 >
-                  {SEGMENT_LABEL[appointment.customerSegment] ?? appointment.customerSegment}
+                  {SEGMENT_LABEL[appointment.customerSegment] ??
+                    appointment.customerSegment}
                 </Badge>
               )}
             </div>
@@ -116,26 +104,30 @@ export function AppointmentCard({ appointment, onClick, showBa }: AppointmentCar
 
           {/* Row 3: Event type + Status badges */}
           <div className="mb-1 flex flex-wrap gap-1">
-            <Badge variant="secondary" size="sm">{eventLabel}</Badge>
-            <Badge variant={STATUS_VARIANT[status] ?? "secondary"} size="sm">
-              {STATUS_LABEL[status] ?? status}
+            <Badge variant="secondary" size="sm">
+              {eventLabel}
+            </Badge>
+            <Badge variant={STATUS_VARIANT[appointment.status] ?? "secondary"} size="sm">
+              {STATUS_LABEL[appointment.status] ?? appointment.status}
             </Badge>
             {appointment.isVirtual && (
-              <Badge variant="info" size="sm">Virtual</Badge>
+              <Badge variant="info" size="sm">
+                Virtual
+              </Badge>
             )}
           </div>
 
           {/* Row 4: BA name (in store view) */}
           {showBa && appointment.baName && (
             <div className="text-muted-foreground">
-              <span className="inline-block size-1.5 rounded-full bg-accent/60 mr-1" />
+              <span className="mr-1 inline-block size-1.5 rounded-full bg-accent/60" />
               {appointment.baName}
             </div>
           )}
 
           {/* Row 5: Phone if available */}
           {appointment.customerPhone && (
-            <div className="text-muted-foreground tabular-nums">
+            <div className="tabular-nums text-muted-foreground">
               {appointment.customerPhone}
             </div>
           )}

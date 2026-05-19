@@ -9,4 +9,5 @@ export * from "./use-templates";
 export * from "./use-users";
 export * from "./use-customer-detail";
 export * from "./use-appointments";
+export * from "./use-appointment-event-types";
 export * from "./use-communications";
