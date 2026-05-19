@@ -52,7 +52,8 @@ export function AppointmentForm({
   const [showResults, setShowResults] = useState(false);
 
   const { data: searchResults = [] } = useCustomerSearch(searchQuery);
-  const { data: eventTypes = [] } = useAppointmentEventTypes();
+  const { data: eventTypes = [], isLoading: eventTypesLoading } =
+    useAppointmentEventTypes();
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
@@ -173,10 +174,21 @@ export function AppointmentForm({
                       form.setValue("durationMinutes", selected.durationMinutes);
                     }
                   }}
-                  placeholder="Seleccionar tipo"
-                  disabled={isPending}
+                  placeholder={
+                    eventTypesLoading
+                      ? "Cargando..."
+                      : eventTypes.length === 0
+                        ? "Sin tipos configurados"
+                        : "Seleccionar tipo"
+                  }
+                  disabled={isPending || eventTypesLoading || eventTypes.length === 0}
                 />
               </FormControl>
+              {eventTypes.length === 0 && !eventTypesLoading ? (
+                <p className="text-xs text-muted-foreground">
+                  Aún no hay tipos de cita. Configura al menos uno antes de agendar.
+                </p>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}

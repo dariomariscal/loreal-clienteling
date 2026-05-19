@@ -69,13 +69,33 @@ export class AppointmentsService {
 
   async create(data: CreateAppointmentDto, user: SessionUser) {
     const storeId = this.scopeService.assertStore(user);
+
+    // Fall back to the first active event type if the client somehow omitted
+    // the field (e.g. the dropdown rendered empty). Without this the INSERT
+    // hits a NOT NULL violation that surfaces as an opaque 500.
+    let eventTypeId = data.eventTypeId;
+    if (!eventTypeId) {
+      const [fallback] = await this.db
+        .select({ id: appointmentEventTypes.id })
+        .from(appointmentEventTypes)
+        .where(eq(appointmentEventTypes.active, true))
+        .orderBy(appointmentEventTypes.sortOrder)
+        .limit(1);
+      if (!fallback) {
+        throw new NotFoundException(
+          "No hay tipos de cita configurados. Crea al menos uno antes de agendar.",
+        );
+      }
+      eventTypeId = fallback.id;
+    }
+
     const [appt] = await this.db
       .insert(appointments)
       .values({
         customerId: data.customerId,
         baUserId: user.id,
         storeId,
-        eventTypeId: data.eventTypeId,
+        eventTypeId,
         scheduledAt: new Date(data.scheduledAt),
         durationMinutes: data.durationMinutes,
         comments: data.comments,

@@ -7,6 +7,41 @@ import type {
   UpdateAppointmentEventTypeDto,
 } from "../../dtos/appointment-event-types.dto";
 
+const DEFAULT_EVENT_TYPES = [
+  {
+    code: "consulta",
+    displayName: "Consulta de belleza",
+    durationMinutes: 30,
+    color: "#D4AF37",
+    description: "Sesión inicial para conocer a la clienta y sus necesidades.",
+    sortOrder: 1,
+  },
+  {
+    code: "diagnostico",
+    displayName: "Diagnóstico de piel",
+    durationMinutes: 45,
+    color: "#9B59B6",
+    description: "Evaluación de piel para recomendar rutina.",
+    sortOrder: 2,
+  },
+  {
+    code: "maquillaje",
+    displayName: "Sesión de maquillaje",
+    durationMinutes: 60,
+    color: "#E74C3C",
+    description: "Aplicación o demostración de maquillaje.",
+    sortOrder: 3,
+  },
+  {
+    code: "evento",
+    displayName: "Evento privado",
+    durationMinutes: 90,
+    color: "#2ECC71",
+    description: "Sesión para eventos especiales o private shopping.",
+    sortOrder: 4,
+  },
+];
+
 @Injectable()
 export class AppointmentEventTypesService {
   constructor(@Inject(DATABASE_TOKEN) private db: Database) {}
@@ -19,11 +54,25 @@ export class AppointmentEventTypesService {
   }
 
   async findActive() {
-    return this.db
+    const rows = await this.db
       .select()
       .from(appointmentEventTypes)
       .where(eq(appointmentEventTypes.active, true))
-      .orderBy(appointmentEventTypes.displayName);
+      .orderBy(appointmentEventTypes.sortOrder, appointmentEventTypes.displayName);
+
+    // First-run bootstrap: agendar citas requiere al menos un tipo de evento.
+    // Si la tabla está vacía, inserta el set base de tipos para que el flujo
+    // funcione sin que un admin tenga que crearlos manualmente.
+    if (rows.length === 0) {
+      await this.db.insert(appointmentEventTypes).values(DEFAULT_EVENT_TYPES);
+      return this.db
+        .select()
+        .from(appointmentEventTypes)
+        .where(eq(appointmentEventTypes.active, true))
+        .orderBy(appointmentEventTypes.sortOrder, appointmentEventTypes.displayName);
+    }
+
+    return rows;
   }
 
   async findOne(id: string) {
