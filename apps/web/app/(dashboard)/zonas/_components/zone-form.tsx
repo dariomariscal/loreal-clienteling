@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type CreateZone } from "@loreal/contracts";
 import { createZoneSchema } from "@/lib/schemas/zones";
+import { slugifyCode } from "@/lib/slugify";
 import { Input } from "@/components/ui/input";
 import {
   Form,
@@ -12,6 +13,7 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 
 interface ZoneFormProps {
@@ -35,12 +37,25 @@ export function ZoneForm({ defaultValues, onSubmit, isPending }: ZoneFormProps) 
       <form id="zone-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="code"
+          name="displayName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Código</FormLabel>
+              <FormLabel>Nombre</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="CENTRO" disabled={isPending} />
+                <Input
+                  {...field}
+                  placeholder="Zona Centro"
+                  disabled={isPending}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    const currentCode = form.getValues("code");
+                    if (!currentCode || currentCode === slugifyCode(field.value)) {
+                      form.setValue("code", slugifyCode(e.target.value), {
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -49,13 +64,21 @@ export function ZoneForm({ defaultValues, onSubmit, isPending }: ZoneFormProps) 
 
         <FormField
           control={form.control}
-          name="displayName"
+          name="code"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nombre</FormLabel>
+              <FormLabel>Código</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="Zona Centro" disabled={isPending} />
+                <Input
+                  {...field}
+                  placeholder="CENTRO"
+                  disabled={isPending}
+                  className="font-mono uppercase"
+                />
               </FormControl>
+              <FormDescription>
+                Se genera desde el nombre. Puedes editarlo si necesitas.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

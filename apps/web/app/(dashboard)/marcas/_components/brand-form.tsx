@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { type CreateBrand, BRAND_TIERS } from "@loreal/contracts";
 import { createBrandSchema } from "@/lib/schemas/brands";
+import { slugifyCode } from "@/lib/slugify";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -77,12 +78,25 @@ export function BrandForm({ defaultValues, onSubmit, isPending }: BrandFormProps
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
-              name="code"
+              name="displayName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Código</FormLabel>
+                  <FormLabel>Nombre</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="LANCOME" disabled={isPending} />
+                    <Input
+                      {...field}
+                      placeholder="Lancôme"
+                      disabled={isPending}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        const currentCode = form.getValues("code");
+                        if (!currentCode || currentCode === slugifyCode(field.value)) {
+                          form.setValue("code", slugifyCode(e.target.value), {
+                            shouldValidate: true,
+                          });
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -90,12 +104,17 @@ export function BrandForm({ defaultValues, onSubmit, isPending }: BrandFormProps
             />
             <FormField
               control={form.control}
-              name="displayName"
+              name="code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre</FormLabel>
+                  <FormLabel>Código</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Lancôme" disabled={isPending} />
+                    <Input
+                      {...field}
+                      placeholder="LANCOME"
+                      disabled={isPending}
+                      className="font-mono uppercase"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

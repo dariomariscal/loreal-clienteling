@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { type CreateStore, STORE_CHAINS } from "@loreal/contracts";
 import { createStoreSchema } from "@/lib/schemas/stores";
 import { useCreateZone, type Zone, type Brand } from "@/lib/hooks";
+import { slugifyCode } from "@/lib/slugify";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select";
@@ -111,12 +112,25 @@ export function StoreForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
-            name="code"
+            name="displayName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Código</FormLabel>
+                <FormLabel>Nombre</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder="LIV-POLANCO" disabled={isPending} />
+                  <Input
+                    {...field}
+                    placeholder="Liverpool Polanco"
+                    disabled={isPending}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      const currentCode = form.getValues("code");
+                      if (!currentCode || currentCode === slugifyCode(field.value)) {
+                        form.setValue("code", slugifyCode(e.target.value), {
+                          shouldValidate: true,
+                        });
+                      }
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -124,12 +138,17 @@ export function StoreForm({
           />
           <FormField
             control={form.control}
-            name="displayName"
+            name="code"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nombre</FormLabel>
+                <FormLabel>Código</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder="Liverpool Polanco" disabled={isPending} />
+                  <Input
+                    {...field}
+                    placeholder="LIVERPOOL-POLANCO"
+                    disabled={isPending}
+                    className="font-mono uppercase"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreateZone, type Zone } from "@/lib/hooks";
 import { createZoneSchema } from "@/lib/schemas/zones";
+import { slugifyCode } from "@/lib/slugify";
 import type { CreateZone } from "@loreal/contracts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ export function ZoneQuickCreate({
   useEffect(() => {
     if (open) {
       form.reset({
-        code: slugify(initialName),
+        code: slugifyCode(initialName),
         displayName: initialName,
         region: "",
       });
@@ -93,6 +94,15 @@ export function ZoneQuickCreate({
                         placeholder="Zona Centro"
                         disabled={createZone.isPending}
                         autoFocus
+                        onChange={(e) => {
+                          field.onChange(e);
+                          const currentCode = form.getValues("code");
+                          if (!currentCode || currentCode === slugifyCode(field.value)) {
+                            form.setValue("code", slugifyCode(e.target.value), {
+                              shouldValidate: true,
+                            });
+                          }
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -139,12 +149,3 @@ export function ZoneQuickCreate({
   );
 }
 
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 30);
-}
