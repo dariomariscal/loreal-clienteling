@@ -1,25 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useBrands, useCreateBrand, useUpdateBrand, type Brand } from "@/lib/hooks";
+import { useBrands, type Brand } from "@/lib/hooks";
 import { can } from "@/lib/permissions";
+import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DataTable, type Column } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { BrandsIllustration } from "@/components/ui/illustrations";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import type { CreateBrand } from "@loreal/contracts";
-import { BrandForm } from "./brand-form";
-
-type DialogState = null | { mode: "create" } | { mode: "edit"; brand: Brand };
+import { BrandFormSheet } from "./brand-form-sheet";
 
 const TIER_VARIANT: Record<string, "info" | "default" | "secondary"> = {
   luxury: "default",
@@ -40,9 +31,8 @@ interface BrandsPageProps {
 export function BrandsPage({ user }: BrandsPageProps) {
   const role = user.role ?? "ba";
   const { data: brands = [], isLoading } = useBrands();
-  const createBrand = useCreateBrand();
-  const updateBrand = useUpdateBrand();
-  const [dialog, setDialog] = useState<DialogState>(null);
+  const { open: openCreate } = useCreateMenu();
+  const [editing, setEditing] = useState<Brand | null>(null);
 
   const columns: Column<Brand>[] = [
     { key: "code", label: "Código" },
@@ -78,7 +68,7 @@ export function BrandsPage({ user }: BrandsPageProps) {
               <Button
                 variant="ghost"
                 size="icon-xs"
-                onClick={() => setDialog({ mode: "edit", brand: row })}
+                onClick={() => setEditing(row)}
               >
                 <EditIcon className="size-3.5" />
               </Button>
@@ -88,19 +78,6 @@ export function BrandsPage({ user }: BrandsPageProps) {
       : []),
   ];
 
-  function handleSubmit(data: CreateBrand) {
-    if (dialog?.mode === "edit") {
-      updateBrand.mutate(
-        { id: dialog.brand.id, ...data },
-        { onSuccess: () => setDialog(null) },
-      );
-    } else {
-      createBrand.mutate(data, { onSuccess: () => setDialog(null) });
-    }
-  }
-
-  const isPending = createBrand.isPending || updateBrand.isPending;
-
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -108,54 +85,51 @@ export function BrandsPage({ user }: BrandsPageProps) {
         description="Portafolio de marcas L'Oréal"
         action={
           can(role, "brand.create") ? (
-            <Button onClick={() => setDialog({ mode: "create" })}>
-              Nueva marca
-            </Button>
+            <Button onClick={() => openCreate("brand")}>Nueva marca</Button>
           ) : undefined
         }
       />
 
-      <DataTable
-        columns={columns}
-        data={brands}
-        isLoading={isLoading}
-        emptyTitle="No hay marcas"
-        emptyDescription="Crea la primera marca del portafolio"
-      />
+      {brands.length === 0 && !isLoading ? (
+        <EmptyState
+          illustration={<BrandsIllustration className="w-full" />}
+          title="Aún no hay marcas en el portafolio"
+          description="Configura las marcas L'Oréal con su logo, colores y segmento para que tu equipo las vea en la app móvil."
+          action={
+            can(role, "brand.create") ? (
+              <Button onClick={() => openCreate("brand")}>Crear primera marca</Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={brands}
+          isLoading={isLoading}
+          emptyTitle="No hay marcas"
+        />
+      )}
 
-      <Dialog open={dialog !== null} onOpenChange={(open) => !open && setDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {dialog?.mode === "edit" ? "Editar marca" : "Nueva marca"}
-            </DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <BrandForm
-              defaultValues={dialog?.mode === "edit" ? dialog.brand : undefined}
-              onSubmit={handleSubmit}
-              isPending={isPending}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose>
-              <Button variant="outline" disabled={isPending}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button type="submit" form="brand-form" disabled={isPending}>
-              {isPending ? "Guardando..." : "Guardar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BrandFormSheet
+        open={editing !== null}
+        onOpenChange={(open) => !open && setEditing(null)}
+        brand={editing ?? undefined}
+      />
     </div>
   );
 }
 
 function EditIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z" />
     </svg>
   );

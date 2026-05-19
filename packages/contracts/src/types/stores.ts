@@ -6,6 +6,9 @@ export interface CreateStore {
   address?: string;
   city?: string;
   state?: string;
+  lat?: number;
+  lng?: number;
+  brandIds?: string[];
 }
 
 export type UpdateStore = Partial<CreateStore>;

@@ -12,9 +12,28 @@ export interface Store {
   address: string | null;
   city: string | null;
   state: string | null;
+  lat: number | null;
+  lng: number | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StoreWithBrands extends Store {
+  brandIds: string[];
+}
+
+export interface CreateStoreInput {
+  code: string;
+  displayName: string;
+  chain: string;
+  zoneId?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  lat?: number;
+  lng?: number;
+  brandIds?: string[];
 }
 
 // ── Query keys ─────────────────────────────────────────────────────
@@ -36,7 +55,7 @@ export function useStores() {
 export function useStore(id: string) {
   return useQuery({
     queryKey: storeKeys.detail(id),
-    queryFn: () => api.get<Store>(`/stores/${id}`),
+    queryFn: () => api.get<StoreWithBrands>(`/stores/${id}`),
     enabled: !!id,
   });
 }
@@ -46,15 +65,7 @@ export function useStore(id: string) {
 export function useCreateStore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: {
-      code: string;
-      displayName: string;
-      chain: string;
-      zoneId?: string;
-      address?: string;
-      city?: string;
-      state?: string;
-    }) => api.post<Store>("/stores", data),
+    mutationFn: (data: CreateStoreInput) => api.post<Store>("/stores", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: storeKeys.all }),
   });
 }
@@ -62,7 +73,7 @@ export function useCreateStore() {
 export function useUpdateStore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string } & Partial<Omit<Store, "id" | "createdAt" | "updatedAt">>) =>
+    mutationFn: ({ id, ...data }: { id: string } & Partial<CreateStoreInput>) =>
       api.patch<Store>(`/stores/${id}`, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: storeKeys.all });

@@ -9,6 +9,7 @@ import { signOut } from "@/lib/auth-client";
 import { useSidebar } from "@/components/dashboard/sidebar-context";
 import { useBrand } from "@/lib/hooks/use-brands";
 import { LorealLogo, LancomeLogo, YslLogo } from "@/components/ui/brand-logos";
+import { CreateMenuButton } from "@/components/dashboard/create-menu-button";
 import type { UserRole } from "@loreal/contracts";
 
 // ── Types ────────────────────────────────────────────────────────
@@ -151,6 +152,9 @@ function SidebarContent({ user }: SidebarProps) {
           </button>
         </div>
       )}
+
+      {/* Global Create menu */}
+      <CreateMenuButton role={role} />
 
       {/* Navigation — generous Ma spacing between sections */}
       <nav className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-3 py-4">

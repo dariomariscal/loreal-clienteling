@@ -4,6 +4,8 @@ import { ROUTES } from "@/lib/constants";
 import { SidebarProvider } from "@/components/dashboard/sidebar-context";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
+import { CreateMenuProvider } from "@/components/providers/create-menu-provider";
+import { GlobalCreateSheets } from "@/components/dashboard/global-create-sheets";
 
 export default async function DashboardLayout({
   children,
@@ -21,17 +23,21 @@ export default async function DashboardLayout({
   }
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen overflow-hidden">
-        <DashboardSidebar user={session.user} />
+    <CreateMenuProvider>
+      <SidebarProvider>
+        <div className="flex h-screen overflow-hidden">
+          <DashboardSidebar user={session.user} />
 
-        <div className="flex flex-1 flex-col overflow-hidden bg-muted/30">
-          <DashboardHeader />
-          <main className="flex-1 overflow-y-auto overscroll-contain px-6 py-8 lg:px-10 lg:py-10">
-            {children}
-          </main>
+          <div className="flex flex-1 flex-col overflow-hidden bg-muted/30">
+            <DashboardHeader />
+            <main className="flex-1 overflow-y-auto overscroll-contain px-6 py-8 lg:px-10 lg:py-10">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+
+        <GlobalCreateSheets />
+      </SidebarProvider>
+    </CreateMenuProvider>
   );
 }

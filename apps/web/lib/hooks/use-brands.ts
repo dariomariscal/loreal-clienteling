@@ -59,7 +59,7 @@ export function useBrand(id: string) {
 export function useCreateBrand() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { code: string; displayName: string; tier: string }) =>
+    mutationFn: (data: { code: string; displayName: string; tier: string; logoUrl?: string }) =>
       api.post<Brand>("/brands", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: brandKeys.all }),
   });
@@ -68,7 +68,7 @@ export function useCreateBrand() {
 export function useUpdateBrand() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string } & Partial<Pick<Brand, "code" | "displayName" | "tier" | "active">>) =>
+    mutationFn: ({ id, ...data }: { id: string } & Partial<{ code: string; displayName: string; tier: string; logoUrl: string; active: boolean }>) =>
       api.patch<Brand>(`/brands/${id}`, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: brandKeys.all });
