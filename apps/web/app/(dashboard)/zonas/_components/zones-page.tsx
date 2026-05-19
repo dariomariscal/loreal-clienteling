@@ -90,9 +90,17 @@ export function ZonesPage({ user }: ZonesPageProps) {
               onMunicipalitySelectionChange={
                 can(role, "zone.create")
                   ? (ids) => {
-                      // Single-click to start a new zone with that municipality preselected.
-                      // We open the sheet only on the first click; subsequent clicks edit selection in the form.
-                      if (ids.length > 0 && !creating && !editing) {
+                      // Single-click on a municipality. If it already belongs to a
+                      // zone, open that zone in edit mode (what the user expects).
+                      // Otherwise start a new zone with that municipality preselected.
+                      if (ids.length === 0 || creating || editing) return;
+                      const clicked = ids[ids.length - 1];
+                      const existing = zones.find((z) =>
+                        z.municipalityIds.includes(clicked),
+                      );
+                      if (existing) {
+                        setEditing(existing);
+                      } else {
                         startCreate(ids);
                       }
                     }

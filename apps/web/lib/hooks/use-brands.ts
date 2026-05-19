@@ -11,6 +11,9 @@ export interface Brand {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
 }
 
 export interface BrandConfig {

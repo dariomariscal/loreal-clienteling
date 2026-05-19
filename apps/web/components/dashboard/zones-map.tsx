@@ -41,30 +41,32 @@ function buildMunicipalityFillColor(
   selectedIds: string[],
   selectionColor: string,
 ) {
-  // We build a Mapbox `match` expression: input is feature.id, output is hex color.
-  // Selection takes priority, then zone color, otherwise fallback.
-  const pairs: Array<[string, string]> = [];
+  // Mapbox `match` requires unique branch labels, so collapse to a map.
+  // Selection wins over zone color (applied last).
+  const colorById = new Map<string, string>();
 
-  // Zone-assigned municipalities
   for (const z of zones) {
     for (const mid of z.municipalityIds) {
-      pairs.push([mid, z.color]);
+      colorById.set(mid, z.color);
     }
   }
-
-  // Selected (overrides zone color visually while editing)
   for (const id of selectedIds) {
-    pairs.push([id, selectionColor]);
+    colorById.set(id, selectionColor);
   }
 
-  if (pairs.length === 0) {
+  if (colorById.size === 0) {
     return FALLBACK_COLOR;
+  }
+
+  const pairs: string[] = [];
+  for (const [id, color] of colorById) {
+    pairs.push(id, color);
   }
 
   return [
     "match",
     ["get", "id"],
-    ...pairs.flatMap(([id, color]) => [id, color]),
+    ...pairs,
     FALLBACK_COLOR,
   ] as unknown as mapboxgl.ExpressionSpecification;
 }

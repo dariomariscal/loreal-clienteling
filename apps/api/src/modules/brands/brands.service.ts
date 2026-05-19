@@ -13,12 +13,25 @@ export class BrandsService {
   ) {}
 
   async findAll(user: SessionUser) {
-    if (user.role === "admin") {
-      return this.db.select().from(brands);
-    }
-    // Non-admin users see only their brand
+    const base = this.db
+      .select({
+        id: brands.id,
+        code: brands.code,
+        displayName: brands.displayName,
+        tier: brands.tier,
+        active: brands.active,
+        createdAt: brands.createdAt,
+        updatedAt: brands.updatedAt,
+        logoUrl: brandConfigs.logoUrl,
+        primaryColor: brandConfigs.primaryColor,
+        accentColor: brandConfigs.accentColor,
+      })
+      .from(brands)
+      .leftJoin(brandConfigs, eq(brandConfigs.brandId, brands.id));
+
+    if (user.role === "admin") return base;
     const brandId = this.scopeService.assertBrand(user);
-    return this.db.select().from(brands).where(eq(brands.id, brandId));
+    return base.where(eq(brands.id, brandId));
   }
 
   async findOne(id: string) {

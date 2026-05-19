@@ -35,8 +35,17 @@ export function BrandsPage({ user }: BrandsPageProps) {
   const [editing, setEditing] = useState<Brand | null>(null);
 
   const columns: Column<Brand>[] = [
-    { key: "code", label: "Código" },
-    { key: "displayName", label: "Nombre" },
+    {
+      key: "displayName",
+      label: "Marca",
+      render: (_, row) => <BrandIdentityCell brand={row} />,
+    },
+    {
+      key: "primaryColor",
+      label: "Branding",
+      className: "w-40",
+      render: (_, row) => <BrandColorsCell brand={row} />,
+    },
     {
       key: "tier",
       label: "Segmento",
@@ -116,6 +125,65 @@ export function BrandsPage({ user }: BrandsPageProps) {
         brand={editing ?? undefined}
       />
     </div>
+  );
+}
+
+function BrandIdentityCell({ brand }: { brand: Brand }) {
+  const primary = brand.primaryColor ?? "#0A4C80";
+  const monogram = brand.displayName?.charAt(0)?.toUpperCase() ?? "?";
+
+  return (
+    <div className="flex items-center gap-4 min-w-0 py-1">
+      <div
+        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-border bg-background p-2 shadow-sm overflow-hidden"
+        style={!brand.logoUrl ? { backgroundColor: primary, padding: 0 } : undefined}
+      >
+        {brand.logoUrl ? (
+          <img
+            src={brand.logoUrl}
+            alt=""
+            className="max-h-full max-w-full object-contain"
+          />
+        ) : (
+          <span className="text-lg font-semibold text-white">{monogram}</span>
+        )}
+      </div>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium text-foreground">
+          {brand.displayName}
+        </div>
+        <div className="truncate text-[11px] uppercase tracking-wider text-muted-foreground">
+          {brand.code}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrandColorsCell({ brand }: { brand: Brand }) {
+  if (!brand.primaryColor && !brand.accentColor) {
+    return <span className="text-xs text-muted-foreground">Sin configurar</span>;
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      {brand.primaryColor ? (
+        <ColorChip color={brand.primaryColor} />
+      ) : null}
+      {brand.accentColor ? <ColorChip color={brand.accentColor} /> : null}
+      <span className="ml-1 font-mono text-[11px] text-muted-foreground">
+        {brand.primaryColor ?? brand.accentColor}
+      </span>
+    </div>
+  );
+}
+
+function ColorChip({ color }: { color: string }) {
+  return (
+    <span
+      className="inline-block h-4 w-4 rounded-full border border-border shadow-sm"
+      style={{ backgroundColor: color }}
+      title={color}
+    />
   );
 }
 
