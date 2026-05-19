@@ -38,6 +38,7 @@ function useDebouncedValue<T>(value: T, delay = 200): T {
 export function GlobalSearch() {
   const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const anchorRef = React.useRef<HTMLDivElement>(null);
   const [query, setQuery] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const debouncedQuery = useDebouncedValue(query, 200);
@@ -142,27 +143,23 @@ export function GlobalSearch() {
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger
-        render={
-          <div className="relative w-full max-w-sm">
-            <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => isActive && setOpen(true)}
-              placeholder="Buscar clientes, productos, tiendas..."
-              className="h-8 w-full rounded-xl border border-input bg-muted/30 pl-8 pr-12 text-sm outline-none transition-all duration-200 hover:border-foreground/20 placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-            <kbd className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground md:inline-block">
-              /
-            </kbd>
-          </div>
-        }
-      />
+      <div ref={anchorRef} className="relative w-full max-w-sm">
+        <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => isActive && setOpen(true)}
+          placeholder="Buscar clientes, productos, tiendas..."
+          className="h-8 w-full rounded-xl border border-input bg-muted/30 pl-8 pr-12 text-sm outline-none transition-all duration-200 hover:border-foreground/20 placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        />
+        <kbd className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground md:inline-block">
+          /
+        </kbd>
+      </div>
       <Popover.Portal>
-        <Popover.Positioner sideOffset={6} className="z-50">
+        <Popover.Positioner anchor={anchorRef} sideOffset={6} className="z-50">
           <Popover.Popup className="w-[var(--anchor-width)] min-w-[340px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/[0.06] outline-none">
             {isLoading && results.length === 0 ? (
               <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">

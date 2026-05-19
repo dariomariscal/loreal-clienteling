@@ -39,6 +39,7 @@ function AddressAutocomplete({
   const hasToken = Boolean(getMapboxToken())
   const sessionToken = React.useMemo(() => crypto.randomUUID(), [])
   const [open, setOpen] = React.useState(false)
+  const anchorRef = React.useRef<HTMLDivElement>(null)
   const { suggestions, isLoading } = useAddressSuggestions(value, sessionToken)
 
   React.useEffect(() => {
@@ -68,28 +69,24 @@ function AddressAutocomplete({
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger
-        render={
-          <div className="relative">
-            <MapPinIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
-            <Input
-              id={id}
-              type="text"
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              disabled={disabled}
-              className={cn("pl-9", className)}
-              autoComplete="off"
-            />
-            {isLoading && (
-              <Loader2Icon className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-            )}
-          </div>
-        }
-      />
+      <div ref={anchorRef} className="relative">
+        <MapPinIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
+        <Input
+          id={id}
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={cn("pl-9", className)}
+          autoComplete="off"
+        />
+        {isLoading && (
+          <Loader2Icon className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+        )}
+      </div>
       <Popover.Portal>
-        <Popover.Positioner sideOffset={6} className="z-50">
+        <Popover.Positioner anchor={anchorRef} sideOffset={6} className="z-50">
           <Popover.Popup className="w-[var(--anchor-width)] min-w-[280px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/[0.06] outline-none">
             <ul className="max-h-72 overflow-y-auto p-1">
               {suggestions.map((s) => (

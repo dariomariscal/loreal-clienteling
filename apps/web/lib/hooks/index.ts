@@ -1,5 +1,6 @@
 export * from "./use-brands";
 export * from "./use-zones";
+export * from "./use-geo";
 export * from "./use-stores";
 export * from "./use-products";
 export * from "./use-customers";

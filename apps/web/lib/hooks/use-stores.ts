@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import type { CreateStore } from "@loreal/contracts";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -8,10 +9,16 @@ export interface Store {
   code: string;
   displayName: string;
   chain: string;
+  /** Derived server-side from address. Null until a zone covers the store's municipality. */
   zoneId: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
+  /** Alcaldía label from Mapbox (e.g. "Miguel Hidalgo"). */
+  district: string | null;
+  /** INEGI 5-digit code, derived by trigger from lat/lng. */
+  municipalityId: string | null;
+  postcode: string | null;
   lat: number | null;
   lng: number | null;
   active: boolean;
@@ -21,19 +28,6 @@ export interface Store {
 
 export interface StoreWithBrands extends Store {
   brandIds: string[];
-}
-
-export interface CreateStoreInput {
-  code: string;
-  displayName: string;
-  chain: string;
-  zoneId?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  lat?: number;
-  lng?: number;
-  brandIds?: string[];
 }
 
 // ── Query keys ─────────────────────────────────────────────────────
@@ -65,7 +59,7 @@ export function useStore(id: string) {
 export function useCreateStore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateStoreInput) => api.post<Store>("/stores", data),
+    mutationFn: (data: CreateStore) => api.post<Store>("/stores", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: storeKeys.all }),
   });
 }
@@ -73,7 +67,7 @@ export function useCreateStore() {
 export function useUpdateStore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string } & Partial<CreateStoreInput>) =>
+    mutationFn: ({ id, ...data }: { id: string } & Partial<CreateStore>) =>
       api.patch<Store>(`/stores/${id}`, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: storeKeys.all });

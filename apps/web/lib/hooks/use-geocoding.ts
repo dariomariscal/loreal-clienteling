@@ -15,6 +15,10 @@ export interface GeocodingResult {
   city?: string;
   state?: string;
   country?: string;
+  /** Alcaldía / borough / colonia (Mapbox district context). */
+  district?: string;
+  /** Postal code (Mapbox postcode context). */
+  postcode?: string;
   lat: number;
   lng: number;
 }
@@ -97,6 +101,8 @@ export async function retrieveAddress(
     city: ctx.place?.name ?? ctx.locality?.name,
     state: ctx.region?.name,
     country: ctx.country?.name,
+    district: ctx.district?.name ?? ctx.neighborhood?.name,
+    postcode: ctx.postcode?.name,
     lat,
     lng,
   };

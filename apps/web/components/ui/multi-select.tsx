@@ -58,17 +58,13 @@ function MultiSelect({
 
   return (
     <Popover.Root>
-      <Popover.Trigger
-        id={id}
-        disabled={disabled}
+      <div
         className={cn(
-          "flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-xl border border-input bg-transparent px-3 py-2 text-left text-sm transition-all duration-200 outline-none hover:border-foreground/20 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+          "group/multi flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-xl border border-input bg-transparent px-3 py-2 text-sm transition-all duration-200 hover:border-foreground/20 has-[[data-popup-open]]:border-ring has-[[data-popup-open]]:ring-3 has-[[data-popup-open]]:ring-ring/50",
+          disabled && "pointer-events-none opacity-50",
           className,
         )}
       >
-        {selected.length === 0 && (
-          <span className="text-muted-foreground/60">{placeholder}</span>
-        )}
         {selected.map((opt) => (
           <span
             key={opt.value}
@@ -78,19 +74,27 @@ function MultiSelect({
             {opt.label}
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                remove(opt.value)
-              }}
-              className="rounded-full p-0.5 hover:bg-foreground/10"
+              onClick={() => remove(opt.value)}
+              className="rounded-full p-0.5 transition-colors hover:bg-foreground/10"
               aria-label={`Quitar ${opt.label}`}
             >
               <XIcon className="size-3" />
             </button>
           </span>
         ))}
-        <ChevronDownIcon className="ml-auto size-4 shrink-0 text-muted-foreground" />
-      </Popover.Trigger>
+        <Popover.Trigger
+          id={id}
+          disabled={disabled}
+          className="flex flex-1 items-center justify-between gap-2 self-stretch min-w-[120px] text-left outline-none"
+        >
+          {selected.length === 0 ? (
+            <span className="text-muted-foreground/60">{placeholder}</span>
+          ) : (
+            <span aria-hidden />
+          )}
+          <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+        </Popover.Trigger>
+      </div>
 
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} className="z-50">
