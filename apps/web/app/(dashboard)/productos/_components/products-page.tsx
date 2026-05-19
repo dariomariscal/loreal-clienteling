@@ -1,14 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
-import {
-  useProducts,
-  useBrands,
-  useCreateProduct,
-  useUpdateProduct,
-  type Product,
-} from "@/lib/hooks";
+import { useRouter } from "next/navigation";
+import { useProducts, useBrands, type Product } from "@/lib/hooks";
 import { can } from "@/lib/permissions";
 import { PRODUCT_CATEGORIES } from "@loreal/contracts";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -16,6 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ProductsIllustration } from "@/components/ui/illustrations";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectTrigger,
@@ -23,23 +28,6 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import type { CreateProduct } from "@loreal/contracts";
-import { ProductForm } from "./product-form";
-
-type DialogState =
-  | null
-  | { mode: "create" }
-  | { mode: "edit"; product: Product }
-  | { mode: "detail"; product: Product };
 
 const CATEGORY_LABEL: Record<string, string> = {
   skincare: "Skincare",
@@ -59,41 +47,29 @@ interface ProductsPageProps {
 
 export function ProductsPage({ user }: ProductsPageProps) {
   const role = user.role ?? "ba";
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const { data: brands = [] } = useBrands();
-  const createProduct = useCreateProduct();
-  const updateProduct = useUpdateProduct();
-  const [dialog, setDialog] = useState<DialogState>(null);
+  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
 
   const params: Record<string, string> = { page: String(page), limit: "20" };
   if (search) params.search = search;
   if (category) params.category = category;
 
   const { data: products = [], isLoading } = useProducts(params);
-
   const brandMap = Object.fromEntries(
     brands.map((b) => [b.id, b.displayName]),
   );
 
-  function handleSubmit(data: CreateProduct & { images?: string[] }) {
-    if (dialog?.mode === "edit") {
-      updateProduct.mutate(
-        { id: dialog.product.id, ...data } as Record<string, unknown> & {
-          id: string;
-        },
-        { onSuccess: () => setDialog(null) },
-      );
-    } else {
-      createProduct.mutate(data as unknown as Record<string, unknown>, {
-        onSuccess: () => setDialog(null),
-      });
-    }
+  function handleCreateClick() {
+    router.push("/productos/nuevo");
   }
 
-  const isPending = createProduct.isPending || updateProduct.isPending;
+  const showEmptyState =
+    products.length === 0 && !isLoading && !search && !category;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -102,72 +78,85 @@ export function ProductsPage({ user }: ProductsPageProps) {
         description={`${products.length} productos en catálogo`}
         action={
           can(role, "product.create") ? (
-            <Button onClick={() => setDialog({ mode: "create" })}>
-              Nuevo producto
-            </Button>
+            <Button onClick={handleCreateClick}>Nuevo producto</Button>
           ) : undefined
         }
       />
 
-      {/* Filters + View Toggle */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Buscar por nombre o SKU..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="max-w-xs"
-        />
-        <Select
-          value={category}
-          onValueChange={(v) => {
-            setCategory((v as string) ?? "");
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Todas las categorías">
-              {category ? (CATEGORY_LABEL[category] ?? category) : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todas</SelectItem>
-            {PRODUCT_CATEGORIES.map((cat) => (
-              <SelectItem key={cat} value={cat}>
-                {CATEGORY_LABEL[cat] ?? cat}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {!showEmptyState && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Buscar por nombre o SKU..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="max-w-xs"
+          />
+          <Select
+            value={category}
+            onValueChange={(v) => {
+              setCategory((v as string) ?? "");
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Todas las categorías">
+                {category ? (CATEGORY_LABEL[category] ?? category) : undefined}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todas</SelectItem>
+              {PRODUCT_CATEGORIES.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {CATEGORY_LABEL[cat] ?? cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <div className="ml-auto flex gap-1 rounded-lg border border-border p-0.5">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`rounded-md p-1.5 transition-colors ${
-              viewMode === "grid"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <GridIcon className="size-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("table")}
-            className={`rounded-md p-1.5 transition-colors ${
-              viewMode === "table"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <ListIcon className="size-4" />
-          </button>
+          <div className="ml-auto flex gap-1 rounded-lg border border-border p-0.5">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`rounded-md p-1.5 transition-colors ${
+                viewMode === "grid"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-label="Vista cuadrícula"
+            >
+              <GridIcon className="size-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`rounded-md p-1.5 transition-colors ${
+                viewMode === "table"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-label="Vista lista"
+            >
+              <ListIcon className="size-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Product Grid */}
-      {isLoading ? (
+      {showEmptyState ? (
+        <EmptyState
+          illustration={<ProductsIllustration className="w-full" />}
+          title="Catálogo vacío"
+          description="Empieza añadiendo tu primer producto. Podrás subir imágenes, asignarlo a una marca y definir su precio."
+          action={
+            can(role, "product.create") ? (
+              <Button onClick={handleCreateClick}>
+                Crear primer producto
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div
@@ -189,10 +178,10 @@ export function ProductsPage({ user }: ProductsPageProps) {
               key={product.id}
               product={product}
               brandName={brandMap[product.brandId] ?? ""}
-              onClick={() => setDialog({ mode: "detail", product })}
+              onClick={() => setPreviewProduct(product)}
               onEdit={
                 can(role, "product.edit")
-                  ? () => setDialog({ mode: "edit", product })
+                  ? () => router.push(`/productos/${product.id}/editar`)
                   : undefined
               }
             />
@@ -204,7 +193,6 @@ export function ProductsPage({ user }: ProductsPageProps) {
           )}
         </div>
       ) : (
-        /* Table view fallback */
         <div className="overflow-x-auto rounded-xl border border-border/50">
           <table className="w-full text-sm">
             <thead>
@@ -222,7 +210,7 @@ export function ProductsPage({ user }: ProductsPageProps) {
                 <tr
                   key={p.id}
                   className="cursor-pointer border-b border-border/50 transition-colors hover:bg-muted/20"
-                  onClick={() => setDialog({ mode: "detail", product: p })}
+                  onClick={() => setPreviewProduct(p)}
                 >
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-3">
@@ -245,9 +233,7 @@ export function ProductsPage({ user }: ProductsPageProps) {
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                     {p.sku}
                   </td>
-                  <td className="px-3 py-2">
-                    {brandMap[p.brandId] ?? "—"}
-                  </td>
+                  <td className="px-3 py-2">{brandMap[p.brandId] ?? "—"}</td>
                   <td className="px-3 py-2">
                     <Badge
                       variant={CATEGORY_VARIANT[p.category] ?? "secondary"}
@@ -257,7 +243,8 @@ export function ProductsPage({ user }: ProductsPageProps) {
                     </Badge>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    ${Number(p.price).toLocaleString("es-MX", {
+                    $
+                    {Number(p.price).toLocaleString("es-MX", {
                       minimumFractionDigits: 2,
                     })}
                   </td>
@@ -276,108 +263,52 @@ export function ProductsPage({ user }: ProductsPageProps) {
         </div>
       )}
 
-      <Pagination
-        page={page}
-        totalPages={Math.ceil(
-          products.length === 20 ? page + 1 : page,
-        )}
-        onPageChange={setPage}
-      />
+      {!showEmptyState && (
+        <Pagination
+          page={page}
+          totalPages={Math.ceil(products.length === 20 ? page + 1 : page)}
+          onPageChange={setPage}
+        />
+      )}
 
-      {/* Create / Edit Dialog */}
-      <Dialog
-        open={dialog?.mode === "create" || dialog?.mode === "edit"}
-        onOpenChange={(open) => !open && setDialog(null)}
+      {/* Detail Sheet (read-only) */}
+      <Sheet
+        open={previewProduct !== null}
+        onOpenChange={(open) => !open && setPreviewProduct(null)}
       >
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>
-              {dialog?.mode === "edit"
-                ? "Editar producto"
-                : "Nuevo producto"}
-            </DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <ProductForm
-              defaultValues={
-                dialog?.mode === "edit"
-                  ? (dialog.product as unknown as Record<string, unknown>)
-                  : undefined
-              }
-              brands={brands}
-              onSubmit={handleSubmit}
-              isPending={isPending}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose>
-              <Button variant="outline" disabled={isPending}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button
-              type="submit"
-              form="product-form"
-              disabled={isPending}
-            >
-              {isPending ? "Guardando..." : "Guardar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Product Detail Dialog */}
-      <Dialog
-        open={dialog?.mode === "detail"}
-        onOpenChange={(open) => !open && setDialog(null)}
-      >
-        <DialogContent size="lg">
-          {dialog?.mode === "detail" && (
+        <SheetContent size="lg">
+          {previewProduct && (
             <>
-              <DialogHeader>
-                <DialogTitle>{dialog.product.name}</DialogTitle>
-              </DialogHeader>
-              <DialogBody>
+              <SheetHeader>
+                <SheetTitle>{previewProduct.name}</SheetTitle>
+              </SheetHeader>
+              <SheetBody>
                 <ProductDetail
-                  product={dialog.product}
-                  brandName={brandMap[dialog.product.brandId] ?? ""}
-                  onEdit={
-                    can(role, "product.edit")
-                      ? () =>
-                          setDialog({
-                            mode: "edit",
-                            product: dialog.product,
-                          })
-                      : undefined
-                  }
+                  product={previewProduct}
+                  brandName={brandMap[previewProduct.brandId] ?? ""}
                 />
-              </DialogBody>
-              <DialogFooter>
-                <DialogClose>
+              </SheetBody>
+              <SheetFooter>
+                <SheetClose>
                   <Button variant="outline">Cerrar</Button>
-                </DialogClose>
+                </SheetClose>
                 {can(role, "product.edit") && (
                   <Button
                     onClick={() =>
-                      setDialog({
-                        mode: "edit",
-                        product: dialog.product,
-                      })
+                      router.push(`/productos/${previewProduct.id}/editar`)
                     }
                   >
                     Editar
                   </Button>
                 )}
-              </DialogFooter>
+              </SheetFooter>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
-
-// ── Product Card ───────────────────────────────────────────────────
 
 function ProductCard({
   product,
@@ -397,7 +328,6 @@ function ProductCard({
       onClick={onClick}
       className="group cursor-pointer overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-200 hover:shadow-md"
     >
-      {/* Image */}
       <div className="relative aspect-square overflow-hidden bg-muted">
         {imageUrl ? (
           <img
@@ -411,7 +341,6 @@ function ProductCard({
           </div>
         )}
 
-        {/* Category badge overlay */}
         <div className="absolute left-2 top-2">
           <Badge
             variant={CATEGORY_VARIANT[product.category] ?? "secondary"}
@@ -422,7 +351,6 @@ function ProductCard({
           </Badge>
         </div>
 
-        {/* Edit button overlay */}
         {onEdit && (
           <button
             onClick={(e) => {
@@ -430,6 +358,7 @@ function ProductCard({
               onEdit();
             }}
             className="absolute right-2 top-2 rounded-lg bg-card/80 p-1.5 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+            aria-label="Editar"
           >
             <EditIcon className="size-3.5" />
           </button>
@@ -442,17 +371,17 @@ function ProductCard({
         )}
       </div>
 
-      {/* Info */}
       <div className="p-3">
         <div className="mb-0.5 text-[11px] text-muted-foreground">
           {brandName}
         </div>
-        <h3 className="mb-1 text-sm font-medium leading-tight text-foreground line-clamp-2">
+        <h3 className="mb-1 line-clamp-2 text-sm font-medium leading-tight text-foreground">
           {product.name}
         </h3>
         <div className="flex items-center justify-between">
           <span className="text-base font-semibold tabular-nums">
-            ${Number(product.price).toLocaleString("es-MX", {
+            $
+            {Number(product.price).toLocaleString("es-MX", {
               minimumFractionDigits: 2,
             })}
           </span>
@@ -465,22 +394,17 @@ function ProductCard({
   );
 }
 
-// ── Product Detail ─────────────────────────────────────────────────
-
 function ProductDetail({
   product,
   brandName,
-  onEdit,
 }: {
   product: Product;
   brandName: string;
-  onEdit?: () => void;
 }) {
   const imageUrl = product.images?.[0];
 
   return (
     <div className="space-y-4">
-      {/* Image + Basic info */}
       <div className="flex gap-4">
         <div className="relative size-32 shrink-0 overflow-hidden rounded-xl bg-muted">
           {imageUrl ? (
@@ -501,32 +425,25 @@ function ProductDetail({
           </div>
           <h3 className="mb-2 text-lg font-semibold">{product.name}</h3>
           <div className="flex flex-wrap gap-2">
-            <Badge
-              variant={
-                CATEGORY_VARIANT[product.category] ?? "secondary"
-              }
-            >
+            <Badge variant={CATEGORY_VARIANT[product.category] ?? "secondary"}>
               {CATEGORY_LABEL[product.category] ?? product.category}
             </Badge>
             {product.subcategory && (
               <Badge variant="secondary">{product.subcategory}</Badge>
             )}
-            <Badge
-              variant={product.active ? "success" : "destructive"}
-              size="sm"
-            >
+            <Badge variant={product.active ? "success" : "destructive"} size="sm">
               {product.active ? "Activo" : "Inactivo"}
             </Badge>
           </div>
           <div className="mt-2 text-2xl font-bold tabular-nums">
-            ${Number(product.price).toLocaleString("es-MX", {
+            $
+            {Number(product.price).toLocaleString("es-MX", {
               minimumFractionDigits: 2,
             })}
           </div>
         </div>
       </div>
 
-      {/* Description */}
       {product.description && (
         <div>
           <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -536,61 +453,6 @@ function ProductDetail({
         </div>
       )}
 
-      {/* Details grid */}
-      <dl className="grid gap-3 rounded-lg border border-border/50 bg-muted/20 p-3 text-sm sm:grid-cols-2">
-        {product.estimatedDurationDays && (
-          <div>
-            <dt className="text-xs text-muted-foreground">
-              Duración estimada
-            </dt>
-            <dd className="font-medium">
-              {product.estimatedDurationDays} días
-            </dd>
-          </div>
-        )}
-        {product.salesArgument && (
-          <div className="sm:col-span-2">
-            <dt className="text-xs text-muted-foreground">
-              Argumentario de venta
-            </dt>
-            <dd className="font-medium">{product.salesArgument}</dd>
-          </div>
-        )}
-        {product.technicalSheetUrl && (
-          <div>
-            <dt className="text-xs text-muted-foreground">
-              Ficha técnica
-            </dt>
-            <dd>
-              <a
-                href={product.technicalSheetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent underline"
-              >
-                Ver ficha →
-              </a>
-            </dd>
-          </div>
-        )}
-        {product.tutorialUrl && (
-          <div>
-            <dt className="text-xs text-muted-foreground">Tutorial</dt>
-            <dd>
-              <a
-                href={product.tutorialUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent underline"
-              >
-                Ver tutorial →
-              </a>
-            </dd>
-          </div>
-        )}
-      </dl>
-
-      {/* Multiple images gallery */}
       {product.images && product.images.length > 1 && (
         <div>
           <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -615,8 +477,6 @@ function ProductDetail({
     </div>
   );
 }
-
-// ── Icons ──────────────────────────────────────────────────────────
 
 function EditIcon({ className }: { className?: string }) {
   return (

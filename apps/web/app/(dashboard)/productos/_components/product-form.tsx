@@ -1,29 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type CreateProduct, PRODUCT_CATEGORIES } from "@loreal/contracts";
-import { createProductSchema } from "@/lib/schemas/products";
-import { useUploadProductImage } from "@/lib/hooks";
+import { PRODUCT_CATEGORIES } from "@loreal/contracts";
+import { z } from "zod";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
+import { Dropzone } from "@/components/ui/dropzone";
 import {
   Form,
+  FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
+import { ProductPreviewCard } from "./product-preview-card";
 import type { Brand } from "@/lib/hooks";
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -32,10 +26,24 @@ const CATEGORY_LABEL: Record<string, string> = {
   fragrance: "Fragancia",
 };
 
+const productFormSchema = z.object({
+  sku: z.string().min(1).max(50),
+  name: z.string().min(1).max(200),
+  brandId: z.string().uuid(),
+  category: z.enum(PRODUCT_CATEGORIES as [string, ...string[]]),
+  subcategory: z.string().max(100).optional(),
+  description: z.string().max(2000).optional(),
+  price: z.coerce.number().positive(),
+  estimatedDurationDays: z.coerce.number().int().positive().optional(),
+  images: z.array(z.string().url()),
+});
+
+export type ProductFormValues = z.infer<typeof productFormSchema>;
+
 interface ProductFormProps {
-  defaultValues?: Partial<CreateProduct> & { images?: string[] };
+  defaultValues?: Partial<ProductFormValues>;
   brands: Brand[];
-  onSubmit: (data: CreateProduct & { images?: string[] }) => void;
+  onSubmit: (data: ProductFormValues) => void;
   isPending: boolean;
 }
 
@@ -45,17 +53,8 @@ export function ProductForm({
   onSubmit,
   isPending,
 }: ProductFormProps) {
-  const brandMap = Object.fromEntries(
-    brands.map((b) => [b.id, b.displayName]),
-  );
-  const uploadImage = useUploadProductImage();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [images, setImages] = useState<string[]>(
-    (defaultValues as any)?.images ?? [],
-  );
-
-  const form = useForm<CreateProduct>({
-    resolver: zodResolver(createProductSchema),
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema),
     defaultValues: {
       sku: defaultValues?.sku ?? "",
       name: defaultValues?.name ?? "",
@@ -65,27 +64,32 @@ export function ProductForm({
       description: defaultValues?.description ?? "",
       price: defaultValues?.price ?? (0 as unknown as number),
       estimatedDurationDays: defaultValues?.estimatedDurationDays,
+      images: defaultValues?.images ?? [],
     },
   });
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const result = await uploadImage.mutateAsync(file);
-      setImages((prev) => [...prev, result.url]);
-    } catch {
-      // Upload failed silently — user can retry
-    }
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
+  const values = form.watch();
+  const brandName =
+    brands.find((b) => b.id === values.brandId)?.displayName ?? "";
 
-  function removeImage(index: number) {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  }
+  const brandOptions = brands.map((b) => ({
+    value: b.id,
+    label: b.displayName,
+    description: b.code,
+  }));
 
-  function handleSubmit(data: CreateProduct) {
-    onSubmit({ ...data, images: images.length > 0 ? images : undefined });
+  const categoryOptions = PRODUCT_CATEGORIES.map((cat) => ({
+    value: cat,
+    label: CATEGORY_LABEL[cat] ?? cat,
+  }));
+
+  function handleSubmit(data: ProductFormValues) {
+    onSubmit({
+      ...data,
+      description: data.description || undefined,
+      subcategory: data.subcategory || undefined,
+      images: data.images.length > 0 ? data.images : [],
+    });
   }
 
   return (
@@ -93,202 +97,173 @@ export function ProductForm({
       <form
         id="product-form"
         onSubmit={form.handleSubmit(handleSubmit)}
-        className="space-y-4"
+        className="grid gap-8 lg:grid-cols-[1fr,320px]"
       >
-        {/* Image upload section */}
-        <div>
-          <label className="mb-2 block text-sm font-medium">
-            Imágenes del producto
-          </label>
-          <div className="flex flex-wrap gap-3">
-            {images.map((url, i) => (
-              <div
-                key={i}
-                className="group relative size-24 overflow-hidden rounded-xl border border-border/50 bg-muted"
-              >
-                <img
-                  src={url}
-                  alt={`Imagen ${i + 1}`}
-                  className="size-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute right-1 top-1 rounded-md bg-background/80 p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <XIcon className="size-3" />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadImage.isPending || isPending}
-              className="flex size-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border/50 bg-muted/30 text-muted-foreground transition-colors hover:border-accent/50 hover:text-accent disabled:opacity-50"
-            >
-              {uploadImage.isPending ? (
-                <span className="text-xs">Subiendo...</span>
-              ) : (
-                <>
-                  <PlusIcon className="size-5" />
-                  <span className="text-[10px]">Agregar</span>
-                </>
+        <div className="space-y-6">
+          <FormField
+            control={form.control}
+            name="images"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Imágenes del producto</FormLabel>
+                <FormControl>
+                  <Dropzone
+                    folder="products"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    maxFiles={6}
+                  />
+                </FormControl>
+                <FormDescription>
+                  La primera imagen es la principal. Arrastra para reordenar.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="sku"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>SKU</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="LAN-SK-0001"
+                      disabled={isPending}
+                      className="font-mono"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleFileChange}
-              className="hidden"
+            />
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Advanced Génifique Sérum"
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            JPEG, PNG o WebP. Máximo 50MB por imagen.
-          </p>
-        </div>
 
-        {/* SKU + Name */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="sku"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>SKU</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="LAN-SK-0001"
-                    disabled={isPending}
-                    className="font-mono"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="Advanced Génifique Sérum"
-                    disabled={isPending}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Brand + Category */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="brandId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Marca</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="brandId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Marca</FormLabel>
                   <FormControl>
-                    <SelectTrigger disabled={isPending}>
-                      <SelectValue placeholder="Seleccionar marca">
-                        {field.value
-                          ? (brandMap[field.value] ?? field.value)
-                          : undefined}
-                      </SelectValue>
-                    </SelectTrigger>
+                    <Combobox
+                      options={brandOptions}
+                      value={field.value || undefined}
+                      onChange={field.onChange}
+                      placeholder="Seleccionar marca"
+                      disabled={isPending}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    {brands.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Categoría</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoría</FormLabel>
                   <FormControl>
-                    <SelectTrigger disabled={isPending}>
-                      <SelectValue placeholder="Seleccionar categoría">
-                        {field.value
-                          ? (CATEGORY_LABEL[field.value] ?? field.value)
-                          : undefined}
-                      </SelectValue>
-                    </SelectTrigger>
+                    <Combobox
+                      options={categoryOptions}
+                      value={field.value || undefined}
+                      onChange={field.onChange}
+                      placeholder="Seleccionar categoría"
+                      disabled={isPending}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    {PRODUCT_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {CATEGORY_LABEL[cat] ?? cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
-        {/* Price + Duration */}
-        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Precio (MXN)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="1500.00"
+                      disabled={isPending}
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="estimatedDurationDays"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Duración estimada (días)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="60"
+                      disabled={isPending}
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? e.target.value : undefined,
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
           <FormField
             control={form.control}
-            name="price"
+            name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Precio (MXN)</FormLabel>
+                <FormLabel>Descripción</FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="1500.00"
-                    disabled={isPending}
-                    {...field}
-                    onChange={(e) => field.onChange(e.target.value)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="estimatedDurationDays"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Duración estimada (días)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="60"
-                    disabled={isPending}
+                  <Textarea
                     {...field}
                     value={field.value ?? ""}
-                    onChange={(e) =>
-                      field.onChange(
-                        e.target.value ? e.target.value : undefined,
-                      )
-                    }
+                    rows={4}
+                    placeholder="Tratamiento de skincare premium..."
+                    disabled={isPending}
                   />
                 </FormControl>
                 <FormMessage />
@@ -297,57 +272,20 @@ export function ProductForm({
           />
         </div>
 
-        {/* Description */}
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Descripción</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  value={field.value ?? ""}
-                  rows={3}
-                  placeholder="Tratamiento de skincare premium..."
-                  disabled={isPending}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <aside className="space-y-3 lg:sticky lg:top-0 lg:self-start">
+          <p className="text-[10px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+            Vista previa
+          </p>
+          <ProductPreviewCard
+            name={values.name || "Nombre del producto"}
+            brandName={brandName}
+            category={values.category}
+            price={Number(values.price) || 0}
+            imageUrl={values.images?.[0]}
+            sku={values.sku}
+          />
+        </aside>
       </form>
     </Form>
-  );
-}
-
-function XIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <path d="M4 4l8 8M12 4l-8 8" />
-    </svg>
-  );
-}
-
-function PlusIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    >
-      <path d="M8 3v10M3 8h10" />
-    </svg>
   );
 }

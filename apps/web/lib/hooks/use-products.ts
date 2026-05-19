@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import { API_URL } from "@/lib/constants";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -107,18 +106,3 @@ export function useUpdateProductAvailability() {
   });
 }
 
-export function useUploadProductImage() {
-  return useMutation({
-    mutationFn: async (file: File): Promise<{ key: string; url: string }> => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`${API_URL}/uploads/products`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      return res.json();
-    },
-  });
-}

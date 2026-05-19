@@ -4,31 +4,30 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   useAppointmentCalendar,
-  useCreateAppointment,
   useUpdateAppointment,
   type CalendarAppointment,
 } from "@/lib/hooks";
 import { useAppointmentMetrics } from "@/lib/hooks/use-analytics";
 import { APPOINTMENT_STATUSES } from "@loreal/contracts";
 import { can } from "@/lib/permissions";
+import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardHeader,
   CardDescription,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectTrigger,
@@ -36,9 +35,9 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AppointmentsIllustration } from "@/components/ui/illustrations";
 import { WeekCalendar } from "./week-calendar";
-import type { AppointmentFormData } from "./appointment-form";
-import { AppointmentForm } from "./appointment-form";
 import { STATUS_LABEL, STATUS_VARIANT } from "./appointment-card";
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -85,10 +84,7 @@ const SEGMENT_VARIANT: Record<string, "info" | "success" | "warning" | "destruct
 
 // ── Types ──────────────────────────────────────────────────────────
 
-type DialogState =
-  | null
-  | { mode: "create" }
-  | { mode: "detail"; appointment: CalendarAppointment };
+type SheetState = null | { mode: "detail"; appointment: CalendarAppointment };
 
 // ── Component ──────────────────────────────────────────────────────
 
@@ -99,7 +95,7 @@ interface AgendaPageProps {
 export function AgendaPage({ user }: AgendaPageProps) {
   const role = user.role ?? "ba";
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
-  const [dialog, setDialog] = useState<DialogState>(null);
+  const [sheet, setSheet] = useState<SheetState>(null);
   const [statusUpdate, setStatusUpdate] = useState("");
   const [storeView, setStoreView] = useState(role !== "ba");
 
@@ -112,35 +108,22 @@ export function AgendaPage({ user }: AgendaPageProps) {
     role !== "ba" ? { storeView } : undefined,
   );
 
-  // Metrics for the summary bar
   const { data: metrics } = useAppointmentMetrics(from, to);
-
-  const createAppointment = useCreateAppointment();
+  const { open: openCreate } = useCreateMenu();
   const updateAppointment = useUpdateAppointment();
 
-  function handleCreate(data: AppointmentFormData) {
-    createAppointment.mutate(
-      {
-        ...data,
-        scheduledAt: new Date(data.scheduledAt),
-        durationMinutes: data.durationMinutes,
-      },
-      { onSuccess: () => setDialog(null) },
-    );
-  }
-
   function handleStatusChange() {
-    if (dialog?.mode !== "detail" || !statusUpdate) return;
+    if (sheet?.mode !== "detail" || !statusUpdate) return;
     updateAppointment.mutate(
       {
-        id: dialog.appointment.id,
+        id: sheet.appointment.id,
         status: statusUpdate,
       },
-      { onSuccess: () => setDialog(null) },
+      { onSuccess: () => setSheet(null) },
     );
   }
 
-  const isPending = createAppointment.isPending || updateAppointment.isPending;
+  const isPending = updateAppointment.isPending;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -149,7 +132,7 @@ export function AgendaPage({ user }: AgendaPageProps) {
         description="Citas y servicios programados"
         action={
           can(role, "appointment.create") ? (
-            <Button onClick={() => setDialog({ mode: "create" })}>
+            <Button onClick={() => openCreate("appointment")}>
               Nueva cita
             </Button>
           ) : undefined
@@ -238,6 +221,19 @@ export function AgendaPage({ user }: AgendaPageProps) {
             </div>
           ))}
         </div>
+      ) : calendarData.length === 0 ? (
+        <EmptyState
+          illustration={<AppointmentsIllustration className="w-full" />}
+          title="Sin citas esta semana"
+          description="Cuando agendas una cita aparece aquí. Empieza programando la primera."
+          action={
+            can(role, "appointment.create") ? (
+              <Button onClick={() => openCreate("appointment")}>
+                Crear primera cita
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <WeekCalendar
           appointments={calendarData}
@@ -245,77 +241,52 @@ export function AgendaPage({ user }: AgendaPageProps) {
           showBa={storeView && role !== "ba"}
           onAppointmentClick={(appt) => {
             setStatusUpdate(appt.status);
-            setDialog({ mode: "detail", appointment: appt });
+            setSheet({ mode: "detail", appointment: appt });
           }}
         />
       )}
 
-      {/* Create Dialog */}
-      <Dialog
-        open={dialog?.mode === "create"}
-        onOpenChange={(open) => !open && setDialog(null)}
+      {/* Detail Sheet — read-only with status update */}
+      <Sheet
+        open={sheet?.mode === "detail"}
+        onOpenChange={(open) => !open && setSheet(null)}
       >
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>Nueva cita</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <AppointmentForm
-              onSubmit={handleCreate}
-              isPending={isPending}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose>
-              <Button variant="outline" disabled={isPending}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button type="submit" form="appointment-form" disabled={isPending}>
-              {isPending ? "Creando..." : "Crear cita"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Detail Dialog — enriched with client/BA info */}
-      <Dialog
-        open={dialog?.mode === "detail"}
-        onOpenChange={(open) => !open && setDialog(null)}
-      >
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>Detalle de cita</DialogTitle>
-          </DialogHeader>
-          {dialog?.mode === "detail" && (
-            <DialogBody>
+        <SheetContent size="default">
+          <SheetHeader>
+            <SheetTitle>Detalle de cita</SheetTitle>
+          </SheetHeader>
+          {sheet?.mode === "detail" && (
+            <SheetBody>
               <div className="space-y-5">
-                {/* Client section */}
                 <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
                   <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     Cliente
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-base font-semibold">
-                      {dialog.appointment.customerName ?? "Sin nombre"}
+                      {sheet.appointment.customerName ?? "Sin nombre"}
                     </span>
-                    {dialog.appointment.customerSegment && (
+                    {sheet.appointment.customerSegment && (
                       <Badge
-                        variant={SEGMENT_VARIANT[dialog.appointment.customerSegment] ?? "secondary"}
+                        variant={
+                          SEGMENT_VARIANT[sheet.appointment.customerSegment] ??
+                          "secondary"
+                        }
                         size="sm"
                       >
-                        {SEGMENT_LABEL[dialog.appointment.customerSegment] ?? dialog.appointment.customerSegment}
+                        {SEGMENT_LABEL[sheet.appointment.customerSegment] ??
+                          sheet.appointment.customerSegment}
                       </Badge>
                     )}
                   </div>
-                  {dialog.appointment.customerPhone && (
+                  {sheet.appointment.customerPhone && (
                     <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
-                      {dialog.appointment.customerPhone}
+                      {sheet.appointment.customerPhone}
                     </div>
                   )}
-                  {dialog.appointment.customerId && (
+                  {sheet.appointment.customerId && (
                     <Link
-                      href={`/clientes/${dialog.appointment.customerId}`}
+                      href={`/clientes/${sheet.appointment.customerId}`}
                       className="mt-1 inline-block text-xs font-medium text-accent hover:text-accent/80"
                     >
                       Ver perfil completo →
@@ -323,19 +294,20 @@ export function AgendaPage({ user }: AgendaPageProps) {
                   )}
                 </div>
 
-                {/* Appointment details */}
                 <dl className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Tipo de evento</dt>
                     <dd className="flex items-center gap-2">
-                      {dialog.appointment.eventTypeColor && (
+                      {sheet.appointment.eventTypeColor && (
                         <span
                           className="inline-block size-2.5 rounded-full"
-                          style={{ backgroundColor: dialog.appointment.eventTypeColor }}
+                          style={{
+                            backgroundColor: sheet.appointment.eventTypeColor,
+                          }}
                         />
                       )}
                       <Badge variant="secondary">
-                        {dialog.appointment.eventTypeName ?? "Evento"}
+                        {sheet.appointment.eventTypeName ?? "Evento"}
                       </Badge>
                     </dd>
                   </div>
@@ -343,7 +315,7 @@ export function AgendaPage({ user }: AgendaPageProps) {
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Fecha y hora</dt>
                     <dd className="font-medium">
-                      {new Date(dialog.appointment.scheduledAt).toLocaleDateString(
+                      {new Date(sheet.appointment.scheduledAt).toLocaleDateString(
                         "es-MX",
                         {
                           weekday: "long",
@@ -358,19 +330,19 @@ export function AgendaPage({ user }: AgendaPageProps) {
 
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Duración</dt>
-                    <dd>{dialog.appointment.durationMinutes} min</dd>
+                    <dd>{sheet.appointment.durationMinutes} min</dd>
                   </div>
 
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Beauty Advisor</dt>
                     <dd className="font-medium">
-                      {dialog.appointment.baName ?? "Sin asignar"}
+                      {sheet.appointment.baName ?? "Sin asignar"}
                     </dd>
                   </div>
 
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Tienda</dt>
-                    <dd>{dialog.appointment.storeName ?? "—"}</dd>
+                    <dd>{sheet.appointment.storeName ?? "—"}</dd>
                   </div>
 
                   <div className="flex justify-between">
@@ -378,35 +350,36 @@ export function AgendaPage({ user }: AgendaPageProps) {
                     <dd>
                       <Badge
                         variant={
-                          STATUS_VARIANT[dialog.appointment.status] ?? "secondary"
+                          STATUS_VARIANT[sheet.appointment.status] ?? "secondary"
                         }
                       >
-                        {STATUS_LABEL[dialog.appointment.status] ??
-                          dialog.appointment.status}
+                        {STATUS_LABEL[sheet.appointment.status] ??
+                          sheet.appointment.status}
                       </Badge>
                     </dd>
                   </div>
 
-                  {dialog.appointment.isVirtual && (
+                  {sheet.appointment.isVirtual && (
                     <div className="flex justify-between">
                       <dt className="text-muted-foreground">Modalidad</dt>
                       <dd>
-                        <Badge variant="info" size="sm">Virtual</Badge>
+                        <Badge variant="info" size="sm">
+                          Virtual
+                        </Badge>
                       </dd>
                     </div>
                   )}
 
-                  {dialog.appointment.comments && (
+                  {sheet.appointment.comments && (
                     <div>
                       <dt className="mb-1 text-muted-foreground">Comentarios</dt>
                       <dd className="rounded-md bg-muted/30 p-2 text-sm">
-                        {dialog.appointment.comments}
+                        {sheet.appointment.comments}
                       </dd>
                     </div>
                   )}
                 </dl>
 
-                {/* Status change */}
                 {can(role, "appointment.edit") && (
                   <div className="space-y-2 border-t border-border/60 pt-4">
                     <span className="text-xs font-medium text-muted-foreground">
@@ -419,7 +392,9 @@ export function AgendaPage({ user }: AgendaPageProps) {
                       >
                         <SelectTrigger className="flex-1">
                           <SelectValue placeholder="Seleccionar estado">
-                            {statusUpdate ? STATUS_LABEL[statusUpdate] ?? statusUpdate : undefined}
+                            {statusUpdate
+                              ? (STATUS_LABEL[statusUpdate] ?? statusUpdate)
+                              : undefined}
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -434,7 +409,7 @@ export function AgendaPage({ user }: AgendaPageProps) {
                         size="sm"
                         disabled={
                           isPending ||
-                          statusUpdate === dialog.appointment.status
+                          statusUpdate === sheet.appointment.status
                         }
                         onClick={handleStatusChange}
                       >
@@ -444,15 +419,15 @@ export function AgendaPage({ user }: AgendaPageProps) {
                   </div>
                 )}
               </div>
-            </DialogBody>
+            </SheetBody>
           )}
-          <DialogFooter>
-            <DialogClose>
+          <SheetFooter>
+            <SheetClose>
               <Button variant="outline">Cerrar</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 
 export type CreatableEntity =
   | "brand"
@@ -11,6 +12,15 @@ export type CreatableEntity =
   | "customer"
   | "appointment"
 
+/**
+ * Entities that route to a full-page editor instead of opening a Sheet.
+ * Use this for flows that need significant real estate (image gallery,
+ * preview pane, multi-step content).
+ */
+const ROUTE_OVERRIDES: Partial<Record<CreatableEntity, string>> = {
+  product: "/productos/nuevo",
+}
+
 interface CreateMenuContextValue {
   openEntity: CreatableEntity | null
   open: (entity: CreatableEntity) => void
@@ -20,15 +30,23 @@ interface CreateMenuContextValue {
 const CreateMenuContext = React.createContext<CreateMenuContextValue | null>(null)
 
 export function CreateMenuProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
   const [openEntity, setOpenEntity] = React.useState<CreatableEntity | null>(null)
 
   const value = React.useMemo<CreateMenuContextValue>(
     () => ({
       openEntity,
-      open: (entity) => setOpenEntity(entity),
+      open: (entity) => {
+        const route = ROUTE_OVERRIDES[entity]
+        if (route) {
+          router.push(route)
+          return
+        }
+        setOpenEntity(entity)
+      },
       close: () => setOpenEntity(null),
     }),
-    [openEntity],
+    [openEntity, router],
   )
 
   return (

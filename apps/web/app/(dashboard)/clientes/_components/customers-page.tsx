@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   useCustomers,
   useCustomerSearch,
-  useCreateCustomer,
-  useUpdateCustomer,
   type Customer,
 } from "@/lib/hooks";
 import { LIFECYCLE_SEGMENTS } from "@loreal/contracts";
 import { can } from "@/lib/permissions";
+import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DataTable, type Column } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CustomersIllustration } from "@/components/ui/illustrations";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,26 +26,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import type { CreateCustomer } from "@loreal/contracts";
-import { CustomerForm } from "./customer-form";
-
-// ── Types ──────────────────────────────────────────────────────────
-
-type DialogState =
-  | null
-  | { mode: "create" }
-  | { mode: "edit"; customer: Customer };
-
-// ── Label maps ─────────────────────────────────────────────────────
+import { CustomerFormSheet } from "./customer-form-sheet";
 
 const SEGMENT_LABEL: Record<string, string> = {
   new: "Nueva",
@@ -62,8 +45,6 @@ const SEGMENT_VARIANT: Record<
   at_risk: "warning",
 };
 
-// ── Component ──────────────────────────────────────────────────────
-
 interface CustomersPageProps {
   user: { role?: string | null };
 }
@@ -71,14 +52,13 @@ interface CustomersPageProps {
 export function CustomersPage({ user }: CustomersPageProps) {
   const role = user.role ?? "ba";
   const router = useRouter();
+  const { open: openCreate } = useCreateMenu();
 
-  // Filter state
   const [search, setSearch] = useState("");
   const [segment, setSegment] = useState("");
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  // Data hooks
   const isSearching = search.length >= 2;
 
   const customersQuery = useCustomers(
@@ -94,25 +74,28 @@ export function CustomersPage({ user }: CustomersPageProps) {
   const searchQuery = useCustomerSearch(search);
 
   const customers = isSearching
-    ? searchQuery.data ?? []
-    : customersQuery.data?.data ?? [];
-  const totalCustomers = isSearching ? customers.length : (customersQuery.data?.total ?? 0);
+    ? (searchQuery.data ?? [])
+    : (customersQuery.data?.data ?? []);
+  const totalCustomers = isSearching
+    ? customers.length
+    : (customersQuery.data?.total ?? 0);
   const isLoading = isSearching ? searchQuery.isLoading : customersQuery.isLoading;
 
-  // Mutations
-  const createCustomer = useCreateCustomer();
-  const updateCustomer = useUpdateCustomer();
+  const [editing, setEditing] = useState<Customer | null>(null);
 
-  // Dialog
-  const [dialog, setDialog] = useState<DialogState>(null);
-
-  // Columns
   const columns: Column<Customer>[] = [
     {
       key: "firstName",
       label: "Nombre",
-      render: (_: unknown, row: Customer) =>
-        `${row.firstName} ${row.lastName}`,
+      render: (_, row) => {
+        const fullName = `${row.firstName} ${row.lastName}`;
+        return (
+          <div className="flex items-center gap-2.5">
+            <Avatar name={fullName} size="sm" />
+            <span className="font-medium">{fullName}</span>
+          </div>
+        );
+      },
     },
     { key: "email", label: "Email" },
     { key: "phone", label: "Teléfono" },
@@ -152,7 +135,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
                 size="icon-xs"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setDialog({ mode: "edit", customer: row });
+                  setEditing(row);
                 }}
               >
                 <EditIcon className="size-3.5" />
@@ -163,41 +146,21 @@ export function CustomersPage({ user }: CustomersPageProps) {
       : []),
   ];
 
-  function handleSubmit(data: CreateCustomer) {
-    if (dialog?.mode === "edit") {
-      updateCustomer.mutate(
-        {
-          id: dialog.customer.id,
-          ...data,
-          birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
-        },
-        { onSuccess: () => setDialog(null) },
-      );
-    } else {
-      createCustomer.mutate(
-        {
-          ...data,
-          birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
-        },
-        { onSuccess: () => setDialog(null) },
-      );
-    }
-  }
-
-  const isPending = createCustomer.isPending || updateCustomer.isPending;
-
   const totalPages = isSearching
     ? 1
     : Math.max(1, Math.ceil(totalCustomers / limit));
+
+  const showEmptyState =
+    customers.length === 0 && !isLoading && !isSearching && !segment;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
         title="Clientes"
-        description="Gestión de clientas registradas"
+        description={`${totalCustomers} clientas registradas`}
         action={
           can(role, "customer.create") ? (
-            <Button onClick={() => setDialog({ mode: "create" })}>
+            <Button onClick={() => openCreate("customer")}>
               Nueva clienta
             </Button>
           ) : undefined
@@ -205,107 +168,84 @@ export function CustomersPage({ user }: CustomersPageProps) {
       />
 
       {/* Filters */}
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre, email o teléfono..."
-            className="pl-8"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
+      {!showEmptyState && (
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, email o teléfono..."
+              className="pl-8"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <Select
+            value={segment}
+            onValueChange={(v) => {
+              setSegment(v ?? "");
               setPage(1);
             }}
-          />
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Todos los segmentos">
+                {segment ? (SEGMENT_LABEL[segment] ?? segment) : undefined}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todos</SelectItem>
+              {LIFECYCLE_SEGMENTS.map((seg) => (
+                <SelectItem key={seg} value={seg}>
+                  {SEGMENT_LABEL[seg] ?? seg}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select
-          value={segment}
-          onValueChange={(v) => {
-            setSegment(v ?? "");
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Todos los segmentos">
-              {segment ? SEGMENT_LABEL[segment] ?? segment : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
-            {LIFECYCLE_SEGMENTS.map((seg) => (
-              <SelectItem key={seg} value={seg}>
-                {SEGMENT_LABEL[seg] ?? seg}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      )}
 
-      {/* Table */}
-      <DataTable
-        columns={columns}
-        data={customers}
-        isLoading={isLoading}
-        onRowClick={(row) => router.push(`/clientes/${row.id}`)}
-        emptyTitle="No hay clientes"
-        emptyDescription={
-          isSearching
-            ? "No se encontraron resultados para tu búsqueda"
-            : "Registra la primera clienta"
-        }
-      />
+      {showEmptyState ? (
+        <EmptyState
+          illustration={<CustomersIllustration className="w-full" />}
+          title="Aún no hay clientas registradas"
+          description="Las clientas son el corazón del clienteling. Empieza registrando la primera para activar su perfil, historial y agenda."
+          action={
+            can(role, "customer.create") ? (
+              <Button onClick={() => openCreate("customer")}>
+                Registrar primera clienta
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={customers}
+          isLoading={isLoading}
+          onRowClick={(row) => router.push(`/clientes/${row.id}`)}
+          emptyTitle="No hay clientes"
+          emptyDescription={
+            isSearching
+              ? "No se encontraron resultados para tu búsqueda"
+              : "Ajusta los filtros para ver más clientas"
+          }
+        />
+      )}
 
-      {/* Pagination */}
-      {!isSearching && (
+      {!isSearching && !showEmptyState && (
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       )}
 
-      {/* Create / Edit Dialog */}
-      <Dialog
-        open={dialog !== null}
-        onOpenChange={(open) => !open && setDialog(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {dialog?.mode === "edit" ? "Editar clienta" : "Nueva clienta"}
-            </DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <CustomerForm
-              defaultValues={
-                dialog?.mode === "edit"
-                  ? {
-                      firstName: dialog.customer.firstName,
-                      lastName: dialog.customer.lastName,
-                      email: dialog.customer.email ?? undefined,
-                      phone: dialog.customer.phone ?? undefined,
-                      gender: dialog.customer.gender ?? undefined,
-                      birthDate: dialog.customer.birthDate ?? undefined,
-                    }
-                  : undefined
-              }
-              onSubmit={handleSubmit}
-              isPending={isPending}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose>
-              <Button variant="outline" disabled={isPending}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button type="submit" form="customer-form" disabled={isPending}>
-              {isPending ? "Guardando..." : "Guardar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CustomerFormSheet
+        open={editing !== null}
+        onOpenChange={(open) => !open && setEditing(null)}
+        customer={editing ?? undefined}
+      />
     </div>
   );
 }
-
-// ── Icons ──────────────────────────────────────────────────────────
 
 function SearchIcon({ className }: { className?: string }) {
   return (

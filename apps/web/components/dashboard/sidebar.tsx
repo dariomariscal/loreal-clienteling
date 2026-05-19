@@ -9,6 +9,7 @@ import { signOut } from "@/lib/auth-client";
 import { useSidebar } from "@/components/dashboard/sidebar-context";
 import { useBrand } from "@/lib/hooks/use-brands";
 import { LorealLogo, LancomeLogo, YslLogo } from "@/components/ui/brand-logos";
+import { Avatar } from "@/components/ui/avatar";
 import { CreateMenuButton } from "@/components/dashboard/create-menu-button";
 import type { UserRole } from "@loreal/contracts";
 
@@ -239,9 +240,7 @@ function SidebarContent({ user }: SidebarProps) {
           "flex items-center rounded-xl",
           collapsed ? "justify-center py-1.5" : "gap-2.5 px-2.5 py-2"
         )}>
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground">
-            {user.fullName?.charAt(0).toUpperCase()}
-          </div>
+          <Avatar name={user.fullName ?? "?"} size="sm" />
           {!collapsed && (
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               <span className="truncate text-xs font-medium text-sidebar-foreground">

@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useUsers, useCreateUser, useInviteUser, useStores, useBrands, useZones, type User } from "@/lib/hooks";
+import { useUsers, useStores, useBrands, type User } from "@/lib/hooks";
 import { can } from "@/lib/permissions";
+import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DataTable, type Column } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TeamIllustration } from "@/components/ui/illustrations";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 import {
   Select,
   SelectTrigger,
@@ -14,13 +18,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter, DialogClose,
-} from "@/components/ui/dialog";
-import type { UserFormData } from "./user-form";
-import { UserForm } from "./user-form";
-
-type DialogState = null | { mode: "create" } | { mode: "invite" };
+import { UserFormSheet } from "./user-form-sheet";
 
 const ROLE_LABEL: Record<string, string> = {
   ba: "Beauty Advisor",
@@ -29,7 +27,10 @@ const ROLE_LABEL: Record<string, string> = {
   admin: "Administrador",
 };
 
-const ROLE_VARIANT: Record<string, "default" | "info" | "warning" | "destructive"> = {
+const ROLE_VARIANT: Record<
+  string,
+  "default" | "info" | "warning" | "destructive"
+> = {
   admin: "destructive",
   supervisor: "warning",
   manager: "info",
@@ -49,41 +50,54 @@ export function UsersPage({ user }: UsersPageProps) {
   const users = usersResponse?.data ?? [];
   const { data: stores = [] } = useStores();
   const { data: brands = [] } = useBrands();
-  const { data: zones = [] } = useZones();
-  const createUser = useCreateUser();
-  const inviteUser = useInviteUser();
-  const [dialog, setDialog] = useState<DialogState>(null);
+
+  const { open: openCreate } = useCreateMenu();
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const storeMap = Object.fromEntries(stores.map((s) => [s.id, s.displayName]));
   const brandMap = Object.fromEntries(brands.map((b) => [b.id, b.displayName]));
 
   const columns: Column<User>[] = [
-    { key: "fullName", label: "Nombre" },
+    {
+      key: "fullName",
+      label: "Nombre",
+      render: (_, row) => (
+        <div className="flex items-center gap-2.5">
+          <Avatar name={row.fullName} size="sm" />
+          <span className="font-medium">{row.fullName}</span>
+        </div>
+      ),
+    },
     { key: "email", label: "Correo" },
     {
       key: "role",
       label: "Rol",
       render: (v) => {
         const r = v as string;
-        return <Badge variant={ROLE_VARIANT[r] ?? "default"}>{ROLE_LABEL[r] ?? r}</Badge>;
+        return (
+          <Badge variant={ROLE_VARIANT[r] ?? "default"}>
+            {ROLE_LABEL[r] ?? r}
+          </Badge>
+        );
       },
     },
     {
-      key: "storeName" as any,
+      key: "storeId",
       label: "Tienda",
-      render: (v, row) => (row as any).storeName ?? storeMap[(row as any).storeId] ?? "—",
+      render: (_, row) => row.storeName ?? storeMap[row.storeId ?? ""] ?? "—",
     },
     {
-      key: "brandName" as any,
+      key: "brandId",
       label: "Marca",
-      render: (v, row) => (row as any).brandName ?? brandMap[(row as any).brandId] ?? "—",
+      render: (_, row) => row.brandName ?? brandMap[row.brandId ?? ""] ?? "—",
     },
     {
       key: "active",
       label: "Estado",
       render: (v, row) => {
-        const inv = (row as any).invitationStatus;
-        if (inv === "pending") return <Badge variant="warning" size="sm">Pendiente</Badge>;
+        if (row.invitationStatus === "pending") {
+          return <Badge variant="warning" size="sm">Pendiente</Badge>;
+        }
         return (
           <Badge variant={v ? "success" : "destructive"} size="sm">
             {v ? "Activo" : "Inactivo"}
@@ -93,13 +107,6 @@ export function UsersPage({ user }: UsersPageProps) {
     },
   ];
 
-  function handleSubmit(data: UserFormData) {
-    createUser.mutate(
-      { ...data, name: data.fullName },
-      { onSuccess: () => setDialog(null) },
-    );
-  }
-
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
@@ -108,10 +115,10 @@ export function UsersPage({ user }: UsersPageProps) {
         action={
           can(role, "user.manage") ? (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setDialog({ mode: "invite" })}>
+              <Button variant="outline" onClick={() => setInviteOpen(true)}>
                 Invitar
               </Button>
-              <Button onClick={() => setDialog({ mode: "create" })}>
+              <Button onClick={() => openCreate("user")}>
                 Nuevo usuario
               </Button>
             </div>
@@ -119,7 +126,7 @@ export function UsersPage({ user }: UsersPageProps) {
         }
       />
 
-      {/* Filter bar */}
+      {/* Role filter */}
       <div className="flex gap-2">
         <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v ?? "")}>
           <SelectTrigger className="w-[160px]">
@@ -135,72 +142,38 @@ export function UsersPage({ user }: UsersPageProps) {
         </Select>
       </div>
 
-      <DataTable columns={columns} data={users} isLoading={isLoading} emptyTitle="No hay usuarios" />
+      {users.length === 0 && !isLoading ? (
+        <EmptyState
+          illustration={<TeamIllustration className="w-full" />}
+          title="Aún no tienes equipo registrado"
+          description="Agrega a tus Beauty Advisors, gerentes y supervisores para empezar a operar la plataforma."
+          action={
+            can(role, "user.manage") ? (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setInviteOpen(true)}>
+                  Invitar por correo
+                </Button>
+                <Button onClick={() => openCreate("user")}>
+                  Crear primer usuario
+                </Button>
+              </div>
+            ) : undefined
+          }
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={users}
+          isLoading={isLoading}
+          emptyTitle="No hay usuarios"
+        />
+      )}
 
-      {/* Create user dialog */}
-      <Dialog open={dialog?.mode === "create"} onOpenChange={(open) => !open && setDialog(null)}>
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>Nuevo usuario</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <UserForm
-              stores={stores}
-              brands={brands}
-              zones={zones}
-              onSubmit={handleSubmit}
-              isPending={createUser.isPending}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose><Button variant="outline" disabled={createUser.isPending}>Cancelar</Button></DialogClose>
-            <Button type="submit" form="user-form" disabled={createUser.isPending}>
-              {createUser.isPending ? "Creando..." : "Crear usuario"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Invite user dialog */}
-      <Dialog open={dialog?.mode === "invite"} onOpenChange={(open) => !open && setDialog(null)}>
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>Invitar usuario</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Se enviará una invitación por correo electrónico. El usuario aparecerá como
-              &quot;Pendiente&quot; hasta que acepte.
-            </p>
-            <UserForm
-              stores={stores}
-              brands={brands}
-              zones={zones}
-              onSubmit={(data) => {
-                inviteUser.mutate(
-                  {
-                    email: data.email,
-                    fullName: data.fullName,
-                    role: data.role,
-                    storeId: data.storeId,
-                    zoneId: data.zoneId,
-                    brandId: data.brandId,
-                  },
-                  { onSuccess: () => setDialog(null) },
-                );
-              }}
-              isPending={inviteUser.isPending}
-              hidePassword
-            />
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose><Button variant="outline" disabled={inviteUser.isPending}>Cancelar</Button></DialogClose>
-            <Button type="submit" form="user-form" disabled={inviteUser.isPending}>
-              {inviteUser.isPending ? "Enviando..." : "Enviar invitación"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UserFormSheet
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        mode="invite"
+      />
     </div>
   );
 }
