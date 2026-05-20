@@ -3,7 +3,11 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": ".",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
+    "declaration": true,
     "types": ["node"]
   },
-  "include": ["schema", "seed", "drizzle.config.ts"]
+  "include": ["schema", "seed", "drizzle.config.ts", "migrate.ts"]
 }

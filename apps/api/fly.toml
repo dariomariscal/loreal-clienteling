@@ -4,7 +4,7 @@
 # Set the app name with `fly apps create <name>` and update `app` below.
 
 app = "loreal-clienteling-api"
-primary_region = "mad"
+primary_region = "dfw"
 
 [build]
   dockerfile = "Dockerfile"
@@ -12,7 +12,10 @@ primary_region = "mad"
 # Run migrations on every deploy, before swapping traffic to the new release.
 # We use the workspace-aware migrate runner so Neon pooled URLs work.
 [deploy]
-  release_command = "tsx /app/packages/database/migrate.ts"
+  # Runs Drizzle migrations against the production database before traffic
+  # swaps to the new release. The script handles cd-ing into apps/api so
+  # Node resolves drizzle-orm / pg from the hoisted node_modules.
+  release_command = "/usr/local/bin/release.sh"
 
 [env]
   NODE_ENV = "production"

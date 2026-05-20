@@ -1,12 +1,18 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
-import { config } from "dotenv";
 import path from "node:path";
 
-// Load env from apps/api/.env so this script can be run from anywhere in the
-// monorepo without juggling --env files.
-config({ path: path.resolve(__dirname, "../../apps/api/.env") });
+// Load env from apps/api/.env when running locally. In containerized runtime
+// (Fly release_command, Docker) env vars are already injected, and dotenv is
+// not installed — so we skip the load and fall back to process.env.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { config } = require("dotenv") as typeof import("dotenv");
+  config({ path: path.resolve(__dirname, "../../apps/api/.env") });
+} catch {
+  // dotenv not installed — relying on process.env (production / CI).
+}
 
 function toDirectNeonUrl(raw: string): string {
   // Neon publishes a pooled URL by default (host contains "-pooler"). Pooled
