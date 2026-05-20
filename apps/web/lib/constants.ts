@@ -3,6 +3,7 @@ export const API_URL =
 
 export const ROUTES = {
   SIGN_IN: "/sign-in",
-  SIGN_UP: "/sign-up",
+  ACCEPT_INVITATION: "/accept-invitation",
+  FORGOT_PASSWORD: "/forgot-password",
   DASHBOARD: "/",
 } as const;
