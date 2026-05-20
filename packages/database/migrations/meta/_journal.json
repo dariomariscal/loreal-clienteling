@@ -8,6 +8,13 @@
       "when": 1779245417926,
       "tag": "0000_careless_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779310918359,
+      "tag": "0001_breezy_queen_noir",
+      "breakpoints": true
     }
   ]
 }

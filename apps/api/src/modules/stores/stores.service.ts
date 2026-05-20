@@ -4,6 +4,7 @@ import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { stores, brandStores } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
+import type { StoreHours } from "@loreal/contracts";
 
 type CreateStoreInput = {
   code: string;
@@ -18,6 +19,8 @@ type CreateStoreInput = {
   postcode?: string;
   lat?: number;
   lng?: number;
+  phone?: string;
+  hours?: StoreHours;
   brandIds?: string[];
 };
 

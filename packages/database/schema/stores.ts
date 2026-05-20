@@ -6,10 +6,22 @@ import {
   numeric,
   timestamp,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { zones } from "./zones";
 import { municipalities } from "./municipalities";
 import { point } from "./_types";
+
+/**
+ * Free-form opening hours payload. Keys are day ranges like "mon-sun" or
+ * "mon-fri"/"sat"/"sun" so we can render and reason about schedules without
+ * locking into a per-day shape upfront.
+ */
+export interface StoreHours {
+  store?: Record<string, string>;
+  clickCollect?: Record<string, string>;
+  access?: string;
+}
 
 export const stores = pgTable(
   "stores",
@@ -35,6 +47,8 @@ export const stores = pgTable(
     lng: numeric("lng", { precision: 10, scale: 7 }),
     /** Canonical spatial location. Filled by trigger when lat/lng change. */
     geom: point("geom"),
+    phone: varchar("phone", { length: 20 }),
+    hours: jsonb("hours").$type<StoreHours>(),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

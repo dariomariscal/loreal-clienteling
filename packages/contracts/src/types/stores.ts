@@ -1,3 +1,12 @@
+export interface StoreHours {
+  /** Opening hours for the store itself. Keys are day ranges, e.g. "mon-sun". */
+  store?: Record<string, string>;
+  /** Click & Collect hours, when different from the store. */
+  clickCollect?: Record<string, string>;
+  /** Free-text access notes (e.g. "Entrada por Playa y viaje"). */
+  access?: string;
+}
+
 export interface CreateStore {
   code: string;
   displayName: string;
@@ -14,6 +23,8 @@ export interface CreateStore {
   postcode?: string;
   lat?: number;
   lng?: number;
+  phone?: string;
+  hours?: StoreHours;
   brandIds?: string[];
 }
 

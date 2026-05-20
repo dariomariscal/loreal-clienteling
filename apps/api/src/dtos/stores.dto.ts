@@ -11,9 +11,10 @@ import {
   IsArray,
   ArrayUnique,
   Length,
+  IsObject,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-import { STORE_CHAINS } from "@loreal/contracts";
+import { STORE_CHAINS, type StoreHours } from "@loreal/contracts";
 
 export class CreateStoreDto {
   @ApiProperty({ type: String, example: "LIV-SANTA-FE", minLength: 1, maxLength: 50 })
@@ -86,6 +87,21 @@ export class CreateStoreDto {
   @Min(-180)
   @Max(180)
   lng?: number;
+
+  @ApiPropertyOptional({ type: String, example: "4491393400", maxLength: 20 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  phone?: string;
+
+  @ApiPropertyOptional({
+    type: Object,
+    description:
+      'Opening hours grouped by day range, plus optional click & collect block and access notes. Example: { "store": { "mon-sun": "11:00-21:00" }, "clickCollect": { "mon-sun": "11:00-21:00" }, "access": "Entrada por Playa y viaje" }',
+  })
+  @IsOptional()
+  @IsObject()
+  hours?: StoreHours;
 
   @ApiPropertyOptional({ type: [String], format: "uuid", description: "Brand IDs that operate in this store" })
   @IsOptional()

@@ -19,7 +19,8 @@
     "migrate:kit": "drizzle-kit migrate",
     "studio": "drizzle-kit studio",
     "seed": "tsx seed/index.ts",
-    "seed:municipalities": "tsx seed/municipalities.ts"
+    "seed:municipalities": "tsx seed/municipalities.ts",
+    "seed:stores": "tsx seed/stores.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
