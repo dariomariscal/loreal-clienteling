@@ -36,14 +36,14 @@ export function BrandFormSheet({ open, onOpenChange, brand }: BrandFormSheetProp
 
   async function handleSubmit(data: BrandFormValues) {
     const { primaryColor, accentColor, ...brandData } = data;
-    const hasColors = Boolean(primaryColor || accentColor);
+    const hasBranding = Boolean(primaryColor || accentColor || brandData.logoUrl);
 
     if (isEdit && brand) {
       updateBrand.mutate(
         { id: brand.id, ...brandData },
         {
           onSuccess: async () => {
-            if (hasColors) {
+            if (hasBranding) {
               await updateConfig.mutateAsync({
                 brandId: brand.id,
                 primaryColor: primaryColor || undefined,
@@ -58,7 +58,7 @@ export function BrandFormSheet({ open, onOpenChange, brand }: BrandFormSheetProp
     } else {
       createBrand.mutate(brandData, {
         onSuccess: async (created) => {
-          if (hasColors) {
+          if (hasBranding) {
             await updateConfig.mutateAsync({
               brandId: created.id,
               primaryColor: primaryColor || undefined,

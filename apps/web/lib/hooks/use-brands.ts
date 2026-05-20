@@ -86,6 +86,7 @@ export function useUpdateBrandConfig() {
     mutationFn: ({ brandId, ...data }: { brandId: string } & Record<string, unknown>) =>
       api.put<BrandConfig>(`/brands/${brandId}/config`, data),
     onSuccess: (_, { brandId }) => {
+      queryClient.invalidateQueries({ queryKey: brandKeys.all });
       queryClient.invalidateQueries({ queryKey: brandKeys.detail(brandId) });
     },
   });
