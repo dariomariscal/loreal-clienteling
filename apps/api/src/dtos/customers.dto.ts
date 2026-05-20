@@ -15,6 +15,7 @@ import {
   PartialType,
 } from "@nestjs/swagger";
 import { GENDERS, LIFECYCLE_SEGMENTS } from "@loreal/contracts";
+import { PaginationDto } from "./common.dto";
 
 export class CreateCustomerDto {
   @ApiProperty({ type: String, example: "María", minLength: 1, maxLength: 100 })
@@ -72,7 +73,7 @@ export class SearchCustomerDto {
   type: string = "name";
 }
 
-export class CustomerFiltersDto {
+export class CustomerFiltersDto extends PaginationDto {
   @ApiPropertyOptional({ type: String, enum: LIFECYCLE_SEGMENTS })
   @IsOptional()
   @IsIn(LIFECYCLE_SEGMENTS)

@@ -17,7 +17,6 @@ import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
 import type { CreateCustomerDto, UpdateCustomerDto, CustomerFiltersDto } from "../../dtos/customers.dto";
-import type { PaginationDto } from "../../dtos/common.dto";
 import { rankCustomerSearchResults } from "@loreal/domain";
 
 @Injectable()
@@ -30,8 +29,7 @@ export class CustomersService {
 
   async findAll(
     user: SessionUser,
-    pagination: PaginationDto,
-    filters?: CustomerFiltersDto,
+    filters: CustomerFiltersDto,
   ) {
     const scope = await this.scopeService.scopeByStore(
       user,
@@ -112,14 +110,14 @@ export class CustomersService {
       .leftJoin(ltvSubquery, eq(customers.id, ltvSubquery.customerId))
       .where(where)
       .orderBy(orderByClause)
-      .limit(pagination.limit)
-      .offset((pagination.page - 1) * pagination.limit);
+      .limit(filters.limit)
+      .offset((filters.page - 1) * filters.limit);
 
     return {
       data: rows,
       total: totalResult?.count ?? 0,
-      page: pagination.page,
-      limit: pagination.limit,
+      page: filters.page,
+      limit: filters.limit,
     };
   }
 

@@ -19,7 +19,6 @@ import {
   SearchCustomerDto,
   CustomerFiltersDto,
 } from "../../dtos/customers.dto";
-import { PaginationDto } from "../../dtos/common.dto";
 import type { UserSession } from "../../common/types/session";
 
 @ApiTags("Customers")
@@ -31,11 +30,10 @@ export class CustomersController {
   @Get()
   @Roles(["ba", "manager", "supervisor", "admin"])
   findAll(
-    @Query() pagination: PaginationDto,
     @Query() filters: CustomerFiltersDto,
     @Session() session: UserSession,
   ) {
-    return this.customersService.findAll(session.user, pagination, filters);
+    return this.customersService.findAll(session.user, filters);
   }
 
   @Get("search")
