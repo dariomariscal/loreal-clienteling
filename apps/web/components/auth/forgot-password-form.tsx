@@ -71,9 +71,16 @@ export function ForgotPasswordForm() {
       });
 
       if (attempt.status === "complete") {
-        await setActive({ session: attempt.createdSessionId });
-        router.push("/");
-        router.refresh();
+        await setActive({
+          session: attempt.createdSessionId,
+          navigate: async ({ session }) => {
+            if (session?.currentTask) {
+              router.push(`/tasks/${session.currentTask.key}`);
+              return;
+            }
+            router.push("/");
+          },
+        });
         return;
       }
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSignIn } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import type { ClerkAPIError } from "@clerk/types";
@@ -21,6 +21,7 @@ import { getFieldError, getGlobalError } from "@/lib/auth/clerk-errors";
 export function SignInForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [errors, setErrors] = useState<ClerkAPIError[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,12 +37,24 @@ export function SignInForm() {
     const password = String(formData.get("password") ?? "");
 
     try {
-      const attempt = await signIn.create({ identifier, password });
+      const attempt = await signIn.create({
+        strategy: "password",
+        identifier,
+        password,
+      });
 
       if (attempt.status === "complete") {
-        await setActive({ session: attempt.createdSessionId });
-        router.push("/");
-        router.refresh();
+        const redirectUrl = searchParams.get("redirect_url") ?? "/";
+        await setActive({
+          session: attempt.createdSessionId,
+          navigate: async ({ session }) => {
+            if (session?.currentTask) {
+              router.push(`/tasks/${session.currentTask.key}`);
+              return;
+            }
+            router.push(redirectUrl);
+          },
+        });
         return;
       }
 
