@@ -52,9 +52,9 @@ export class AuditInterceptor implements NestInterceptor {
     // Only audit writes
     if (!action) return next.handle();
 
-    // Skip auth provider routes (Better Auth handles its own audit)
+    // Webhooks are inbound integration events, not user-driven writes.
     const path = req.path ?? req.url ?? "";
-    if (path.startsWith("/api/auth") || path.startsWith("/auth")) {
+    if (path.startsWith("/webhooks/")) {
       return next.handle();
     }
 

@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Param, Body, Inject } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
-import { Roles } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
 import { AppointmentEventTypesService } from "./appointment-event-types.service";
 import {
   CreateAppointmentEventTypeDto,

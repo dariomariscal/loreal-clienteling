@@ -1,23 +1,25 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Param,
   Body,
-  Query,
+  Controller,
+  Delete,
+  Get,
   Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
-import { Roles, Session } from "@thallesp/nestjs-better-auth";
+import { ApiBearerAuth, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { CurrentUser } from "../../auth/decorators/current-user.decorator";
+import { Roles } from "../../auth/decorators/roles.decorator";
+import type { SessionUser } from "../../common/types/session";
 import { UsersService } from "./users.service";
-import type { UserSession } from "../../common/types/session";
 
 @ApiTags("Users")
 @ApiBearerAuth()
 @Controller("users")
 export class UsersController {
-  constructor(@Inject(UsersService) private usersService: UsersService) {}
+  constructor(@Inject(UsersService) private readonly usersService: UsersService) {}
 
   @Get()
   @Roles(["manager", "admin"])
@@ -40,9 +42,9 @@ export class UsersController {
     @Query("search") search: string | undefined,
     @Query("page") page: string | undefined,
     @Query("limit") limit: string | undefined,
-    @Session() session: UserSession,
+    @CurrentUser() user: SessionUser,
   ) {
-    return this.usersService.findAll(session.user, {
+    return this.usersService.findAll(user, {
       role,
       storeId,
       zoneId,
@@ -61,28 +63,13 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
-  @Post()
-  @Roles(["admin"])
-  create(
-    @Body() body: { email: string; fullName: string; role: string; storeId?: string; zoneId?: string; brandId?: string },
-    @Session() session: UserSession,
-  ) {
-    return this.usersService.create(body, session.user);
-  }
-
-  @Get(":id/password")
-  @Roles(["admin"])
-  revealPassword(@Param("id") id: string, @Session() session: UserSession) {
-    return this.usersService.revealPassword(id, session.user);
-  }
-
   @Post("invite")
   @Roles(["admin"])
   invite(
     @Body() body: { email: string; fullName: string; role: string; storeId?: string; zoneId?: string; brandId?: string },
-    @Session() session: UserSession,
+    @CurrentUser() user: SessionUser,
   ) {
-    return this.usersService.invite(body, session.user);
+    return this.usersService.invite(body, user);
   }
 
   @Patch(":id")
@@ -90,8 +77,17 @@ export class UsersController {
   update(
     @Param("id") id: string,
     @Body() body: { role?: string; storeId?: string | null; zoneId?: string | null; brandId?: string | null; active?: boolean; fullName?: string },
-    @Session() session: UserSession,
+    @CurrentUser() user: SessionUser,
   ) {
-    return this.usersService.update(id, body, session.user);
+    return this.usersService.update(id, body, user);
+  }
+
+  @Delete("invitations/:invitationId")
+  @Roles(["admin"])
+  revokeInvitation(
+    @Param("invitationId") invitationId: string,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.usersService.revokeInvitation(invitationId, user);
   }
 }

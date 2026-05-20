@@ -1,12 +1,12 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
+import { Public } from "./auth/decorators/public.decorator";
 
 @ApiTags("Health")
 @Controller()
 export class HealthController {
   @Get("health")
-  @AllowAnonymous()
+  @Public()
   health() {
     return { status: "ok", timestamp: new Date().toISOString() };
   }

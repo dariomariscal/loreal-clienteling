@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1776828186748,
-      "tag": "0000_free_kree",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1778596996529,
-      "tag": "0001_breezy_wallop",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1778611434099,
-      "tag": "0002_pretty_greymalkin",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1779208408043,
-      "tag": "0003_wild_marvel_boy",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1779213607550,
-      "tag": "0004_shocking_meltdown",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1779231069274,
-      "tag": "0005_add_users_encrypted_password",
+      "when": 1779245417926,
+      "tag": "0000_careless_ultimates",
       "breakpoints": true
     }
   ]

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Inject } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
-import { Roles, Session } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
+import { Session } from "../../auth/decorators/session.decorator";
 import { RecommendationsService } from "./recommendations.service";
 import { CreateRecommendationDto, AiRecommendationRequestDto } from "../../dtos/recommendations.dto";
 import type { UserSession } from "../../common/types/session";

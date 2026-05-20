@@ -10,7 +10,8 @@ import {
   Inject,
 } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from "@nestjs/swagger";
-import { Roles, Session } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
+import { Session } from "../../auth/decorators/session.decorator";
 import { CustomersService } from "./customers.service";
 import {
   CreateCustomerDto,

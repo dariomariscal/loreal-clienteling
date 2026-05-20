@@ -1,12 +1,23 @@
-import { Injectable, Inject, NotFoundException, ForbiddenException, ConflictException } from "@nestjs/common";
-import { eq, and, sql, count, ilike } from "drizzle-orm";
-import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { users, stores, zones, brands } from "@loreal/database";
-import type { SessionUser } from "../../common/types/session";
-import { ScopeService } from "../../common/services/scope.service";
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { and, count, eq, sql } from "drizzle-orm";
+import { brands, stores, users, zones } from "@loreal/database";
+import {
+  DATABASE_TOKEN,
+  type Database,
+} from "../../config/database.provider";
+import {
+  CLERK_CLIENT,
+  type ClerkClient,
+} from "../../integrations/clerk/clerk.provider";
 import { AuditService } from "../../common/services/audit.service";
-import { PasswordCryptoService } from "../../common/services/password-crypto.service";
-import { auth } from "../../auth";
+import { ScopeService } from "../../common/services/scope.service";
+import type { SessionUser } from "../../common/types/session";
 
 interface UserFilters {
   role?: string;
@@ -38,22 +49,13 @@ interface UpdateUserData {
   fullName?: string;
 }
 
-interface CreateUserData {
-  email: string;
-  fullName: string;
-  role: string;
-  storeId?: string;
-  zoneId?: string;
-  brandId?: string;
-}
-
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject(DATABASE_TOKEN) private db: Database,
-    @Inject(ScopeService) private scopeService: ScopeService,
-    @Inject(AuditService) private auditService: AuditService,
-    @Inject(PasswordCryptoService) private passwordCrypto: PasswordCryptoService,
+    @Inject(DATABASE_TOKEN) private readonly db: Database,
+    @Inject(ScopeService) private readonly scopeService: ScopeService,
+    @Inject(AuditService) private readonly auditService: AuditService,
+    @Inject(CLERK_CLIENT) private readonly clerk: ClerkClient,
   ) {}
 
   async findAll(user: SessionUser, filters: UserFilters = {}) {
@@ -63,24 +65,20 @@ export class UsersService {
 
     const conditions: any[] = [];
 
-    // Role-based scoping
     if (user.role === "manager") {
-      // Manager sees BAs in their store
-      if (user.storeId) {
-        conditions.push(eq(users.storeId, user.storeId));
-      }
+      if (user.storeId) conditions.push(eq(users.storeId, user.storeId));
     } else if (user.role === "supervisor") {
-      // Supervisor sees users in their zone
       const storeIds = await this.scopeService.getAccessibleStoreIds(user);
       if (storeIds.length > 0) {
         conditions.push(
-          sql`${users.storeId} IN (${sql.join(storeIds.map((id) => sql`${id}`), sql`, `)})`,
+          sql`${users.storeId} IN (${sql.join(
+            storeIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
         );
       }
     }
-    // Admin sees all
 
-    // Apply filters
     if (filters.role) conditions.push(eq(users.role, filters.role));
     if (filters.storeId) conditions.push(eq(users.storeId, filters.storeId));
     if (filters.zoneId) conditions.push(eq(users.zoneId, filters.zoneId));
@@ -127,12 +125,7 @@ export class UsersService {
       .limit(limit)
       .offset(offset);
 
-    return {
-      data: rows,
-      total: totalResult?.count ?? 0,
-      page,
-      limit,
-    };
+    return { data: rows, total: totalResult?.count ?? 0, page, limit };
   }
 
   async findOne(id: string) {
@@ -165,12 +158,12 @@ export class UsersService {
   }
 
   /**
-   * Create an admin-provisioned user with a generated password. The cleartext
-   * password is AES-encrypted and stored on `users.encryptedPassword` so
-   * admins can reveal it later via `revealPassword`. The hashed copy lives in
-   * `accounts.password` as Better Auth requires.
+   * Send a Clerk invitation. The user sets their own password through the
+   * invitation link; the local row is created by the `user.created` webhook
+   * once they accept. We pre-record a pending placeholder so admins can see
+   * the invite in listings before acceptance.
    */
-  async create(data: CreateUserData, createdBy: SessionUser) {
+  async invite(data: InviteUserData, invitedBy: SessionUser) {
     if (!data.email.toLowerCase().endsWith("@loreal.mx")) {
       throw new ConflictException("El correo debe terminar en @loreal.mx");
     }
@@ -193,135 +186,91 @@ export class UsersService {
       if (store?.zoneId) zoneId = store.zoneId;
     }
 
-    const password = this.passwordCrypto.generate(14);
-
-    // Use Better Auth to create the user + hashed credential. The admin plugin
-    // forbids setting `role` / business fields through signUpEmail, so we
-    // sign-up with just the core fields and patch the rest right after.
-    const result = (await auth.api.signUpEmail({
-      body: {
-        email: data.email.toLowerCase(),
-        password,
-        name: data.fullName,
-        fullName: data.fullName,
-      } as any,
-    })) as { user: { id: string } };
-
-    const userId = result.user.id;
-
-    await this.db
-      .update(users)
-      .set({
-        emailVerified: true,
-        active: true,
-        invitationStatus: "accepted",
-        invitedByUserId: createdBy.id,
-        encryptedPassword: this.passwordCrypto.encrypt(password),
-        role: data.role,
-        fullName: data.fullName,
-        name: data.fullName,
-        storeId: data.storeId ?? null,
-        zoneId: zoneId ?? null,
-        brandId: data.brandId ?? null,
-      })
-      .where(eq(users.id, userId));
-
-    await this.auditService.log(
-      createdBy,
-      "user_created",
-      "user",
-      userId,
-      { email: data.email, role: data.role },
-    );
-
-    return this.findOne(userId);
-  }
-
-  /**
-   * Returns the cleartext password of a user — admin-only. Throws if there is
-   * no stored encrypted credential (e.g. the user set their own password).
-   */
-  async revealPassword(id: string, requester: SessionUser): Promise<{ password: string }> {
-    if (requester.role !== "admin") {
-      throw new ForbiddenException("Solo administradores pueden ver credenciales");
-    }
-    const [row] = await this.db
-      .select({ encryptedPassword: users.encryptedPassword, email: users.email })
-      .from(users)
-      .where(eq(users.id, id));
-    if (!row) throw new NotFoundException("User not found");
-    if (!row.encryptedPassword) {
-      throw new NotFoundException("Este usuario no tiene credenciales recuperables");
-    }
-    const password = this.passwordCrypto.decrypt(row.encryptedPassword);
-
-    await this.auditService.log(
-      requester,
-      "user_password_revealed",
-      "user",
-      id,
-      { email: row.email },
-    );
-
-    return { password };
-  }
-
-  async invite(data: InviteUserData, invitedBy: SessionUser) {
-    const id = crypto.randomUUID();
-
-    await this.db.insert(users).values({
-      id,
-      name: data.fullName,
-      email: data.email,
-      fullName: data.fullName,
+    const publicMetadata = {
       role: data.role,
+      fullName: data.fullName,
       storeId: data.storeId ?? null,
-      zoneId: data.zoneId ?? null,
+      zoneId: zoneId ?? null,
       brandId: data.brandId ?? null,
-      emailVerified: false,
       active: true,
       invitationStatus: "pending",
-      invitedAt: new Date(),
       invitedByUserId: invitedBy.id,
+    };
+
+    const invitation = await this.clerk.invitations.createInvitation({
+      emailAddress: data.email.toLowerCase(),
+      publicMetadata,
+      redirectUrl: process.env.CLERK_INVITATION_REDIRECT_URL,
     });
 
     await this.auditService.log(
       invitedBy,
       "user_invited",
       "user",
-      id,
+      invitation.id,
       { email: data.email, role: data.role },
     );
 
-    return this.findOne(id);
+    return {
+      invitationId: invitation.id,
+      email: data.email,
+      status: "pending" as const,
+    };
   }
 
   async update(id: string, data: UpdateUserData, updatedBy: SessionUser) {
     const existing = await this.findOne(id);
 
-    const updateValues: Record<string, any> = {};
+    const updateValues: Record<string, unknown> = {};
     if (data.role !== undefined) updateValues.role = data.role;
     if (data.storeId !== undefined) updateValues.storeId = data.storeId;
     if (data.zoneId !== undefined) updateValues.zoneId = data.zoneId;
     if (data.brandId !== undefined) updateValues.brandId = data.brandId;
     if (data.active !== undefined) updateValues.active = data.active;
-    if (data.fullName !== undefined) {
-      updateValues.fullName = data.fullName;
-      updateValues.name = data.fullName;
-    }
+    if (data.fullName !== undefined) updateValues.fullName = data.fullName;
 
     if (Object.keys(updateValues).length === 0) return existing;
 
     await this.db.update(users).set(updateValues).where(eq(users.id, id));
 
-    await this.auditService.log(
-      updatedBy,
-      "user_updated",
-      "user",
-      id,
-      updateValues,
-    );
+    // Mirror business fields onto Clerk so the JWT carries the latest values.
+    const metadataPatch: Record<string, unknown> = {};
+    for (const key of ["role", "storeId", "zoneId", "brandId", "active", "fullName"] as const) {
+      if (data[key] !== undefined) metadataPatch[key] = data[key];
+    }
+    if (Object.keys(metadataPatch).length > 0) {
+      await this.clerk.users.updateUser(id, {
+        publicMetadata: { ...metadataPatch },
+      });
+    }
+    if (data.fullName !== undefined) {
+      const [firstName, ...rest] = data.fullName.split(" ");
+      await this.clerk.users.updateUser(id, {
+        firstName,
+        lastName: rest.join(" ") || undefined,
+      });
+    }
+
+    await this.auditService.log(updatedBy, "user_updated", "user", id, updateValues);
 
     return this.findOne(id);
+  }
+
+  /**
+   * Revoke a pending Clerk invitation. For already-accepted users use
+   * `update(id, { active: false })`.
+   */
+  async revokeInvitation(invitationId: string, requester: SessionUser) {
+    if (requester.role !== "admin") {
+      throw new ForbiddenException("Solo administradores pueden revocar invitaciones");
+    }
+    await this.clerk.invitations.revokeInvitation(invitationId);
+    await this.auditService.log(
+      requester,
+      "user_invitation_revoked",
+      "user",
+      invitationId,
+    );
+    return { invitationId, status: "revoked" as const };
   }
 }

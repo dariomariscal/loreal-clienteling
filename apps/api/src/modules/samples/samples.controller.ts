@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Inject } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
-import { Roles, Session } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
+import { Session } from "../../auth/decorators/session.decorator";
 import { SamplesService } from "./samples.service";
 import { CreateSampleDto } from "../../dtos/samples.dto";
 import type { UserSession } from "../../common/types/session";

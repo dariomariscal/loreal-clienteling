@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, Inject } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiOperation } from "@nestjs/swagger";
-import { Roles, Session } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
+import { Session } from "../../auth/decorators/session.decorator";
 import { ProductsService } from "./products.service";
 import {
   BulkCreateProductsDto,

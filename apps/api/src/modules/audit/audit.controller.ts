@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Query, Inject } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiParam } from "@nestjs/swagger";
-import { Roles } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
 import { AuditQueryService } from "./audit.service";
 import { AuditQueryDto } from "../../dtos/audit.dto";
 

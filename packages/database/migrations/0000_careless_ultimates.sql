@@ -1,9 +1,26 @@
+CREATE TABLE "appointment_event_types" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"code" varchar(30) NOT NULL,
+	"display_name" varchar(200) NOT NULL,
+	"duration_minutes" integer DEFAULT 60,
+	"color" varchar(20),
+	"description" text,
+	"brand_id" uuid,
+	"max_capacity" integer DEFAULT 1,
+	"requires_confirmation" boolean DEFAULT false NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "appointment_event_types_code_unique" UNIQUE("code")
+);
+--> statement-breakpoint
 CREATE TABLE "appointments" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"customer_id" uuid NOT NULL,
 	"ba_user_id" text NOT NULL,
 	"store_id" uuid NOT NULL,
-	"event_type" varchar(30) NOT NULL,
+	"event_type_id" uuid NOT NULL,
 	"scheduled_at" timestamp with time zone NOT NULL,
 	"duration_minutes" integer NOT NULL,
 	"status" varchar(20) DEFAULT 'scheduled' NOT NULL,
@@ -29,80 +46,23 @@ CREATE TABLE "audit_logs" (
 	"timestamp" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "accounts" (
-	"id" text PRIMARY KEY NOT NULL,
-	"account_id" text NOT NULL,
-	"provider_id" text NOT NULL,
-	"user_id" text NOT NULL,
-	"access_token" text,
-	"refresh_token" text,
-	"id_token" text,
-	"access_token_expires_at" timestamp with time zone,
-	"refresh_token_expires_at" timestamp with time zone,
-	"scope" text,
-	"password" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "jwkss" (
-	"id" text PRIMARY KEY NOT NULL,
-	"public_key" text NOT NULL,
-	"private_key" text NOT NULL,
-	"created_at" timestamp with time zone NOT NULL,
-	"expires_at" timestamp with time zone
-);
---> statement-breakpoint
-CREATE TABLE "sessions" (
-	"id" text PRIMARY KEY NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
-	"token" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"ip_address" text,
-	"user_agent" text,
-	"user_id" text NOT NULL,
-	"impersonated_by" text,
-	CONSTRAINT "sessions_token_unique" UNIQUE("token")
-);
---> statement-breakpoint
-CREATE TABLE "two_factors" (
-	"id" text PRIMARY KEY NOT NULL,
-	"secret" text NOT NULL,
-	"backup_codes" text NOT NULL,
-	"user_id" text NOT NULL,
-	"verified" boolean DEFAULT true
-);
---> statement-breakpoint
 CREATE TABLE "users" (
 	"id" text PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
 	"email" text NOT NULL,
-	"email_verified" boolean DEFAULT false NOT NULL,
-	"image" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"banned" boolean DEFAULT false,
-	"ban_reason" text,
-	"ban_expires" timestamp with time zone,
-	"two_factor_enabled" boolean DEFAULT false,
-	"role" text DEFAULT 'ba' NOT NULL,
 	"full_name" text NOT NULL,
+	"image_url" text,
+	"role" text DEFAULT 'ba' NOT NULL,
 	"store_id" text,
 	"zone_id" text,
 	"brand_id" text,
 	"active" boolean DEFAULT true NOT NULL,
+	"invitation_status" text,
+	"invited_at" timestamp with time zone,
+	"invited_by_user_id" text,
 	"last_login_at" timestamp with time zone,
-	CONSTRAINT "users_email_unique" UNIQUE("email")
-);
---> statement-breakpoint
-CREATE TABLE "verifications" (
-	"id" text PRIMARY KEY NOT NULL,
-	"identifier" text NOT NULL,
-	"value" text NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
 CREATE TABLE "beauty_profile_shades" (
@@ -145,9 +105,20 @@ CREATE TABLE "brand_configs" (
 	"message_templates" jsonb,
 	"replenishment_rules" jsonb,
 	"virtual_tryon_enabled" boolean DEFAULT false NOT NULL,
+	"vip_threshold_amount" numeric(12, 2),
+	"vip_threshold_period_months" integer DEFAULT 12,
+	"communication_rules" jsonb,
+	"enabled_modules" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "brand_configs_brand_id_unique" UNIQUE("brand_id")
+);
+--> statement-breakpoint
+CREATE TABLE "brand_stores" (
+	"brand_id" uuid NOT NULL,
+	"store_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "brand_stores_brand_id_store_id_pk" PRIMARY KEY("brand_id","store_id")
 );
 --> statement-breakpoint
 CREATE TABLE "brands" (
@@ -155,6 +126,7 @@ CREATE TABLE "brands" (
 	"code" varchar(50) NOT NULL,
 	"display_name" varchar(200) NOT NULL,
 	"tier" varchar(20) NOT NULL,
+	"logo_url" varchar(500),
 	"active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -222,6 +194,15 @@ CREATE TABLE "message_templates" (
 	"active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "municipalities" (
+	"id" varchar(5) PRIMARY KEY NOT NULL,
+	"state_code" varchar(2) NOT NULL,
+	"state_name" varchar(100) NOT NULL,
+	"name" varchar(200) NOT NULL,
+	"boundary" geometry(MultiPolygon, 4326) NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "product_availability" (
@@ -316,33 +297,49 @@ CREATE TABLE "stores" (
 	"address" varchar(500),
 	"city" varchar(100),
 	"state" varchar(100),
+	"district" varchar(100),
+	"municipality_id" varchar(5),
+	"postcode" varchar(10),
+	"lat" numeric(10, 7),
+	"lng" numeric(10, 7),
+	"geom" geometry(Point, 4326),
 	"active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "stores_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
+CREATE TABLE "zone_municipalities" (
+	"zone_id" uuid NOT NULL,
+	"municipality_id" varchar(5) NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "zone_municipalities_zone_id_municipality_id_pk" PRIMARY KEY("zone_id","municipality_id")
+);
+--> statement-breakpoint
 CREATE TABLE "zones" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"code" varchar(50) NOT NULL,
 	"display_name" varchar(200) NOT NULL,
+	"color" varchar(7) DEFAULT '#D4AF37' NOT NULL,
+	"icon" varchar(50) DEFAULT 'map-pin' NOT NULL,
 	"region" varchar(200),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "zones_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
+ALTER TABLE "appointment_event_types" ADD CONSTRAINT "appointment_event_types_brand_id_brands_id_fk" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "appointments" ADD CONSTRAINT "appointments_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "appointments" ADD CONSTRAINT "appointments_ba_user_id_users_id_fk" FOREIGN KEY ("ba_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "appointments" ADD CONSTRAINT "appointments_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "two_factors" ADD CONSTRAINT "two_factors_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "appointments" ADD CONSTRAINT "appointments_event_type_id_appointment_event_types_id_fk" FOREIGN KEY ("event_type_id") REFERENCES "public"."appointment_event_types"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "beauty_profile_shades" ADD CONSTRAINT "beauty_profile_shades_beauty_profile_id_beauty_profiles_id_fk" FOREIGN KEY ("beauty_profile_id") REFERENCES "public"."beauty_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "beauty_profile_shades" ADD CONSTRAINT "beauty_profile_shades_brand_id_brands_id_fk" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "beauty_profile_shades" ADD CONSTRAINT "beauty_profile_shades_captured_by_user_id_users_id_fk" FOREIGN KEY ("captured_by_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "beauty_profiles" ADD CONSTRAINT "beauty_profiles_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "brand_configs" ADD CONSTRAINT "brand_configs_brand_id_brands_id_fk" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "brand_stores" ADD CONSTRAINT "brand_stores_brand_id_brands_id_fk" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "brand_stores" ADD CONSTRAINT "brand_stores_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "communications" ADD CONSTRAINT "communications_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "communications" ADD CONSTRAINT "communications_sent_by_user_id_users_id_fk" FOREIGN KEY ("sent_by_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "consents" ADD CONSTRAINT "consents_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -367,26 +364,30 @@ ALTER TABLE "samples" ADD CONSTRAINT "samples_product_id_products_id_fk" FOREIGN
 ALTER TABLE "samples" ADD CONSTRAINT "samples_ba_user_id_users_id_fk" FOREIGN KEY ("ba_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "samples" ADD CONSTRAINT "samples_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stores" ADD CONSTRAINT "stores_zone_id_zones_id_fk" FOREIGN KEY ("zone_id") REFERENCES "public"."zones"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stores" ADD CONSTRAINT "stores_municipality_id_municipalities_id_fk" FOREIGN KEY ("municipality_id") REFERENCES "public"."municipalities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "zone_municipalities" ADD CONSTRAINT "zone_municipalities_zone_id_zones_id_fk" FOREIGN KEY ("zone_id") REFERENCES "public"."zones"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "zone_municipalities" ADD CONSTRAINT "zone_municipalities_municipality_id_municipalities_id_fk" FOREIGN KEY ("municipality_id") REFERENCES "public"."municipalities"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "appointments_ba_idx" ON "appointments" USING btree ("ba_user_id");--> statement-breakpoint
 CREATE INDEX "appointments_store_idx" ON "appointments" USING btree ("store_id");--> statement-breakpoint
 CREATE INDEX "appointments_scheduled_idx" ON "appointments" USING btree ("scheduled_at");--> statement-breakpoint
 CREATE INDEX "audit_logs_actor_idx" ON "audit_logs" USING btree ("actor_user_id");--> statement-breakpoint
 CREATE INDEX "audit_logs_entity_idx" ON "audit_logs" USING btree ("entity_type","entity_id");--> statement-breakpoint
 CREATE INDEX "audit_logs_timestamp_idx" ON "audit_logs" USING btree ("timestamp");--> statement-breakpoint
-CREATE INDEX "accounts_userId_idx" ON "accounts" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "sessions_userId_idx" ON "sessions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "twoFactors_secret_idx" ON "two_factors" USING btree ("secret");--> statement-breakpoint
-CREATE INDEX "twoFactors_userId_idx" ON "two_factors" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "verifications_identifier_idx" ON "verifications" USING btree ("identifier");--> statement-breakpoint
+CREATE INDEX "brand_stores_store_idx" ON "brand_stores" USING btree ("store_id");--> statement-breakpoint
 CREATE INDEX "communications_customer_idx" ON "communications" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "consents_customer_idx" ON "consents" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "consents_type_idx" ON "consents" USING btree ("customer_id","type");--> statement-breakpoint
 CREATE INDEX "customers_store_idx" ON "customers" USING btree ("registered_at_store_id");--> statement-breakpoint
 CREATE INDEX "customers_name_idx" ON "customers" USING btree ("first_name","last_name");--> statement-breakpoint
 CREATE INDEX "customers_segment_idx" ON "customers" USING btree ("lifecycle_segment");--> statement-breakpoint
+CREATE INDEX "municipalities_state_idx" ON "municipalities" USING btree ("state_code");--> statement-breakpoint
+CREATE INDEX "municipalities_boundary_gix" ON "municipalities" USING gist ("boundary");--> statement-breakpoint
 CREATE INDEX "products_brand_idx" ON "products" USING btree ("brand_id");--> statement-breakpoint
 CREATE INDEX "products_category_idx" ON "products" USING btree ("category");--> statement-breakpoint
 CREATE INDEX "purchases_customer_idx" ON "purchases" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "purchases_store_idx" ON "purchases" USING btree ("store_id");--> statement-breakpoint
 CREATE INDEX "recommendations_customer_idx" ON "recommendations" USING btree ("customer_id");--> statement-breakpoint
-CREATE INDEX "recommendations_store_idx" ON "recommendations" USING btree ("store_id");
+CREATE INDEX "recommendations_store_idx" ON "recommendations" USING btree ("store_id");--> statement-breakpoint
+CREATE INDEX "stores_municipality_idx" ON "stores" USING btree ("municipality_id");--> statement-breakpoint
+CREATE INDEX "stores_geom_gix" ON "stores" USING gist ("geom");--> statement-breakpoint
+CREATE INDEX "zone_municipalities_municipality_idx" ON "zone_municipalities" USING btree ("municipality_id");

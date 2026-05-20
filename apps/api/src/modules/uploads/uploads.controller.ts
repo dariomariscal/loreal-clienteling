@@ -10,7 +10,8 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags, ApiBearerAuth, ApiConsumes, ApiBody, ApiParam } from "@nestjs/swagger";
-import { Roles, Session } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
+import { Session } from "../../auth/decorators/session.decorator";
 import { UploadsService } from "./uploads.service";
 import { AuditService } from "../../common/services/audit.service";
 import type { UserSession } from "../../common/types/session";

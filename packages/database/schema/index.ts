@@ -1,16 +1,5 @@
-// Better Auth tables (users, sessions, accounts, verifications, jwkss, twoFactors)
-export {
-  users,
-  sessions,
-  accounts,
-  verifications,
-  jwkss,
-  twoFactors,
-  usersRelations,
-  sessionsRelations,
-  accountsRelations,
-  twoFactorsRelations,
-} from "./auth";
+// Clerk-backed users mirror
+export { users, usersRelations } from "./auth";
 
 // Domain tables
 export { brands } from "./brands";

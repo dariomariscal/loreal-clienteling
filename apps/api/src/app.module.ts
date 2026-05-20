@@ -1,8 +1,10 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { AuthModule } from "@thallesp/nestjs-better-auth";
+import { ClerkModule } from "./integrations/clerk/clerk.module";
+import { AuthModule } from "./auth/auth.module";
 import { DatabaseModule } from "./config/database.module";
 import { CommonModule } from "./common/common.module";
+import { WebhooksModule } from "./webhooks/webhooks.module";
 import { ZonesModule } from "./modules/zones/zones.module";
 import { GeoModule } from "./modules/geo/geo.module";
 import { BrandsModule } from "./modules/brands/brands.module";
@@ -23,7 +25,6 @@ import { SchedulerModule } from "./modules/scheduler/scheduler.module";
 import { UsersModule } from "./modules/users/users.module";
 import { UploadsModule } from "./modules/uploads/uploads.module";
 import { HealthController } from "./health.controller";
-import { auth } from "./auth";
 
 @Module({
   imports: [
@@ -32,8 +33,10 @@ import { auth } from "./auth";
       envFilePath: [".env", "../../.env"],
     }),
     DatabaseModule,
-    AuthModule.forRoot({ auth }),
+    ClerkModule,
+    AuthModule,
     CommonModule,
+    WebhooksModule,
     ZonesModule,
     GeoModule,
     BrandsModule,

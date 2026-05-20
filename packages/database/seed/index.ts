@@ -11,75 +11,28 @@ const pool = new Pool({
 });
 const db = drizzle(pool, { schema });
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function uuid() {
-  return crypto.randomUUID();
-}
-
-// Better Auth uses @noble/hashes scrypt with N=16384, r=16, p=1, dkLen=64.
-// node:crypto.scrypt defaults to r=8, so we must pass r=16 explicitly.
-async function hashPassword(password: string): Promise<string> {
-  const crypto = await import("node:crypto");
-  const salt = crypto.randomBytes(16).toString("hex");
-  return new Promise((resolve, reject) => {
-    crypto.scrypt(password, salt, 64, { N: 16384, r: 16, p: 1, maxmem: 128 * 16384 * 16 * 2 }, (err, key) => {
-      if (err) reject(err);
-      else resolve(`${salt}:${key.toString("hex")}`);
-    });
-  });
-}
-
 // ─── Seed Data ──────────────────────────────────────────────────────────────
 
 async function seed() {
-  console.log("🌱 Bootstrap seed (admin only)...\n");
+  console.log("🌱 Bootstrap seed (domain reset)...\n");
 
-  // Truncate auth + domain tables. Municipalities are preserved (static reference data).
+  // Truncate domain tables. `users` is preserved — identity is managed by
+  // Clerk and the local mirror is repopulated by the user.created webhook.
   console.log("Truncating tables...");
   await db.execute(sql`TRUNCATE TABLE
     audit_logs, communications, message_templates, consents,
     appointments, appointment_event_types, samples, purchase_items, purchases,
     recommendations, product_availability, beauty_profile_shades,
     beauty_profiles, customers, products, brand_configs,
-    brand_stores, stores, zone_municipalities, zones, brands,
-    two_factors, sessions, accounts, verifications, users
+    brand_stores, stores, zone_municipalities, zones, brands
     CASCADE`);
 
-  // ─── Admin user ────────────────────────────────────────────────────────────
-  console.log("Seeding admin user...");
-  const passwordHash = await hashPassword("Password123!");
-  const adminId = uuid();
-
-  await db.insert(schema.users).values({
-    id: adminId,
-    name: "Admin Central",
-    email: "admin@loreal.mx",
-    emailVerified: true,
-    fullName: "Administrador Central",
-    role: "admin",
-    storeId: null,
-    zoneId: null,
-    brandId: null,
-    active: true,
-  });
-
-  await db.insert(schema.accounts).values({
-    id: uuid(),
-    accountId: adminId,
-    providerId: "credential",
-    userId: adminId,
-    password: passwordHash,
-  });
-
-  console.log("\n✅ Bootstrap complete.");
-  console.log(`
-Login:
-  Email:    admin@loreal.mx
-  Password: Password123!
-
-All other data (brands, zones, stores, users, products, customers...)
-should be created manually through the app, simulating a real first-use flow.
+  console.log("\n✅ Bootstrap complete.\n");
+  console.log(`Next steps:
+  1. Create an admin user in the Clerk dashboard (https://dashboard.clerk.com).
+  2. Set their publicMetadata to: { "role": "admin", "fullName": "Administrador Central" }.
+  3. The user.created webhook will insert the local mirror row automatically.
+  4. Sign in with that admin to seed brands, zones, stores, etc. through the app.
 
 Municipalities reference data is preserved — run \`pnpm seed:municipalities\`
 once after a full reset to repopulate it.

@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 
@@ -13,8 +14,10 @@ function parseOrigins(value: string | undefined, fallback: string[]): string[] {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bodyParser: false, // Required for Better Auth — it handles its own body parsing
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // Svix verifies Clerk webhooks against the exact bytes the platform signed,
+    // so we need access to the raw request body on /webhooks/*.
+    rawBody: true,
   });
 
   app.useGlobalPipes(
@@ -22,9 +25,7 @@ async function bootstrap() {
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
+      transformOptions: { enableImplicitConversion: true },
     }),
   );
 
@@ -44,9 +45,7 @@ async function bootstrap() {
 
   if (enableSwagger) {
     const publicApiUrl =
-      process.env.PUBLIC_API_URL ??
-      process.env.BETTER_AUTH_URL ??
-      `http://localhost:${process.env.PORT ?? 3001}`;
+      process.env.PUBLIC_API_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
     const config = new DocumentBuilder()
       .setTitle("L'Oréal Clienteling API")
       .setDescription("API for L'Oréal beauty advisor clienteling platform")
@@ -59,7 +58,6 @@ async function bootstrap() {
   }
 
   const port = Number(process.env.PORT ?? 3001);
-  // Bind to 0.0.0.0 so containers (Fly machines) accept external traffic.
   await app.listen(port, "0.0.0.0");
   console.log(`API running on port ${port}`);
   if (enableSwagger) {

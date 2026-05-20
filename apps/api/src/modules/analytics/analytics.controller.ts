@@ -1,6 +1,7 @@
 import { Controller, Get, Query, Inject, Res, BadRequestException } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
-import { Roles, Session } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
+import { Session } from "../../auth/decorators/session.decorator";
 import { Workbook } from "exceljs";
 import { AnalyticsService } from "./analytics.service";
 import type { UserSession } from "../../common/types/session";

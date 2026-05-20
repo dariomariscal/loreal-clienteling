@@ -1,6 +1,6 @@
 import { Controller, Get, Inject, Query } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
-import { Roles } from "@thallesp/nestjs-better-auth";
+import { Roles } from "../../auth/decorators/roles.decorator";
 import { GeoService } from "./geo.service";
 
 @ApiTags("Geo")
