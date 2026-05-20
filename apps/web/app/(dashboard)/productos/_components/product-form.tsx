@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PRODUCT_CATEGORIES } from "@loreal/contracts";
+import { PRODUCT_CATEGORIES, type ProductCategory } from "@loreal/contracts";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +34,7 @@ const productFormSchema = z.object({
   sku: z.string().min(1).max(50),
   name: z.string().min(1).max(200),
   brandId: z.string().uuid(),
-  category: z.enum(PRODUCT_CATEGORIES as [string, ...string[]]),
+  category: z.enum(PRODUCT_CATEGORIES as [ProductCategory, ...ProductCategory[]]),
   subcategory: z.string().max(100).optional(),
   description: z.string().max(2000).optional(),
   price: z.coerce.number().positive(),
@@ -66,7 +66,7 @@ export function ProductForm({
       category: defaultValues?.category ?? PRODUCT_CATEGORIES[0],
       subcategory: defaultValues?.subcategory ?? "",
       description: defaultValues?.description ?? "",
-      price: defaultValues?.price ?? (0 as unknown as number),
+      price: defaultValues?.price ?? ("" as unknown as number),
       estimatedDurationDays: defaultValues?.estimatedDurationDays,
       images: defaultValues?.images ?? [],
     },
@@ -88,7 +88,6 @@ export function ProductForm({
       ...data,
       description: data.description || undefined,
       subcategory: data.subcategory || undefined,
-      images: data.images.length > 0 ? data.images : [],
     });
   }
 

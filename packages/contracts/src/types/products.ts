@@ -7,6 +7,7 @@ export interface CreateProduct {
   description?: string;
   price: number;
   estimatedDurationDays?: number;
+  images?: string[];
 }
 
 export type UpdateProduct = Partial<CreateProduct>;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
+import { AlertCircleIcon, ArrowLeftIcon } from "lucide-react";
 import {
   useBrands,
   useProduct,
@@ -11,6 +11,8 @@ import {
 } from "@/lib/hooks";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { ProductCategory } from "@loreal/contracts";
 import { ProductForm, type ProductFormValues } from "./product-form";
 
 interface ProductEditorProps {
@@ -26,6 +28,7 @@ export function ProductEditor({ mode, productId }: ProductEditorProps) {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const isPending = createProduct.isPending || updateProduct.isPending;
+  const mutationError = createProduct.error ?? updateProduct.error;
 
   function handleSubmit(data: ProductFormValues) {
     if (isEdit && productId) {
@@ -54,7 +57,7 @@ export function ProductEditor({ mode, productId }: ProductEditorProps) {
         sku: product.sku,
         name: product.name,
         brandId: product.brandId,
-        category: product.category,
+        category: product.category as ProductCategory,
         subcategory: product.subcategory ?? undefined,
         description: product.description ?? undefined,
         price: Number(product.price),
@@ -99,6 +102,16 @@ export function ProductEditor({ mode, productId }: ProductEditorProps) {
           </div>
         }
       />
+
+      {mutationError && (
+        <Alert variant="destructive">
+          <AlertCircleIcon />
+          <AlertTitle>
+            No pudimos {isEdit ? "guardar los cambios" : "crear el producto"}
+          </AlertTitle>
+          <AlertDescription>{mutationError.message}</AlertDescription>
+        </Alert>
+      )}
 
       <ProductForm
         defaultValues={defaultValues}

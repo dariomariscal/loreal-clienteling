@@ -10,6 +10,7 @@ export const createProductSchema = z.object({
   description: z.string().max(2000).optional(),
   price: z.coerce.number().positive(),
   estimatedDurationDays: z.coerce.number().int().positive().optional(),
+  images: z.array(z.string().url()).optional(),
 });
 
 export const updateProductSchema = createProductSchema.partial();
