@@ -7,17 +7,21 @@ import { z } from "zod";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
-import { Dropzone } from "@/components/ui/dropzone";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { ProductPreviewCard } from "./product-preview-card";
+import { ProductImageGallery } from "./product-image-gallery";
 import type { Brand } from "@/lib/hooks";
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -68,10 +72,6 @@ export function ProductForm({
     },
   });
 
-  const values = form.watch();
-  const brandName =
-    brands.find((b) => b.id === values.brandId)?.displayName ?? "";
-
   const brandOptions = brands.map((b) => ({
     value: b.id,
     label: b.displayName,
@@ -97,193 +97,232 @@ export function ProductForm({
       <form
         id="product-form"
         onSubmit={form.handleSubmit(handleSubmit)}
-        className="grid gap-8 lg:grid-cols-[1fr,320px]"
+        className="flex flex-row items-start gap-6"
       >
-        <div className="space-y-6">
-          <FormField
-            control={form.control}
-            name="images"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Imágenes del producto</FormLabel>
-                <FormControl>
-                  <Dropzone
-                    folder="products"
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={isPending}
-                    maxFiles={6}
-                  />
-                </FormControl>
-                <FormDescription>
-                  La primera imagen es la principal. Arrastra para reordenar.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* Primary column — Polaris "Resource details" pattern */}
+        <div className="flex-1 min-w-0 space-y-6">
+          {/* Información básica */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Información del producto</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Advanced Génifique Sérum"
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descripción</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        value={field.value ?? ""}
+                        rows={4}
+                        placeholder="Tratamiento de skincare premium..."
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="sku"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SKU</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="LAN-SK-0001"
-                      disabled={isPending}
-                      className="font-mono"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Advanced Génifique Sérum"
-                      disabled={isPending}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          {/* Media */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Multimedia</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="images"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <ProductImageGallery
+                        folder="products"
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={isPending}
+                        maxFiles={6}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="brandId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Marca</FormLabel>
-                  <FormControl>
-                    <Combobox
-                      options={brandOptions}
-                      value={field.value || undefined}
-                      onChange={field.onChange}
-                      placeholder="Seleccionar marca"
-                      disabled={isPending}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <FormControl>
-                    <Combobox
-                      options={categoryOptions}
-                      value={field.value || undefined}
-                      onChange={field.onChange}
-                      placeholder="Seleccionar categoría"
-                      disabled={isPending}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          {/* Precios */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Precios</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Precio (MXN)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="1500.00"
+                          disabled={isPending}
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="estimatedDurationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duración estimada (días)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="60"
+                          disabled={isPending}
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value ? e.target.value : undefined,
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Precio (MXN)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="1500.00"
-                      disabled={isPending}
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="estimatedDurationDays"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duración estimada (días)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="60"
-                      disabled={isPending}
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value ? e.target.value : undefined,
-                        )
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Descripción</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    value={field.value ?? ""}
-                    rows={4}
-                    placeholder="Tratamiento de skincare premium..."
-                    disabled={isPending}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Inventario */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Inventario</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="sku"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SKU</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="LAN-SK-0001"
+                        disabled={isPending}
+                        className="font-mono"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
         </div>
 
-        <aside className="space-y-3 lg:sticky lg:top-0 lg:self-start">
-          <p className="text-[10px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
-            Vista previa
-          </p>
-          <ProductPreviewCard
-            name={values.name || "Nombre del producto"}
-            brandName={brandName}
-            category={values.category}
-            price={Number(values.price) || 0}
-            imageUrl={values.images?.[0]}
-            sku={values.sku}
-          />
+        {/* Secondary column — organización */}
+        <aside className="sticky top-4 w-[300px] shrink-0 space-y-6 self-start">
+          <Card>
+            <CardHeader>
+              <CardTitle>Organización</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="brandId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Marca</FormLabel>
+                    <FormControl>
+                      <Combobox
+                        options={brandOptions}
+                        value={field.value || undefined}
+                        onChange={field.onChange}
+                        placeholder="Seleccionar marca"
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categoría</FormLabel>
+                    <FormControl>
+                      <Combobox
+                        options={categoryOptions}
+                        value={field.value || undefined}
+                        onChange={field.onChange}
+                        placeholder="Seleccionar categoría"
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="subcategory"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Subcategoría</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ""}
+                        placeholder="Sérum facial"
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
         </aside>
       </form>
     </Form>

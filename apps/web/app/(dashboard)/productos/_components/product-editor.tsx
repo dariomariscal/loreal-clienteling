@@ -42,7 +42,7 @@ export function ProductEditor({ mode, productId }: ProductEditorProps) {
 
   if (isEdit && isLoading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
         <div className="h-96 animate-pulse rounded-xl bg-muted/40" />
       </div>
@@ -64,7 +64,7 @@ export function ProductEditor({ mode, productId }: ProductEditorProps) {
     : undefined;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <Link
         href="/productos"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
