@@ -11,21 +11,40 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * Typed fetch wrapper for the NestJS API.
- * Forwards auth cookies automatically (credentials: "include").
- */
+// ── Token resolver ────────────────────────────────────────────────
+// `<ApiTokenSync />` (mounted in the root layout) calls `setTokenResolver`
+// with a function that wraps Clerk's `useAuth().getToken()`. The api singleton
+// awaits it on every request so React Query hooks (which can't await the
+// useAuth hook inline) keep working with the same `api.get/post/...` shape.
+
+type TokenResolver = () => Promise<string | null>;
+
+let tokenResolver: TokenResolver | null = null;
+
+export function setTokenResolver(resolver: TokenResolver | null): void {
+  tokenResolver = resolver;
+}
+
+async function getAuthHeader(): Promise<Record<string, string>> {
+  if (!tokenResolver) return {};
+  const token = await tokenResolver();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ── Typed fetch ───────────────────────────────────────────────────
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
   const url = `${API_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const authHeader = await getAuthHeader();
 
   const res = await fetch(url, {
     ...options,
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...authHeader,
       ...options.headers,
     },
   });
@@ -35,9 +54,7 @@ export async function apiFetch<T>(
     throw new ApiError(res.status, res.statusText, body);
   }
 
-  // Handle 204 No Content
   if (res.status === 204) return undefined as T;
-
   return res.json();
 }
 

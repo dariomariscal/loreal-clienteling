@@ -1,49 +1,50 @@
-import { headers } from "next/headers";
-import { createAuthClient } from "better-auth/react";
-import { inferAdditionalFields } from "better-auth/client/plugins";
-import { API_URL } from "./constants";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import type { UserRole } from "@loreal/contracts";
 
-const serverAuthClient = createAuthClient({
-  baseURL: API_URL,
-  plugins: [
-    inferAdditionalFields({
-      user: {
-        role: {
-          type: "string",
-          required: true,
-          defaultValue: "ba",
-        },
-        storeId: {
-          type: "string",
-          required: false,
-        },
-        zoneId: {
-          type: "string",
-          required: false,
-        },
-        brandId: {
-          type: "string",
-          required: false,
-        },
-        active: {
-          type: "boolean",
-          required: true,
-          defaultValue: true,
-        },
-        fullName: {
-          type: "string",
-          required: true,
-        },
-      },
-    }),
-  ],
-});
+export interface SessionUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  storeId: string | null;
+  zoneId: string | null;
+  brandId: string | null;
+  active: boolean;
+}
 
-export async function getSession() {
-  const session = await serverAuthClient.getSession({
-    fetchOptions: {
-      headers: await headers(),
+export interface Session {
+  user: SessionUser;
+}
+
+/**
+ * Returns the authenticated session pieced together from Clerk session claims
+ * (cheap; available without an API call) and `currentUser()` (fetched once for
+ * the email + display name). Server-side only.
+ */
+export async function getSession(): Promise<Session | null> {
+  const { userId, sessionClaims } = await auth();
+  if (!userId) return null;
+
+  const meta = sessionClaims?.metadata ?? {};
+  const user = await currentUser();
+  if (!user) return null;
+
+  const email = user.primaryEmailAddress?.emailAddress ?? "";
+  const fullName =
+    meta.fullName ??
+    [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ??
+    email;
+
+  return {
+    user: {
+      id: userId,
+      email,
+      fullName,
+      role: meta.role ?? "ba",
+      storeId: meta.storeId ?? null,
+      zoneId: meta.zoneId ?? null,
+      brandId: meta.brandId ?? null,
+      active: meta.active ?? true,
     },
-  });
-  return session.data;
+  };
 }

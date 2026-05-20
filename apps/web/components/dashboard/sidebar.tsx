@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { cn } from "@/lib/utils";
-import { signOut } from "@/lib/auth-client";
+import { useClerk } from "@clerk/nextjs";
 import { useSidebar } from "@/components/dashboard/sidebar-context";
 import { useBrand } from "@/lib/hooks/use-brands";
 import { LorealLogo, LancomeLogo, YslLogo } from "@/components/ui/brand-logos";
@@ -103,13 +103,13 @@ function BrandLogo({ role, brandCode, collapsed }: { role: string; brandCode?: s
 function SidebarContent({ user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { signOut } = useClerk();
   const { collapsed, toggleCollapsed } = useSidebar();
   const role = user.role ?? "ba";
   const { data: brand } = useBrand(user.brandId ?? "");
 
   async function handleSignOut() {
-    await signOut();
-    router.push("/sign-in");
+    await signOut({ redirectUrl: "/sign-in" });
     router.refresh();
   }
 

@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import { authClient } from "@/lib/auth-client";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -69,17 +68,26 @@ export function useUsers(filters?: UserFilters) {
 
 // ── Mutations ──────────────────────────────────────────────────────
 
+interface InvitePayload {
+  email: string;
+  fullName: string;
+  role: string;
+  storeId?: string;
+  zoneId?: string;
+  brandId?: string;
+}
+
+interface InviteResult {
+  invitationId: string;
+  email: string;
+  status: "pending";
+}
+
 export function useInviteUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: {
-      email: string;
-      fullName: string;
-      role: string;
-      storeId?: string;
-      zoneId?: string;
-      brandId?: string;
-    }) => api.post<User>("/users/invite", data),
+    mutationFn: (data: InvitePayload) =>
+      api.post<InviteResult>("/users/invite", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 }
@@ -103,57 +111,33 @@ export function useUpdateUser() {
   });
 }
 
-export function useCreateUser() {
+export function useRevokeInvitation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: {
-      email: string;
-      fullName: string;
-      role: string;
-      storeId?: string;
-      zoneId?: string;
-      brandId?: string;
-    }) => api.post<User>("/users", data),
+    mutationFn: (invitationId: string) =>
+      api.delete<{ invitationId: string; status: "revoked" }>(
+        `/users/invitations/${invitationId}`,
+      ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 }
 
-export function useUserPassword(userId: string | null, enabled: boolean) {
-  return useQuery({
-    queryKey: ["users", userId, "password"],
-    queryFn: () => api.get<{ password: string }>(`/users/${userId}/password`),
-    enabled: enabled && !!userId,
-    staleTime: 0,
-    gcTime: 0,
+// Activate / deactivate now go through the normal update endpoint, which
+// mirrors `active` onto Clerk publicMetadata so the JWT stays in sync.
+export function useSetUserActive() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      api.patch<User>(`/users/${id}`, { active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 }
 
 export function useSetUserRole() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      await authClient.admin.setRole({ userId, role: role as "admin" });
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
-  });
-}
-
-export function useBanUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (userId: string) => {
-      await authClient.admin.banUser({ userId });
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
-  });
-}
-
-export function useUnbanUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (userId: string) => {
-      await authClient.admin.unbanUser({ userId });
-    },
+    mutationFn: ({ id, role }: { id: string; role: string }) =>
+      api.patch<User>(`/users/${id}`, { role }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 }
