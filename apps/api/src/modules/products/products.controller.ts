@@ -8,8 +8,8 @@ import {
   CreateProductDto,
   UpdateProductDto,
   UpdateAvailabilityDto,
+  ProductFiltersDto,
 } from "../../dtos/products.dto";
-import { PaginationDto } from "../../dtos/common.dto";
 import type { UserSession } from "../../common/types/session";
 
 @ApiTags("Products")
@@ -20,12 +20,10 @@ export class ProductsController {
 
   @Get()
   findAll(
-    @Query() pagination: PaginationDto,
-    @Query("category") category: string | undefined,
-    @Query("search") search: string | undefined,
+    @Query() filters: ProductFiltersDto,
     @Session() session: UserSession,
   ) {
-    return this.productsService.findAll(session.user, pagination, { category, search });
+    return this.productsService.findAll(session.user, filters);
   }
 
   @Get(":id")

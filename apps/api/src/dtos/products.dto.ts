@@ -12,6 +12,7 @@ import {
   ArrayMinSize,
   ArrayMaxSize,
   ValidateNested,
+  IsUrl,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
@@ -21,6 +22,7 @@ import {
   BULK_PRODUCT_LIMIT,
   type BulkImportMode,
 } from "@loreal/contracts";
+import { PaginationDto } from "./common.dto";
 
 export class CreateProductDto {
   @ApiProperty({ type: String, example: "SKU-001", minLength: 1, maxLength: 50 })
@@ -65,9 +67,27 @@ export class CreateProductDto {
   @IsInt()
   @IsPositive()
   estimatedDurationDays?: number;
+
+  @ApiPropertyOptional({ type: [String], description: "Product image URLs" })
+  @IsOptional()
+  @IsArray()
+  @IsUrl({}, { each: true })
+  images?: string[];
 }
 
 export class UpdateProductDto extends PartialType(CreateProductDto) {}
+
+export class ProductFiltersDto extends PaginationDto {
+  @ApiPropertyOptional({ type: String, enum: PRODUCT_CATEGORIES })
+  @IsOptional()
+  @IsIn(PRODUCT_CATEGORIES)
+  category?: string;
+
+  @ApiPropertyOptional({ type: String })
+  @IsOptional()
+  @IsString()
+  search?: string;
+}
 
 export class UpdateAvailabilityDto {
   @ApiProperty({ type: String, enum: STOCK_STATUSES, example: "available" })

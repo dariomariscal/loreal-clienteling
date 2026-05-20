@@ -4,11 +4,11 @@ import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { products, productAvailability, brands } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
-import type { PaginationDto } from "../../dtos/common.dto";
 import type {
   BulkCreateProductsDto,
   CreateProductDto,
   UpdateProductDto,
+  ProductFiltersDto,
 } from "../../dtos/products.dto";
 
 export interface BulkImportRowResult {
@@ -32,14 +32,14 @@ export class ProductsService {
     @Inject(ScopeService) private scopeService: ScopeService,
   ) {}
 
-  async findAll(user: SessionUser, pagination: PaginationDto, filters?: { category?: string; search?: string }) {
+  async findAll(user: SessionUser, filters: ProductFiltersDto) {
     const brandScope = this.scopeService.scopeByBrand(user, products.brandId);
 
     const conditions = [
       eq(products.active, true),
       ...(brandScope ? [brandScope] : []),
-      ...(filters?.category ? [eq(products.category, filters.category)] : []),
-      ...(filters?.search
+      ...(filters.category ? [eq(products.category, filters.category)] : []),
+      ...(filters.search
         ? [or(ilike(products.name, `%${filters.search}%`), ilike(products.sku, `%${filters.search}%`))]
         : []),
     ];
@@ -54,8 +54,8 @@ export class ProductsService {
       .from(products)
       .leftJoin(brands, eq(products.brandId, brands.id))
       .where(where)
-      .limit(pagination.limit)
-      .offset((pagination.page - 1) * pagination.limit);
+      .limit(filters.limit)
+      .offset((filters.page - 1) * filters.limit);
 
     return rows.map((r) => ({ ...r.product, brand: r.brand }));
   }
