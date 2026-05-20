@@ -2,22 +2,38 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useSignIn } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import type { ClerkAPIError } from "@clerk/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { getFieldError, getGlobalError } from "@/lib/auth/clerk-errors";
 
 type Step = "request" | "verify";
+
+const requestSchema = z.object({
+  email: z.string().email("Correo inválido"),
+});
+
+const verifySchema = z.object({
+  code: z.string().min(1, "Ingresa el código"),
+  password: z.string().min(8, "Mínimo 8 caracteres"),
+});
+
+type RequestValues = z.infer<typeof requestSchema>;
+type VerifyValues = z.infer<typeof verifySchema>;
 
 export function ForgotPasswordForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -25,49 +41,72 @@ export function ForgotPasswordForm() {
 
   const [step, setStep] = useState<Step>("request");
   const [email, setEmail] = useState("");
-  const [errors, setErrors] = useState<ClerkAPIError[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [globalError, setGlobalErrorState] = useState<string | null>(null);
 
-  async function handleRequestCode(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const requestForm = useForm<RequestValues>({
+    resolver: zodResolver(requestSchema),
+    defaultValues: { email: "" },
+  });
+
+  const verifyForm = useForm<VerifyValues>({
+    resolver: zodResolver(verifySchema),
+    defaultValues: { code: "", password: "" },
+  });
+
+  function applyClerkErrors(
+    errors: ClerkAPIError[],
+    form: typeof requestForm | typeof verifyForm,
+    fieldMap: Record<string, string>,
+  ) {
+    let handled = false;
+    for (const [clerkField, formField] of Object.entries(fieldMap)) {
+      const fieldErr = getFieldError(errors, clerkField);
+      if (fieldErr) {
+        form.setError(formField as never, { message: fieldErr });
+        handled = true;
+      }
+    }
+    const gErr = getGlobalError(errors);
+    if (gErr) {
+      setGlobalErrorState(gErr);
+      handled = true;
+    }
+    return handled;
+  }
+
+  async function handleRequestCode(data: RequestValues) {
     if (!isLoaded) return;
-
-    setErrors([]);
-    setIsSubmitting(true);
-
-    const formData = new FormData(event.currentTarget);
-    const identifier = String(formData.get("email") ?? "").trim();
+    setGlobalErrorState(null);
 
     try {
       await signIn.create({
         strategy: "reset_password_email_code",
-        identifier,
+        identifier: data.email.trim(),
       });
-      setEmail(identifier);
+      setEmail(data.email.trim());
       setStep("verify");
     } catch (err) {
-      if (isClerkAPIResponseError(err)) setErrors(err.errors);
-    } finally {
-      setIsSubmitting(false);
+      if (isClerkAPIResponseError(err)) {
+        if (
+          !applyClerkErrors(err.errors, requestForm, { identifier: "email" })
+        ) {
+          setGlobalErrorState("No pudimos enviar el código.");
+        }
+      } else {
+        setGlobalErrorState("Ocurrió un error. Intenta de nuevo.");
+      }
     }
   }
 
-  async function handleVerifyCode(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleVerifyCode(data: VerifyValues) {
     if (!isLoaded) return;
-
-    setErrors([]);
-    setIsSubmitting(true);
-
-    const formData = new FormData(event.currentTarget);
-    const code = String(formData.get("code") ?? "").trim();
-    const password = String(formData.get("password") ?? "");
+    setGlobalErrorState(null);
 
     try {
       const attempt = await signIn.attemptFirstFactor({
         strategy: "reset_password_email_code",
-        code,
-        password,
+        code: data.code.trim(),
+        password: data.password,
       });
 
       if (attempt.status === "complete") {
@@ -84,125 +123,174 @@ export function ForgotPasswordForm() {
         return;
       }
 
-      setErrors([
-        {
-          code: "unsupported_status",
-          message: `Estado inesperado: ${attempt.status}`,
-          longMessage: "No pudimos restablecer la contraseña.",
-        } as ClerkAPIError,
-      ]);
+      setGlobalErrorState(`Estado inesperado: ${attempt.status}`);
     } catch (err) {
-      if (isClerkAPIResponseError(err)) setErrors(err.errors);
-    } finally {
-      setIsSubmitting(false);
+      if (isClerkAPIResponseError(err)) {
+        if (
+          !applyClerkErrors(err.errors, verifyForm, {
+            code: "code",
+            password: "password",
+          })
+        ) {
+          setGlobalErrorState("No pudimos restablecer la contraseña.");
+        }
+      } else {
+        setGlobalErrorState("Ocurrió un error. Intenta de nuevo.");
+      }
     }
   }
 
-  const globalError = getGlobalError(errors);
-  const emailError = getFieldError(errors, "identifier");
-  const codeError = getFieldError(errors, "code");
-  const passwordError = getFieldError(errors, "password");
-
   if (step === "request") {
     return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Recuperar contraseña</CardTitle>
-          <CardDescription>
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-light tracking-tight text-foreground">
+            Recuperar contraseña
+          </h1>
+          <p className="text-sm text-muted-foreground">
             Te enviaremos un código a tu correo para que la restablezcas.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleRequestCode} className="space-y-4" noValidate>
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Correo</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                aria-invalid={Boolean(emailError) || undefined}
-              />
-              {emailError && <p className="text-xs text-destructive">{emailError}</p>}
-            </div>
+          </p>
+        </div>
 
+        <Form {...requestForm}>
+          <form
+            onSubmit={requestForm.handleSubmit(handleRequestCode)}
+            className="space-y-5"
+            noValidate
+          >
             {globalError && (
-              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {globalError}
-              </p>
+              <Alert variant="destructive">
+                <AlertDescription>{globalError}</AlertDescription>
+              </Alert>
             )}
 
-            <Button type="submit" disabled={!isLoaded || isSubmitting} className="w-full">
-              {isSubmitting ? "Enviando…" : "Enviar código"}
-            </Button>
+            <FormField
+              control={requestForm.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Correo electrónico</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      placeholder="usuario@loreal.mx"
+                      autoComplete="email"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="pt-2">
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={!isLoaded || requestForm.formState.isSubmitting}
+              >
+                {requestForm.formState.isSubmitting
+                  ? "Enviando..."
+                  : "Enviar código"}
+              </Button>
+            </div>
           </form>
-        </CardContent>
-      </Card>
+        </Form>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Verifica el código</CardTitle>
-        <CardDescription>
-          Enviamos un código a <span className="font-medium text-foreground">{email}</span>.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleVerifyCode} className="space-y-4" noValidate>
-          <div className="space-y-1.5">
-            <Label htmlFor="code">Código</Label>
-            <Input
-              id="code"
-              name="code"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              required
-              aria-invalid={Boolean(codeError) || undefined}
-            />
-            {codeError && <p className="text-xs text-destructive">{codeError}</p>}
-          </div>
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-light tracking-tight text-foreground">
+          Verifica el código
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Enviamos un código a{" "}
+          <span className="font-medium text-foreground">{email}</span>.
+        </p>
+      </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Nueva contraseña</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-              aria-invalid={Boolean(passwordError) || undefined}
-            />
-            {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
-          </div>
-
+      <Form {...verifyForm}>
+        <form
+          onSubmit={verifyForm.handleSubmit(handleVerifyCode)}
+          className="space-y-5"
+          noValidate
+        >
           {globalError && (
-            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {globalError}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription>{globalError}</AlertDescription>
+            </Alert>
           )}
 
-          <Button type="submit" disabled={!isLoaded || isSubmitting} className="w-full">
-            {isSubmitting ? "Cambiando…" : "Cambiar contraseña"}
-          </Button>
+          <FormField
+            control={verifyForm.control}
+            name="code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Código</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full"
-            onClick={() => {
-              setStep("request");
-              setErrors([]);
-            }}
-          >
-            Usar otro correo
-          </Button>
+          <FormField
+            control={verifyForm.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nueva contraseña</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Mínimo 8 caracteres"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="space-y-2 pt-2">
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={!isLoaded || verifyForm.formState.isSubmitting}
+            >
+              {verifyForm.formState.isSubmitting
+                ? "Cambiando..."
+                : "Cambiar contraseña"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => {
+                setStep("request");
+                setGlobalErrorState(null);
+                verifyForm.reset();
+              }}
+            >
+              Usar otro correo
+            </Button>
+          </div>
         </form>
-      </CardContent>
-    </Card>
+      </Form>
+    </div>
   );
 }

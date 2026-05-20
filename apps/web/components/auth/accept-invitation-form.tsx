@@ -2,63 +2,67 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useSignUp } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
-import type { ClerkAPIError } from "@clerk/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { getFieldError, getGlobalError } from "@/lib/auth/clerk-errors";
 
-/**
- * Acepta una invitación de Clerk. El admin la crea desde
- * `users.service.invite()` con publicMetadata pre-cargada (rol, store, etc.),
- * así que aquí solo fijamos la contraseña y activamos la sesión.
- */
+const acceptSchema = z.object({
+  password: z.string().min(8, "Mínimo 8 caracteres"),
+});
+
+type AcceptValues = z.infer<typeof acceptSchema>;
+
 export function AcceptInvitationForm() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const router = useRouter();
   const searchParams = useSearchParams();
   const ticket = searchParams.get("__clerk_ticket");
 
-  const [errors, setErrors] = useState<ClerkAPIError[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const form = useForm<AcceptValues>({
+    resolver: zodResolver(acceptSchema),
+    defaultValues: { password: "" },
+  });
 
   if (!ticket) {
     return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Invitación inválida</CardTitle>
-          <CardDescription>
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-light tracking-tight text-foreground">
+            Invitación inválida
+          </h1>
+          <p className="text-sm text-muted-foreground">
             El enlace expiró o es incorrecto. Pide uno nuevo a tu administrador.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+          </p>
+        </div>
+      </div>
     );
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(data: AcceptValues) {
     if (!isLoaded) return;
-
-    setErrors([]);
-    setIsSubmitting(true);
-
-    const formData = new FormData(event.currentTarget);
-    const password = String(formData.get("password") ?? "");
+    setError(null);
 
     try {
       const attempt = await signUp.create({
         strategy: "ticket",
         ticket: ticket!,
-        password,
+        password: data.password,
       });
 
       if (attempt.status === "complete") {
@@ -75,78 +79,78 @@ export function AcceptInvitationForm() {
         return;
       }
 
-      setErrors([
-        {
-          code: "unsupported_status",
-          message: `Estado inesperado: ${attempt.status}`,
-          longMessage: "No pudimos activar tu cuenta.",
-        } as ClerkAPIError,
-      ]);
+      setError(`Estado inesperado: ${attempt.status}`);
     } catch (err) {
       if (isClerkAPIResponseError(err)) {
-        setErrors(err.errors);
+        const passwordError = getFieldError(err.errors, "password");
+        const globalError = getGlobalError(err.errors);
+        if (passwordError) form.setError("password", { message: passwordError });
+        if (globalError) setError(globalError);
+        else if (!passwordError) setError("No pudimos activar tu cuenta.");
       } else {
-        setErrors([
-          {
-            code: "unknown_error",
-            message: "Error desconocido",
-            longMessage: "Ocurrió un error. Intenta de nuevo.",
-          } as ClerkAPIError,
-        ]);
+        setError("Ocurrió un error. Intenta de nuevo.");
       }
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
-  const passwordError = getFieldError(errors, "password");
-  const globalError = getGlobalError(errors);
-
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Activa tu cuenta</CardTitle>
-        <CardDescription>
-          Bienvenido(a) a L&apos;Oréal Clienteling. Crea una contraseña para continuar.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-              aria-invalid={Boolean(passwordError) || undefined}
-            />
-            <p className="text-xs text-muted-foreground">
-              Mínimo 8 caracteres.
-            </p>
-            {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
-          </div>
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-light tracking-tight text-foreground">
+          Activa tu cuenta
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Bienvenido(a) a L&apos;Oréal Clienteling. Crea una contraseña para
+          continuar.
+        </p>
+      </div>
 
-          {globalError && (
-            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {globalError}
-            </p>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="space-y-5"
+          noValidate
+        >
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
-          <Button
-            type="submit"
-            disabled={!isLoaded || isSubmitting}
-            className="w-full"
-          >
-            {isSubmitting ? "Activando…" : "Activar cuenta"}
-          </Button>
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contraseña</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Mínimo 8 caracteres"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="pt-2">
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={!isLoaded || form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "Activando..." : "Activar cuenta"}
+            </Button>
+          </div>
 
           {/* Bot protection widget si Clerk lo requiere en este entorno. */}
           <div id="clerk-captcha" />
         </form>
-      </CardContent>
-    </Card>
+      </Form>
+    </div>
   );
 }
