@@ -16,9 +16,41 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+function resolveSiteUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_BRANCH_URL) {
+    return `https://${process.env.VERCEL_BRANCH_URL}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "http://localhost:3000";
+}
+
 export const metadata: Metadata = {
-  title: "L'Oréal Clienteling",
+  metadataBase: new URL(resolveSiteUrl()),
+  title: {
+    default: "L'Oréal Clienteling",
+    template: "%s — L'Oréal Clienteling",
+  },
   description: "Panel de gestión para L'Oréal Clienteling",
+  openGraph: {
+    type: "website",
+    locale: "es_MX",
+    siteName: "L'Oréal Clienteling",
+    title: "L'Oréal Clienteling",
+    description: "Panel de gestión para L'Oréal Clienteling",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "L'Oréal Clienteling",
+    description: "Panel de gestión para L'Oréal Clienteling",
+  },
 };
 
 export default function RootLayout({
