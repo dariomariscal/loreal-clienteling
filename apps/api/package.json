@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "nest start --watch --builder swc",
     "build": "nest build --builder swc",
-    "start": "node dist/main",
-    "start:prod": "node dist/main",
+    "start": "node dist/src/main",
+    "start:prod": "node dist/src/main",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "test": "echo 'No tests configured yet'",

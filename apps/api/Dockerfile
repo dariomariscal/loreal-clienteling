@@ -92,4 +92,6 @@ RUN npm install -g tsx@4.19.0
 
 EXPOSE 3001
 WORKDIR /app/apps/api
-CMD ["node", "dist/main.js"]
+# nest build --builder swc emits to dist/src/main.js (SWC ignores rootDir;
+# see nestjs/nest-cli#2123 / #2136). Keep this path in sync with package.json.
+CMD ["node", "dist/src/main.js"]
