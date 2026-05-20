@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { STORE_CHAINS } from "@loreal/contracts";
 
+const hoursMapSchema = z.record(z.string(), z.string()).optional();
+
+export const storeHoursSchema = z.object({
+  store: hoursMapSchema,
+  clickCollect: hoursMapSchema,
+  access: z.string().max(200).optional(),
+});
+
 export const createStoreSchema = z.object({
   code: z.string().min(1).max(50),
   displayName: z.string().min(1).max(200),
@@ -14,6 +22,8 @@ export const createStoreSchema = z.object({
   postcode: z.string().max(10).optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
+  phone: z.string().max(20).optional(),
+  hours: storeHoursSchema.optional(),
   brandIds: z.array(z.string().uuid()).optional(),
 });
 

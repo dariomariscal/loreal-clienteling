@@ -47,6 +47,7 @@ export function StoresPage({ user }: StoresPageProps) {
       render: (v) => zoneMap[v as string] ?? "—",
     },
     { key: "city", label: "Ciudad", render: (v) => (v as string) ?? "—" },
+    { key: "phone", label: "Teléfono", render: (v) => (v as string) ?? "—" },
     {
       key: "active",
       label: "Estado",

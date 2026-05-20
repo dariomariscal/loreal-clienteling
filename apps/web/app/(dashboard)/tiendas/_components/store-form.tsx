@@ -3,7 +3,11 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MapPinIcon } from "lucide-react";
-import { type CreateStore, STORE_CHAINS } from "@loreal/contracts";
+import {
+  type CreateStore,
+  type StoreHours,
+  STORE_CHAINS,
+} from "@loreal/contracts";
 import { createStoreSchema } from "@/lib/schemas/stores";
 import { useZoneByPoint, type Brand } from "@/lib/hooks";
 import { slugifyCode } from "@/lib/slugify";
@@ -41,13 +45,49 @@ interface StoreFormProps {
   isPending: boolean;
 }
 
+type StoreFormValues = CreateStore & {
+  storeHoursLabel?: string;
+  clickCollectHoursLabel?: string;
+  accessNote?: string;
+};
+
+function firstHoursValue(map?: Record<string, string>): string {
+  if (!map) return "";
+  const entries = Object.entries(map);
+  if (entries.length === 0) return "";
+  // Render "mon-sun: 11:00-21:00" so the user sees the range key when it
+  // differs from the default. The common case (single "mon-sun" key) gets
+  // shortened to just the value.
+  const [key, value] = entries[0];
+  if (entries.length === 1 && key === "mon-sun") return value;
+  return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
+}
+
+function parseHoursLabel(label: string | undefined): Record<string, string> | undefined {
+  if (!label) return undefined;
+  const trimmed = label.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.includes(":") && trimmed.includes(",")) {
+    // multi-range input: "mon-fri: 11-21, sat-sun: 12-20"
+    const out: Record<string, string> = {};
+    for (const part of trimmed.split(",")) {
+      const [k, ...rest] = part.split(":");
+      if (k && rest.length > 0) {
+        out[k.trim()] = rest.join(":").trim();
+      }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  }
+  return { "mon-sun": trimmed };
+}
+
 export function StoreForm({
   defaultValues,
   brands,
   onSubmit,
   isPending,
 }: StoreFormProps) {
-  const form = useForm<CreateStore>({
+  const form = useForm<StoreFormValues>({
     resolver: zodResolver(createStoreSchema) as never,
     defaultValues: {
       code: defaultValues?.code ?? "",
@@ -60,7 +100,11 @@ export function StoreForm({
       postcode: defaultValues?.postcode ?? "",
       lat: defaultValues?.lat,
       lng: defaultValues?.lng,
+      phone: defaultValues?.phone ?? "",
       brandIds: defaultValues?.brandIds ?? [],
+      storeHoursLabel: firstHoursValue(defaultValues?.hours?.store),
+      clickCollectHoursLabel: firstHoursValue(defaultValues?.hours?.clickCollect),
+      accessNote: defaultValues?.hours?.access ?? "",
     },
   });
 
@@ -76,14 +120,31 @@ export function StoreForm({
     label: b.displayName,
   }));
 
-  function handleSubmit(data: CreateStore) {
+  function handleSubmit(data: StoreFormValues) {
+    const {
+      storeHoursLabel,
+      clickCollectHoursLabel,
+      accessNote,
+      ...rest
+    } = data;
+
+    const storeHours = parseHoursLabel(storeHoursLabel);
+    const clickCollectHours = parseHoursLabel(clickCollectHoursLabel);
+    const access = accessNote?.trim() || undefined;
+    const hours: StoreHours | undefined =
+      storeHours || clickCollectHours || access
+        ? { store: storeHours, clickCollect: clickCollectHours, access }
+        : undefined;
+
     onSubmit({
-      ...data,
-      address: data.address || undefined,
-      city: data.city || undefined,
-      state: data.state || undefined,
-      district: data.district || undefined,
-      postcode: data.postcode || undefined,
+      ...rest,
+      address: rest.address || undefined,
+      city: rest.city || undefined,
+      state: rest.state || undefined,
+      district: rest.district || undefined,
+      postcode: rest.postcode || undefined,
+      phone: rest.phone?.trim() || undefined,
+      hours,
     });
   }
 
@@ -274,6 +335,93 @@ export function StoreForm({
                     {...field}
                     value={field.value ?? ""}
                     placeholder="CDMX"
+                    disabled={isPending}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Teléfono</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  placeholder="4491393400"
+                  inputMode="tel"
+                  disabled={isPending}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="space-y-3 rounded-xl border border-border/60 p-4">
+          <h3 className="text-sm font-medium">Horarios</h3>
+          <p className="text-xs text-muted-foreground">
+            Usa <span className="font-mono">11:00-21:00</span> para todos los días, o
+            varios rangos separados por coma:{" "}
+            <span className="font-mono">mon-fri: 11-21, sat-sun: 12-20</span>.
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="storeHoursLabel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tienda</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      placeholder="11:00-21:00"
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="clickCollectHoursLabel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Click & Collect</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      placeholder="11:00-21:00"
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="accessNote"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notas de acceso</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ""}
+                    placeholder="Entrada por Playa y viaje"
                     disabled={isPending}
                   />
                 </FormControl>

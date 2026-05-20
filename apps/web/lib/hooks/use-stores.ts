@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { CreateStore } from "@loreal/contracts";
+import type { CreateStore, StoreHours } from "@loreal/contracts";
+
+export type { StoreHours };
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -21,6 +23,8 @@ export interface Store {
   postcode: string | null;
   lat: number | null;
   lng: number | null;
+  phone: string | null;
+  hours: StoreHours | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
