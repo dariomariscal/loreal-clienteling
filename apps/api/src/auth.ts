@@ -10,16 +10,34 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "@loreal/database";
 
+const connectionString =
+  process.env.DATABASE_URL ??
+  "postgresql://loreal:loreal@localhost:5433/loreal_clienteling";
+
+const needsSsl =
+  process.env.PGSSL === "true" ||
+  /sslmode=require/.test(connectionString) ||
+  /neon\.tech/.test(connectionString);
+
 const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL ??
-    "postgresql://loreal:loreal@localhost:5433/loreal_clienteling",
+  connectionString,
+  ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
 });
 
 const db = drizzle(pool, { schema });
 
+const publicApiUrl =
+  process.env.BETTER_AUTH_URL ??
+  process.env.PUBLIC_API_URL ??
+  "http://localhost:3001";
+
+const trustedOriginsFromEnv = (process.env.TRUSTED_ORIGINS ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
+  baseURL: publicApiUrl,
   secret: process.env.BETTER_AUTH_SECRET ?? "dev-secret-change-in-production",
 
   database: drizzleAdapter(db, {
@@ -83,8 +101,8 @@ export const auth = betterAuth({
   },
 
   trustedOrigins: [
-    "http://localhost:3000", // Next.js web
-    "http://localhost:8081", // Expo Metro
+    "http://localhost:3000", // Next.js web (dev)
+    "http://localhost:8081", // Expo Metro (dev)
     "loreal-clienteling://", // Expo production scheme
     "exp://",
     "exp://*",
@@ -93,6 +111,7 @@ export const auth = betterAuth({
     "exp://192.168.*.*:*/**",
     "exp://10.*.*.*:*",
     "exp://10.*.*.*:*/**",
+    ...trustedOriginsFromEnv,
   ],
 
   plugins: [
@@ -105,8 +124,8 @@ export const auth = betterAuth({
     // JWT plugin for PowerSync token validation
     jwt({
       jwt: {
-        issuer: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
-        audience: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
+        issuer: publicApiUrl,
+        audience: publicApiUrl,
         expirationTime: "1h",
         definePayload: ({ user }) => ({
           sub: user.id,
