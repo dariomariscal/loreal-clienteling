@@ -173,6 +173,7 @@ function Dropzone({
               item={item}
               onRemove={() => remove(item.id)}
               disabled={disabled}
+              single={single}
             />
           ))}
         </div>
@@ -185,21 +186,31 @@ function FilePreview({
   item,
   onRemove,
   disabled,
+  single,
 }: {
   item: FileItem
   onRemove: () => void
   disabled?: boolean
+  single?: boolean
 }) {
   const isLoading = item.progress < 100 && !item.error
   const hasError = Boolean(item.error)
 
   return (
-    <div className="group relative aspect-square overflow-hidden rounded-xl border border-border/60 bg-muted/30">
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-xl border border-border/60 bg-muted/30",
+        single ? "h-40" : "aspect-square",
+      )}
+    >
       {item.url ? (
         <img
           src={item.url}
           alt=""
-          className="size-full object-cover"
+          className={cn(
+            "size-full",
+            single ? "object-contain p-4" : "object-cover",
+          )}
         />
       ) : (
         <div className="flex size-full items-center justify-center">

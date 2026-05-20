@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,6 +58,25 @@ export function BrandForm({ defaultValues, onSubmit, isPending }: BrandFormProps
       accentColor: defaultValues?.accentColor ?? "",
     },
   });
+
+  useEffect(() => {
+    if (!defaultValues) return;
+    form.reset({
+      code: defaultValues.code ?? "",
+      displayName: defaultValues.displayName ?? "",
+      tier: defaultValues.tier ?? BRAND_TIERS[0],
+      logoUrl: defaultValues.logoUrl ?? "",
+      primaryColor: defaultValues.primaryColor ?? "",
+      accentColor: defaultValues.accentColor ?? "",
+    });
+  }, [
+    defaultValues?.code,
+    defaultValues?.displayName,
+    defaultValues?.tier,
+    defaultValues?.logoUrl,
+    defaultValues?.primaryColor,
+    defaultValues?.accentColor,
+  ]);
 
   const values = form.watch();
 
