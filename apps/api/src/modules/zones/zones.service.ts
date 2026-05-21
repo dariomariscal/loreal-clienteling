@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, notInArray, or, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { zones, zoneMunicipalities } from "@loreal/database";
+import { stores, zones, zoneMunicipalities } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 
 type CreateZoneInput = {
@@ -43,6 +43,8 @@ export class ZonesService {
         .values(municipalityIds.map((municipalityId) => ({ zoneId: zone.id, municipalityId })));
     }
 
+    await this.syncStoresForZone(zone.id);
+
     return this.findOne(zone.id);
   }
 
@@ -62,9 +64,55 @@ export class ZonesService {
           .insert(zoneMunicipalities)
           .values(municipalityIds.map((municipalityId) => ({ zoneId: id, municipalityId })));
       }
+      await this.syncStoresForZone(id);
     }
 
     return this.findOne(id);
+  }
+
+  /**
+   * Brings stores.zone_id in sync with zone_municipalities for one zone.
+   * Called after the membership of a zone changes:
+   *   - Pulls in stores whose municipality is now in the zone but had no
+   *     zone_id (or pointed elsewhere with a stale link).
+   *   - Releases stores that used to point here but whose municipality was
+   *     dropped from the zone — they fall back to NULL so they can be
+   *     re-attracted by another zone if applicable.
+   */
+  private async syncStoresForZone(zoneId: string): Promise<void> {
+    const members = await this.db
+      .select({ municipalityId: zoneMunicipalities.municipalityId })
+      .from(zoneMunicipalities)
+      .where(eq(zoneMunicipalities.zoneId, zoneId));
+    const memberIds = members.map((m) => m.municipalityId);
+
+    if (memberIds.length > 0) {
+      await this.db
+        .update(stores)
+        .set({ zoneId, updatedAt: new Date() })
+        .where(
+          and(
+            sql`${stores.municipalityId} IN (${sql.join(
+              memberIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})`,
+            or(isNull(stores.zoneId), sql`${stores.zoneId} <> ${zoneId}`),
+          ),
+        );
+    }
+
+    // Release stores that were pointing here but no longer belong.
+    await this.db
+      .update(stores)
+      .set({ zoneId: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(stores.zoneId, zoneId),
+          memberIds.length > 0
+            ? notInArray(stores.municipalityId, memberIds)
+            : sql`true`,
+        ),
+      );
   }
 
   /** Lookup zone that contains the given point. Used by store create/edit flow. */
