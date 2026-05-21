@@ -21,3 +21,4 @@ export { messageTemplates } from "./message-templates";
 export { consents } from "./consents";
 export { privacyNotices } from "./privacy-notices";
 export { auditLogs } from "./audit-logs";
+export { customerNotes } from "./customer-notes";

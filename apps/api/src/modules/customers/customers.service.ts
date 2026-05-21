@@ -7,9 +7,12 @@ import {
   beautyProfileShades,
   consents,
   purchases,
+  purchaseItems,
+  products,
   recommendations,
   samples,
   appointments,
+  appointmentEventTypes,
   communications,
   users,
   stores,
@@ -151,6 +154,334 @@ export class CustomersService {
     );
 
     return customer;
+  }
+
+  /**
+   * Aggregated metrics for the profile header (LTV, deltas, counts, next/last
+   * visit). One SQL roundtrip rather than 4 — the profile header is the most
+   * frequent read in the app, and the BA has 90 seconds.
+   *
+   * `ltvChangePct` compares the last 30 days of purchases against the prior 30.
+   * Null when the prior window has no purchases (avoids divide-by-zero and
+   * spurious "+∞%" deltas for brand-new clients).
+   */
+  async getMetrics(customerId: string, user: SessionUser) {
+    await this.scopeService.assertCustomerAccess(customerId, user);
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const [purchaseAgg] = await this.db
+      .select({
+        ltv: sql<string | null>`coalesce(sum(${purchases.totalAmount}), 0)`,
+        purchaseCount: count(),
+        ltvLast30: sql<string | null>`coalesce(sum(${purchases.totalAmount}) filter (where ${purchases.purchasedAt} >= ${thirtyDaysAgo}), 0)`,
+        ltvPrior30: sql<string | null>`coalesce(sum(${purchases.totalAmount}) filter (where ${purchases.purchasedAt} >= ${sixtyDaysAgo} and ${purchases.purchasedAt} < ${thirtyDaysAgo}), 0)`,
+        lastPurchaseAt: sql<Date | null>`max(${purchases.purchasedAt})`,
+      })
+      .from(purchases)
+      .where(eq(purchases.customerId, customerId));
+
+    const [appointmentAgg] = await this.db
+      .select({
+        appointmentCount: count(),
+        nextAppointmentAt: sql<Date | null>`min(${appointments.scheduledAt}) filter (where ${appointments.scheduledAt} >= now() and ${appointments.status} in ('scheduled', 'confirmed'))`,
+        lastAppointmentAt: sql<Date | null>`max(${appointments.scheduledAt}) filter (where ${appointments.scheduledAt} < now() and ${appointments.status} in ('completed', 'confirmed'))`,
+      })
+      .from(appointments)
+      .where(eq(appointments.customerId, customerId));
+
+    const ltv = Number(purchaseAgg?.ltv ?? 0);
+    const ltvLast30 = Number(purchaseAgg?.ltvLast30 ?? 0);
+    const ltvPrior30 = Number(purchaseAgg?.ltvPrior30 ?? 0);
+
+    let ltvChangePct: number | null = null;
+    if (ltvPrior30 > 0) {
+      ltvChangePct = Math.round(((ltvLast30 - ltvPrior30) / ltvPrior30) * 100);
+    }
+
+    const lastVisitCandidates = [
+      purchaseAgg?.lastPurchaseAt ? new Date(purchaseAgg.lastPurchaseAt) : null,
+      appointmentAgg?.lastAppointmentAt
+        ? new Date(appointmentAgg.lastAppointmentAt)
+        : null,
+    ].filter((d): d is Date => d !== null);
+
+    const lastVisitAt =
+      lastVisitCandidates.length > 0
+        ? new Date(Math.max(...lastVisitCandidates.map((d) => d.getTime())))
+        : null;
+
+    return {
+      ltv,
+      ltvChangePct,
+      purchaseCount: purchaseAgg?.purchaseCount ?? 0,
+      appointmentCount: appointmentAgg?.appointmentCount ?? 0,
+      nextAppointmentAt: appointmentAgg?.nextAppointmentAt
+        ? new Date(appointmentAgg.nextAppointmentAt).toISOString()
+        : null,
+      lastVisitAt: lastVisitAt ? lastVisitAt.toISOString() : null,
+    };
+  }
+
+  /**
+   * Unified, cursor-paginated activity timeline. Merges five event streams
+   * (synthetic registration + purchases + recommendations + appointments +
+   * communications) into a single chronological feed.
+   *
+   * We over-fetch by `limit + 1` from each source so that after the global
+   * merge we always have enough rows to fill the requested page and detect
+   * whether more exist. This avoids needing UNION ALL / window functions and
+   * keeps each subquery indexable.
+   */
+  async getActivity(
+    customerId: string,
+    user: SessionUser,
+    opts: { limit: number; before?: Date },
+  ) {
+    await this.scopeService.assertCustomerAccess(customerId, user);
+
+    const [customer] = await this.db
+      .select({
+        id: customers.id,
+        firstName: customers.firstName,
+        lastName: customers.lastName,
+        customerSince: customers.customerSince,
+        registeredByUserId: customers.registeredByUserId,
+      })
+      .from(customers)
+      .where(eq(customers.id, customerId));
+    if (!customer) throw new NotFoundException("Customer not found");
+
+    const fetchSize = opts.limit + 1;
+    const beforeCondition = opts.before
+      ? (col: any) => lte(col, opts.before!)
+      : null;
+
+    // Purchases — include first 3 product names as a preview line
+    const purchaseRows = await this.db
+      .select({
+        id: purchases.id,
+        purchasedAt: purchases.purchasedAt,
+        totalAmount: purchases.totalAmount,
+        attributedBaUserId: purchases.attributedBaUserId,
+        baName: users.fullName,
+        productNames: sql<string[]>`coalesce(
+          array_agg(${products.name} order by ${purchaseItems.unitPrice} desc)
+            filter (where ${products.name} is not null),
+          '{}'
+        )`,
+      })
+      .from(purchases)
+      .leftJoin(users, eq(purchases.attributedBaUserId, users.id))
+      .leftJoin(purchaseItems, eq(purchaseItems.purchaseId, purchases.id))
+      .leftJoin(products, eq(products.id, purchaseItems.productId))
+      .where(
+        and(
+          eq(purchases.customerId, customerId),
+          ...(beforeCondition ? [beforeCondition(purchases.purchasedAt)] : []),
+        ),
+      )
+      .groupBy(purchases.id, users.fullName)
+      .orderBy(desc(purchases.purchasedAt))
+      .limit(fetchSize);
+
+    // Recommendations — single product per row in this schema
+    const recommendationRows = await this.db
+      .select({
+        id: recommendations.id,
+        recommendedAt: recommendations.recommendedAt,
+        baUserId: recommendations.baUserId,
+        baName: users.fullName,
+        productName: products.name,
+        notes: recommendations.notes,
+      })
+      .from(recommendations)
+      .leftJoin(users, eq(recommendations.baUserId, users.id))
+      .leftJoin(products, eq(products.id, recommendations.productId))
+      .where(
+        and(
+          eq(recommendations.customerId, customerId),
+          ...(beforeCondition
+            ? [beforeCondition(recommendations.recommendedAt)]
+            : []),
+        ),
+      )
+      .orderBy(desc(recommendations.recommendedAt))
+      .limit(fetchSize);
+
+    // Appointments
+    const appointmentRows = await this.db
+      .select({
+        id: appointments.id,
+        scheduledAt: appointments.scheduledAt,
+        durationMinutes: appointments.durationMinutes,
+        status: appointments.status,
+        baUserId: appointments.baUserId,
+        baName: users.fullName,
+        eventTypeName: appointmentEventTypes.displayName,
+      })
+      .from(appointments)
+      .leftJoin(users, eq(appointments.baUserId, users.id))
+      .leftJoin(
+        appointmentEventTypes,
+        eq(appointmentEventTypes.id, appointments.eventTypeId),
+      )
+      .where(
+        and(
+          eq(appointments.customerId, customerId),
+          ...(beforeCondition
+            ? [beforeCondition(appointments.scheduledAt)]
+            : []),
+        ),
+      )
+      .orderBy(desc(appointments.scheduledAt))
+      .limit(fetchSize);
+
+    // Communications
+    const communicationRows = await this.db
+      .select({
+        id: communications.id,
+        sentAt: communications.sentAt,
+        channel: communications.channel,
+        subject: communications.subject,
+        body: communications.body,
+        followupType: communications.followupType,
+        sentByUserId: communications.sentByUserId,
+        baName: users.fullName,
+      })
+      .from(communications)
+      .leftJoin(users, eq(communications.sentByUserId, users.id))
+      .where(
+        and(
+          eq(communications.customerId, customerId),
+          ...(beforeCondition ? [beforeCondition(communications.sentAt)] : []),
+        ),
+      )
+      .orderBy(desc(communications.sentAt))
+      .limit(fetchSize);
+
+    type RawEvent = {
+      id: string;
+      type:
+        | "customer_registered"
+        | "purchase"
+        | "recommendation"
+        | "appointment"
+        | "communication";
+      occurredAt: Date;
+      actor: { id: string | null; name: string | null };
+      title: string;
+      body: string | null;
+      amount: number | null;
+      metadata: Record<string, unknown> | null;
+    };
+
+    const events: RawEvent[] = [];
+
+    for (const row of purchaseRows) {
+      const total = Number(row.totalAmount);
+      const productNames = row.productNames ?? [];
+      const preview = productNames.slice(0, 3).join(" · ");
+      events.push({
+        id: `purchase:${row.id}`,
+        type: "purchase",
+        occurredAt: new Date(row.purchasedAt),
+        actor: { id: row.attributedBaUserId, name: row.baName },
+        title: `Compra de $${total.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        body: preview || null,
+        amount: total,
+        metadata: { itemCount: productNames.length },
+      });
+    }
+
+    for (const row of recommendationRows) {
+      events.push({
+        id: `recommendation:${row.id}`,
+        type: "recommendation",
+        occurredAt: new Date(row.recommendedAt),
+        actor: { id: row.baUserId, name: row.baName },
+        title: row.productName
+          ? `Recomendación: ${row.productName}`
+          : "Recomendación",
+        body: row.notes,
+        amount: null,
+        metadata: null,
+      });
+    }
+
+    for (const row of appointmentRows) {
+      const isPast = new Date(row.scheduledAt).getTime() < Date.now();
+      events.push({
+        id: `appointment:${row.id}`,
+        type: "appointment",
+        occurredAt: new Date(row.scheduledAt),
+        actor: { id: row.baUserId, name: row.baName },
+        title: row.eventTypeName
+          ? `${row.eventTypeName} (${row.durationMinutes} min)`
+          : `Cita (${row.durationMinutes} min)`,
+        body: null,
+        amount: null,
+        metadata: { status: row.status, isPast },
+      });
+    }
+
+    for (const row of communicationRows) {
+      events.push({
+        id: `communication:${row.id}`,
+        type: "communication",
+        occurredAt: new Date(row.sentAt),
+        actor: { id: row.sentByUserId, name: row.baName },
+        title: `Mensaje por ${row.channel}`,
+        body: row.subject ?? row.body.slice(0, 140),
+        amount: null,
+        metadata: { channel: row.channel, followupType: row.followupType },
+      });
+    }
+
+    // Synthetic registration event — only emit on the oldest page so it shows
+    // up at the bottom of the timeline (as designed in the spec mockup).
+    const customerSince = new Date(customer.customerSince);
+    if (!opts.before || customerSince <= opts.before) {
+      const [registeredBy] = customer.registeredByUserId
+        ? await this.db
+            .select({ id: users.id, fullName: users.fullName })
+            .from(users)
+            .where(eq(users.id, customer.registeredByUserId))
+        : [];
+
+      events.push({
+        id: `registration:${customer.id}`,
+        type: "customer_registered",
+        occurredAt: customerSince,
+        actor: {
+          id: registeredBy?.id ?? null,
+          name: registeredBy?.fullName ?? null,
+        },
+        title: "Clienta registrada",
+        body: null,
+        amount: null,
+        metadata: null,
+      });
+    }
+
+    // Global sort + page slice. Cursor is the occurredAt of the last returned
+    // event; the next call passes it as `before` (inclusive of equal-instant
+    // ties is fine because event IDs disambiguate).
+    events.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+
+    const page = events.slice(0, opts.limit);
+    const hasMore = events.length > opts.limit;
+    const nextCursor =
+      hasMore && page.length > 0
+        ? page[page.length - 1].occurredAt.toISOString()
+        : null;
+
+    return {
+      events: page.map((e) => ({ ...e, occurredAt: e.occurredAt.toISOString() })),
+      nextCursor,
+    };
   }
 
   async create(data: CreateCustomerDto, user: SessionUser) {

@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Patch, Param, Body, Inject } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
+import { Controller, Get, Post, Patch, Param, Body, Query, Inject } from "@nestjs/common";
+import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
 import { CommunicationsService } from "./communications.service";
@@ -43,8 +43,17 @@ export class CommunicationsController {
   }
 
   @Get("communications/templates")
-  findTemplates(@Session() session: UserSession) {
-    return this.communicationsService.findTemplates(session.user);
+  @ApiQuery({
+    name: "customerId",
+    required: false,
+    type: String,
+    description: "When provided, only returns templates whose channel matches an active marketing consent for this customer.",
+  })
+  findTemplates(
+    @Session() session: UserSession,
+    @Query("customerId") customerId?: string,
+  ) {
+    return this.communicationsService.findTemplates(session.user, { customerId });
   }
 
   @Post("communications/templates")

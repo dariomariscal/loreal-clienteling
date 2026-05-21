@@ -46,6 +46,45 @@ export class AppointmentsController {
     );
   }
 
+  @Get("availability")
+  @Roles(["ba", "manager", "supervisor", "admin"])
+  @ApiQuery({ name: "baUserId", type: String, required: true })
+  @ApiQuery({ name: "from", type: String, required: true, description: "ISO date or datetime" })
+  @ApiQuery({ name: "to", type: String, required: true, description: "ISO date or datetime" })
+  @ApiQuery({ name: "durationMinutes", type: Number, required: true })
+  getAvailabilityDays(
+    @Query("baUserId") baUserId: string,
+    @Query("from") from: string,
+    @Query("to") to: string,
+    @Query("durationMinutes") durationMinutes: string,
+    @Session() session: UserSession,
+  ) {
+    return this.appointmentsService.getAvailabilityDays(session.user, {
+      baUserId,
+      from: new Date(from),
+      to: new Date(to),
+      durationMinutes: parseInt(durationMinutes, 10),
+    });
+  }
+
+  @Get("availability/slots")
+  @Roles(["ba", "manager", "supervisor", "admin"])
+  @ApiQuery({ name: "baUserId", type: String, required: true })
+  @ApiQuery({ name: "date", type: String, required: true, description: "ISO date (YYYY-MM-DD)" })
+  @ApiQuery({ name: "durationMinutes", type: Number, required: true })
+  getAvailabilitySlots(
+    @Query("baUserId") baUserId: string,
+    @Query("date") date: string,
+    @Query("durationMinutes") durationMinutes: string,
+    @Session() session: UserSession,
+  ) {
+    return this.appointmentsService.getAvailabilitySlots(session.user, {
+      baUserId,
+      date: new Date(date),
+      durationMinutes: parseInt(durationMinutes, 10),
+    });
+  }
+
   @Get(":id")
   @ApiParam({ name: "id", type: String })
   findOne(@Param("id") id: string) {

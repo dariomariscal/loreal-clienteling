@@ -1,12 +1,18 @@
 import { Injectable, Inject, ForbiddenException, NotFoundException } from "@nestjs/common";
-import { eq, and, or, isNull, desc } from "drizzle-orm";
+import { eq, and, or, isNull, inArray, desc } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { communications, messageTemplates } from "@loreal/database";
+import { communications, messageTemplates, consents } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
 import { ConsentsService } from "../consents/consents.service";
 import type { CreateCommunicationDto } from "../../dtos/communications.dto";
+
+const CONSENT_TO_CHANNEL: Record<string, string> = {
+  marketing_whatsapp: "whatsapp",
+  marketing_sms: "sms",
+  marketing_email: "email",
+};
 
 @Injectable()
 export class CommunicationsService {
@@ -77,23 +83,48 @@ export class CommunicationsService {
     return comm;
   }
 
-  async findTemplates(user: SessionUser) {
-    if (user.role === "admin") {
-      return this.db
-        .select()
-        .from(messageTemplates)
-        .where(eq(messageTemplates.active, true));
+  async findTemplates(
+    user: SessionUser,
+    options?: { customerId?: string },
+  ) {
+    // Step 1: brand scope. Admin gets every active template; everyone else
+    // gets brand-specific + global (null-brand) templates.
+    const baseConditions: any[] = [eq(messageTemplates.active, true)];
+    if (user.role !== "admin") {
+      const brandId = this.scopeService.assertBrand(user);
+      baseConditions.push(
+        or(eq(messageTemplates.brandId, brandId), isNull(messageTemplates.brandId)),
+      );
     }
-    const brandId = this.scopeService.assertBrand(user);
+
+    // Step 2: optional consent filter. When a customerId is provided, only
+    // return templates whose channel matches an active marketing consent —
+    // spec §5.8 / §11.10: don't surface options the BA can't actually use.
+    if (options?.customerId) {
+      await this.scopeService.assertCustomerAccess(options.customerId, user);
+
+      const activeConsents = await this.db
+        .select({ type: consents.type })
+        .from(consents)
+        .where(
+          and(
+            eq(consents.customerId, options.customerId),
+            isNull(consents.revokedAt),
+          ),
+        );
+
+      const allowedChannels = activeConsents
+        .map((c) => CONSENT_TO_CHANNEL[c.type])
+        .filter((ch): ch is string => Boolean(ch));
+
+      if (allowedChannels.length === 0) return [];
+      baseConditions.push(inArray(messageTemplates.channel, allowedChannels));
+    }
+
     return this.db
       .select()
       .from(messageTemplates)
-      .where(
-        and(
-          eq(messageTemplates.active, true),
-          or(eq(messageTemplates.brandId, brandId), isNull(messageTemplates.brandId)),
-        ),
-      );
+      .where(and(...baseConditions));
   }
 
   async createTemplate(data: {

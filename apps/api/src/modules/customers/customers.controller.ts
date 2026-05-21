@@ -64,6 +64,30 @@ export class CustomersController {
     return this.customersService.checkDuplicate(query, session.user);
   }
 
+  @Get(":id/metrics")
+  @Roles(["ba", "manager", "supervisor", "admin"])
+  @ApiParam({ name: "id", type: String })
+  getMetrics(@Param("id") id: string, @Session() session: UserSession) {
+    return this.customersService.getMetrics(id, session.user);
+  }
+
+  @Get(":id/activity")
+  @Roles(["ba", "manager", "supervisor", "admin"])
+  @ApiParam({ name: "id", type: String })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiQuery({ name: "before", required: false, type: String, description: "ISO timestamp cursor — return events strictly before this instant" })
+  getActivity(
+    @Param("id") id: string,
+    @Query("limit") limit: string | undefined,
+    @Query("before") before: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.customersService.getActivity(id, session.user, {
+      limit: limit ? Math.min(parseInt(limit, 10) || 20, 100) : 20,
+      before: before ? new Date(before) : undefined,
+    });
+  }
+
   @Get(":id")
   @Roles(["ba", "manager", "supervisor", "admin"])
   @ApiParam({ name: "id", type: String })

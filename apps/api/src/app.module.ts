@@ -20,6 +20,7 @@ import { SamplesModule } from "./modules/samples/samples.module";
 import { AppointmentsModule } from "./modules/appointments/appointments.module";
 import { AppointmentEventTypesModule } from "./modules/appointment-event-types/appointment-event-types.module";
 import { CommunicationsModule } from "./modules/communications/communications.module";
+import { CustomerNotesModule } from "./modules/customer-notes/customer-notes.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { SchedulerModule } from "./modules/scheduler/scheduler.module";
@@ -53,6 +54,7 @@ import { HealthController } from "./health.controller";
     AppointmentsModule,
     AppointmentEventTypesModule,
     CommunicationsModule,
+    CustomerNotesModule,
     AuditModule,
     AnalyticsModule,
     SchedulerModule,
