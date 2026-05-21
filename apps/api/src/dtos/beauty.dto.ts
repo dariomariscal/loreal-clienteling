@@ -82,10 +82,6 @@ export class UpsertBeautyProfileDto {
 }
 
 export class CreateShadeDto {
-  @ApiProperty({ type: String, format: "uuid" })
-  @IsUUID()
-  beautyProfileId: string;
-
   @ApiProperty({ type: String, enum: SHADE_CATEGORIES, example: "foundation" })
   @IsIn(SHADE_CATEGORIES)
   category: string;

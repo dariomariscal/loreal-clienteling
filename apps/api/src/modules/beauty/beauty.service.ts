@@ -59,10 +59,29 @@ export class BeautyService {
   async addShade(data: CreateShadeDto, customerId: string, user: SessionUser) {
     await this.scopeService.assertCustomerAccess(customerId, user);
 
+    // The shade lives under the customer's beauty profile. If the profile
+    // doesn't exist yet (BA tracking shades before doing the full quiz),
+    // create a blank one so we always have a parent row to attach to.
+    let [profile] = await this.db
+      .select({ id: beautyProfiles.id })
+      .from(beautyProfiles)
+      .where(eq(beautyProfiles.customerId, customerId));
+
+    if (!profile) {
+      [profile] = await this.db
+        .insert(beautyProfiles)
+        .values({ customerId })
+        .returning({ id: beautyProfiles.id });
+    }
+
     const [shade] = await this.db
       .insert(beautyProfileShades)
       .values({
-        ...data,
+        beautyProfileId: profile.id,
+        category: data.category,
+        brandId: data.brandId,
+        productId: data.productId,
+        shadeCode: data.shadeCode,
         capturedByUserId: user.id,
         capturedAt: new Date(),
       })
