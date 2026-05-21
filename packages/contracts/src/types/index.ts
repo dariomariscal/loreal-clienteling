@@ -16,3 +16,4 @@ export * from "./communications";
 export * from "./consents";
 export * from "./samples";
 export * from "./users";
+export * from "./advisor";
