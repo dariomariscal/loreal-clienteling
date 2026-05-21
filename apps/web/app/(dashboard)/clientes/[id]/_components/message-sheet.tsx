@@ -8,6 +8,7 @@ import {
   useTemplates,
   type Communication,
   type MessageTemplate,
+  type Product,
 } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { ProductPicker } from "@/components/dashboard/product-picker";
 import { cn } from "@/lib/utils";
 
 // ── Conversation sheet — iMessage-style thread ─────────────────────
@@ -75,6 +77,8 @@ export function MessageSheet({
   const [body, setBody] = React.useState("");
   const [subject, setSubject] = React.useState("");
   const [followupType, setFollowupType] = React.useState<string>("custom");
+  const [attachments, setAttachments] = React.useState<Product[]>([]);
+  const [pickerOpen, setPickerOpen] = React.useState(false);
 
   const { data: comms = [], isLoading: commsLoading } =
     useCustomerCommunications(customerId);
@@ -87,10 +91,26 @@ export function MessageSheet({
       setBody("");
       setSubject("");
       setFollowupType("custom");
+      setAttachments([]);
+      setPickerOpen(false);
       createComm.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  function toggleAttachment(product: Product) {
+    setAttachments((prev) => {
+      if (prev.some((p) => p.id === product.id)) {
+        return prev.filter((p) => p.id !== product.id);
+      }
+      return [...prev, product];
+    });
+  }
+
+  const attachmentIds = React.useMemo(
+    () => new Set(attachments.map((a) => a.id)),
+    [attachments],
+  );
 
   const activeConsents = React.useMemo(() => {
     const set = new Set<string>();
@@ -140,12 +160,36 @@ export function MessageSheet({
 
   function handleSend() {
     const trimmed = body.trim();
-    if (!trimmed || !hasConsent || createComm.isPending) return;
+    if (!hasConsent || createComm.isPending) return;
+    if (!trimmed && attachments.length === 0) return;
+
+    // Compose the final payload: prose first, then a readable block of
+    // attached products. The provider gateway later renders this into a
+    // WhatsApp/SMS list or an email card; here we keep it plain so it
+    // looks fine no matter the channel.
+    const productLines =
+      attachments.length === 0
+        ? ""
+        : "\n\n— Productos —\n" +
+          attachments
+            .map((p) => {
+              const brand = p.brand?.displayName ?? "";
+              const price = Number(p.price);
+              const priceStr =
+                price > 0
+                  ? `$${price.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`
+                  : "";
+              return `• ${brand ? brand + " · " : ""}${p.name}${priceStr ? ` — ${priceStr}` : ""}`;
+            })
+            .join("\n");
+
+    const finalBody = (trimmed + productLines).slice(0, 5000) || trimmed;
+
     createComm.mutate(
       {
         customerId,
         channel,
-        body: trimmed.slice(0, 5000),
+        body: finalBody,
         followupType,
         ...(channel === "email" && subject.trim()
           ? { subject: subject.trim().slice(0, 200) }
@@ -155,12 +199,16 @@ export function MessageSheet({
         onSuccess: () => {
           setBody("");
           setSubject("");
+          setAttachments([]);
         },
       },
     );
   }
 
-  const canSend = body.trim().length > 0 && hasConsent && !createComm.isPending;
+  const canSend =
+    (body.trim().length > 0 || attachments.length > 0) &&
+    hasConsent &&
+    !createComm.isPending;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -288,7 +336,58 @@ export function MessageSheet({
             />
           )}
 
+          {/* Attached products — preview chips above the textarea */}
+          {attachments.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5">
+              {attachments.map((p) => (
+                <li
+                  key={p.id}
+                  className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card py-1 pl-1 pr-2"
+                >
+                  <span className="relative size-8 shrink-0 overflow-hidden rounded-lg bg-muted/40">
+                    {p.images?.[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.images[0]}
+                        alt=""
+                        className="absolute inset-0 size-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : null}
+                  </span>
+                  <span className="max-w-[180px] truncate text-[12px] text-foreground">
+                    {p.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleAttachment(p)}
+                    disabled={createComm.isPending}
+                    aria-label={`Quitar ${p.name}`}
+                    className="ml-1 text-muted-foreground transition-colors hover:text-destructive"
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
           <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              disabled={createComm.isPending || !hasConsent}
+              aria-label="Adjuntar producto"
+              className={cn(
+                "flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-all",
+                "hover:border-foreground/40 hover:text-foreground",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+                attachments.length > 0 && "border-foreground text-foreground",
+              )}
+            >
+              <PaperclipIcon className="size-4" />
+            </button>
+
             <div className="flex-1">
               <textarea
                 value={body}
@@ -353,6 +452,41 @@ export function MessageSheet({
             </Badge>
           )}
         </div>
+
+        {/* Product picker overlay — slides up from the bottom on top of the
+            thread; the composer + picker live in the same flex column so
+            the user can keep typing context in mind. */}
+        {pickerOpen && (
+          <div className="absolute inset-x-0 bottom-0 top-[64px] z-10 flex flex-col bg-background">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-5 py-3">
+              <div>
+                <p className="font-heading text-sm text-foreground">
+                  Adjuntar productos
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {attachments.length === 0
+                    ? "Toca un producto para adjuntarlo al mensaje."
+                    : `${attachments.length} ${attachments.length === 1 ? "adjunto" : "adjuntos"}`}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPickerOpen(false)}
+              >
+                Listo
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 px-5 py-4">
+              <ProductPicker
+                onSelect={toggleAttachment}
+                selectedIds={attachmentIds}
+                multi
+                gridClassName="grid-cols-2 sm:grid-cols-3"
+              />
+            </div>
+          </div>
+        )}
 
         <SheetClose className="hidden" />
       </SheetContent>
@@ -567,4 +701,35 @@ function formatDayHeader(date: Date): string {
     month: "long",
     year: "numeric",
   });
+}
+
+function PaperclipIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M11.5 7.5l-4.5 4.5a2.5 2.5 0 0 1-3.5-3.5L8 4a3.5 3.5 0 0 1 5 5L8.5 13.5" />
+    </svg>
+  );
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d="m4 4 8 8M12 4l-8 8" />
+    </svg>
+  );
 }
