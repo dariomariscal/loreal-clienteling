@@ -648,12 +648,13 @@ function CustomerPicker({ onPick }: { onPick: (c: Customer) => void }) {
               Sin coincidencias para "{debounced}".
             </li>
           ) : (
-            results.slice(0, 8).map((c) => (
-              <li key={c.id}>
+            results.slice(0, 8).map((c, i) => (
+              <li key={c.id ?? `idx-${i}`}>
                 <button
                   type="button"
-                  onClick={() => onPick(c)}
-                  className="flex w-full items-center gap-3 border-b border-border/30 px-3 py-2 text-left last:border-b-0 hover:bg-muted/40"
+                  onClick={() => c.id && onPick(c)}
+                  disabled={!c.id}
+                  className="flex w-full items-center gap-3 border-b border-border/30 px-3 py-2 text-left last:border-b-0 hover:bg-muted/40 disabled:opacity-50"
                 >
                   <Avatar
                     name={`${c.firstName} ${c.lastName}`}
