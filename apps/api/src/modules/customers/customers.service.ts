@@ -768,6 +768,10 @@ export class CustomersService {
       .from(customers)
       .where(and(...conditions));
 
+    // Rank under the hood for ordering, but return full Customer rows so
+    // every UI consumer (global search, agenda picker, registration
+    // wizard, follow-ups form) gets a familiar shape with id, phone,
+    // email and segment.
     const ranked = rankCustomerSearchResults({
       results: rows.map((r) => ({
         customerId: r.id,
@@ -782,7 +786,16 @@ export class CustomersService {
       searchingBaUserId: user.id,
     });
 
-    return ranked;
+    const orderById = new Map(
+      ranked.map((r, i) => [r.customer.customerId, i]),
+    );
+    return rows
+      .slice()
+      .sort(
+        (a, b) =>
+          (orderById.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+          (orderById.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+      );
   }
 
   async executeRightToBeForgotten(
