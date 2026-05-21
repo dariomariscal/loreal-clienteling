@@ -255,3 +255,48 @@ export function useRevokeConsent() {
       qc.invalidateQueries({ queryKey: detailKeys.consents(customerId) }),
   });
 }
+
+// ── Purchase mutation ──────────────────────────────────────────────
+
+export interface CreatePurchaseItem {
+  productId: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export function useCreatePurchase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      customerId: string;
+      source: string;
+      items: CreatePurchaseItem[];
+      totalAmount: number;
+      posTransactionId?: string;
+    }) => api.post<Purchase>("/purchases", data),
+    onSuccess: (_, { customerId }) => {
+      qc.invalidateQueries({ queryKey: detailKeys.purchases(customerId) });
+      qc.invalidateQueries({ queryKey: detailKeys.recommendations(customerId) });
+      qc.invalidateQueries({ queryKey: ["customers", customerId] });
+    },
+  });
+}
+
+// ── Recommendation mutation ────────────────────────────────────────
+
+export function useCreateRecommendation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      customerId: string;
+      productId: string;
+      source: string;
+      visitReason?: string;
+      notes?: string;
+      aiReasoning?: string;
+    }) => api.post<Recommendation>("/recommendations", data),
+    onSuccess: (_, { customerId }) =>
+      qc.invalidateQueries({ queryKey: detailKeys.recommendations(customerId) }),
+  });
+}

@@ -47,6 +47,7 @@ export function useCustomers(params?: {
   segment?: string;
   storeId?: string;
   baUserId?: string;
+  birthdayWithinDays?: string;
   dateFrom?: string;
   dateTo?: string;
   sortBy?: string;

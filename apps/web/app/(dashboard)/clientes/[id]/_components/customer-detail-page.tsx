@@ -24,10 +24,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  TimelineIllustration,
-  NotesIllustration,
-} from "@/components/ui/illustrations";
+import { TimelineIllustration } from "@/components/ui/illustrations";
 import { CustomerProfileHeader } from "./customer-profile-header";
 import { CustomerKpiCards } from "./customer-kpi-cards";
 import {
@@ -38,6 +35,12 @@ import { BeautySection } from "./beauty-section";
 import { PurchasesSection } from "./purchases-section";
 import { RecommendationsSection } from "./recommendations-section";
 import { AppointmentsSection } from "./appointments-section";
+import { NotesSection } from "./notes-section";
+import { NoteSheet } from "./note-sheet";
+import { PurchaseSheet } from "./purchase-sheet";
+import { AppointmentSheet } from "./appointment-sheet";
+import { RecommendationSheet } from "./recommendation-sheet";
+import { MessageSheet } from "./message-sheet";
 
 // ── Tab keys ───────────────────────────────────────────────────────
 // Order matches the spec §3.4. Overview is the default landing tab; Notas
@@ -63,7 +66,7 @@ function isTabKey(value: string | null): value is TabKey {
 
 interface CustomerDetailPageProps {
   customerId: string;
-  user: { role?: string | null };
+  user: { id: string; role?: string | null };
 }
 
 export function CustomerDetailPage({
@@ -95,9 +98,7 @@ export function CustomerDetailPage({
 
   // Local UI state — sheets opened from quick actions and the ARCO dialog
   // are coordinated here so siblings never need to talk to each other.
-  const [_openAction, setOpenAction] = React.useState<QuickActionId | null>(
-    null,
-  );
+  const [openSheet, setOpenSheet] = React.useState<QuickActionId | null>(null);
   const [showArco, setShowArco] = React.useState(false);
   const deleteArco = useDeleteCustomerArco();
 
@@ -131,28 +132,7 @@ export function CustomerDetailPage({
   }
 
   function handleQuickAction(id: QuickActionId) {
-    // Sprint 1: sheets are stubbed. Each one will own a sheet component in
-    // its respective sprint (2–7). For now, jump to the relevant tab so the
-    // BA can still complete the action via the existing section UI.
-    setOpenAction(id);
-    switch (id) {
-      case "purchase":
-        setActiveTab("compras");
-        break;
-      case "recommend":
-        setActiveTab("recomendaciones");
-        break;
-      case "appointment":
-        setActiveTab("citas");
-        break;
-      case "note":
-        setActiveTab("notas");
-        break;
-      case "message":
-        // Communications tab will return in a later sprint via this surface.
-        // For now no-op; the message sheet is built in Sprint 8.
-        break;
-    }
+    setOpenSheet(id);
   }
 
   // ── Render ───────────────────────────────────────────────────────
@@ -196,25 +176,70 @@ export function CustomerDetailPage({
         </TabsContent>
 
         <TabsContent value="compras">
-          <PurchasesSection customerId={customerId} />
+          <PurchasesSection
+            customerId={customerId}
+            onNewPurchase={() => setOpenSheet("purchase")}
+          />
         </TabsContent>
 
         <TabsContent value="recomendaciones">
-          <RecommendationsSection customerId={customerId} />
+          <RecommendationsSection
+            customerId={customerId}
+            onNewRecommendation={() => setOpenSheet("recommend")}
+          />
         </TabsContent>
 
         <TabsContent value="citas">
-          <AppointmentsSection customerId={customerId} />
+          <AppointmentsSection
+            customerId={customerId}
+            onNewAppointment={() => setOpenSheet("appointment")}
+          />
         </TabsContent>
 
         <TabsContent value="notas">
-          <EmptyState
-            illustration={<NotesIllustration />}
-            title="Notas disponibles próximamente"
-            description="Captura observaciones rápidas sobre la clienta y vincúlalas a productos cuando aplique."
+          <NotesSection
+            customerId={customerId}
+            onNewNote={() => setOpenSheet("note")}
           />
         </TabsContent>
       </Tabs>
+
+      <NoteSheet
+        open={openSheet === "note"}
+        onOpenChange={(open) => !open && setOpenSheet(null)}
+        customerId={customerId}
+        customerName={`${customer.firstName} ${customer.lastName}`}
+      />
+
+      <PurchaseSheet
+        open={openSheet === "purchase"}
+        onOpenChange={(open) => !open && setOpenSheet(null)}
+        customerId={customerId}
+        customerName={`${customer.firstName} ${customer.lastName}`}
+      />
+
+      <AppointmentSheet
+        open={openSheet === "appointment"}
+        onOpenChange={(open) => !open && setOpenSheet(null)}
+        customerId={customerId}
+        customerName={`${customer.firstName} ${customer.lastName}`}
+        customerSegment={customer.lifecycleSegment}
+        baUserId={user.id}
+      />
+
+      <RecommendationSheet
+        open={openSheet === "recommend"}
+        onOpenChange={(open) => !open && setOpenSheet(null)}
+        customerId={customerId}
+        customerName={`${customer.firstName} ${customer.lastName}`}
+      />
+
+      <MessageSheet
+        open={openSheet === "message"}
+        onOpenChange={(open) => !open && setOpenSheet(null)}
+        customerId={customerId}
+        customerName={`${customer.firstName} ${customer.lastName}`}
+      />
 
       <Dialog
         open={showArco}

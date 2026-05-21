@@ -15,7 +15,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { BaTodayPage } from "./ba-today-page";
 
 const AreaChart = dynamic(
   () => import("@/components/charts/area-chart").then((m) => m.AreaChart),
@@ -34,6 +34,13 @@ interface DashboardPageProps {
 
 export function DashboardPage({ user }: DashboardPageProps) {
   const role = user.role ?? "ba";
+
+  // BAs get a Tulip-style "Today" feed — actionable, not analytical.
+  // Managers, supervisors and admins keep the KPI dashboard below.
+  if (role === "ba") {
+    return <BaTodayPage user={user} />;
+  }
+
   const { data: dashboard, isLoading } = useDashboardMetrics();
   const { data: trendData } = useSalesTrend("month");
   const { data: baPerf = [] } = useBaPerformance();
@@ -57,7 +64,6 @@ export function DashboardPage({ user }: DashboardPageProps) {
           {role === "manager" && "Resumen de tu tienda"}
           {role === "supervisor" && "Resumen de tu zona y marca"}
           {role === "admin" && "Resumen nacional"}
-          {role === "ba" && "Tu resumen del día"}
         </p>
       </section>
 
@@ -108,7 +114,7 @@ export function DashboardPage({ user }: DashboardPageProps) {
       )}
 
       {/* BA Leaderboard — visible for manager, supervisor, admin */}
-      {role !== "ba" && Array.isArray(baPerf) && baPerf.length > 0 && (
+      {Array.isArray(baPerf) && baPerf.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -160,14 +166,6 @@ export function DashboardPage({ user }: DashboardPageProps) {
         </Card>
       )}
 
-      {/* Quick links for BA */}
-      {role === "ba" && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <QuickLink href="/clientes" title="Clientes" desc="Consulta tu cartera" />
-          <QuickLink href="/agenda" title="Agenda" desc="Citas y seguimientos" />
-          <QuickLink href="/productos" title="Productos" desc="Catálogo y recomendaciones" />
-        </div>
-      )}
     </div>
   );
 }
@@ -197,24 +195,6 @@ function KpiCard({
         )}
       </CardHeader>
     </Card>
-  );
-}
-
-function QuickLink({ href, title, desc }: { href: string; title: string; desc: string }) {
-  return (
-    <Link href={href} className="group">
-      <Card className="h-full transition-shadow duration-200 group-hover:shadow-md">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{desc}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <span className="text-xs font-medium text-accent transition-colors group-hover:text-accent/80">
-            Ver →
-          </span>
-        </CardContent>
-      </Card>
-    </Link>
   );
 }
 

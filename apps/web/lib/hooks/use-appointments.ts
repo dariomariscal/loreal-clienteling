@@ -26,7 +26,8 @@ export interface Appointment {
 // ── Query keys ─────────────────────────────────────────────────────
 
 const appointmentKeys = {
-  all: (from?: string, to?: string) => ["appointments", from, to] as const,
+  all: (from?: string, to?: string, baUserId?: string) =>
+    ["appointments", from, to, baUserId] as const,
   calendar: (from: string, to: string, baUserId?: string, storeView?: boolean) =>
     ["appointments", "calendar", from, to, baUserId, storeView] as const,
   detail: (id: string) => ["appointments", id] as const,
@@ -34,13 +35,18 @@ const appointmentKeys = {
 
 // ── Queries ────────────────────────────────────────────────────────
 
-export function useAppointments(from?: string, to?: string) {
+export function useAppointments(
+  from?: string,
+  to?: string,
+  options?: { baUserId?: string },
+) {
   const params: Record<string, string> = {};
   if (from) params.from = from;
   if (to) params.to = to;
+  if (options?.baUserId) params.baUserId = options.baUserId;
 
   return useQuery({
-    queryKey: appointmentKeys.all(from, to),
+    queryKey: appointmentKeys.all(from, to, options?.baUserId),
     queryFn: () => api.get<Appointment[]>("/appointments", params),
   });
 }
