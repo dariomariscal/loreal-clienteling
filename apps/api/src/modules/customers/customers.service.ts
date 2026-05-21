@@ -12,12 +12,26 @@ import {
   appointments,
   communications,
   users,
+  stores,
 } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
-import type { CreateCustomerDto, UpdateCustomerDto, CustomerFiltersDto } from "../../dtos/customers.dto";
+import { PrivacyNoticesService } from "../privacy-notices/privacy-notices.service";
+import type {
+  CreateCustomerDto,
+  UpdateCustomerDto,
+  CustomerFiltersDto,
+  RegisterCustomerDto,
+  CheckDuplicateDto,
+} from "../../dtos/customers.dto";
 import { rankCustomerSearchResults } from "@loreal/domain";
+
+const MARKETING_CHANNEL_TO_CONSENT = {
+  email: "marketing_email",
+  sms: "marketing_sms",
+  whatsapp: "marketing_whatsapp",
+} as const;
 
 @Injectable()
 export class CustomersService {
@@ -25,6 +39,7 @@ export class CustomersService {
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
+    @Inject(PrivacyNoticesService) private privacyNoticesService: PrivacyNoticesService,
   ) {}
 
   async findAll(
@@ -155,6 +170,143 @@ export class CustomersService {
       .returning();
 
     return customer;
+  }
+
+  /**
+   * Atomic customer + consents registration. Used by the in-store wizard.
+   * Either every record (customer + privacy notice consent + N marketing
+   * channel consents) lands in the DB, or none does. This is the only path
+   * that satisfies LFPDPPP — never let a customer exist without a
+   * privacy_notice consent row.
+   */
+  async register(
+    data: RegisterCustomerDto,
+    user: SessionUser,
+    meta?: { ipAddress?: string; userAgent?: string },
+  ) {
+    const storeId = this.scopeService.assertStore(user);
+
+    // Validate the privacy notice version BEFORE opening the transaction.
+    // Prevents clients from submitting stale versions.
+    await this.privacyNoticesService.assertVersionIsActive(
+      data.consents.privacyNoticeVersion,
+    );
+
+    const customer = await this.db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(customers)
+        .values({
+          ...data.customer,
+          birthDate: data.customer.birthDate
+            ? data.customer.birthDate.toISOString().split("T")[0]
+            : undefined,
+          registeredAtStoreId: storeId,
+          registeredByUserId: user.id,
+          lastBaUserId: user.id,
+        })
+        .returning();
+
+      // 1. Privacy notice consent (mandatory, carries signature).
+      await tx.insert(consents).values({
+        customerId: created.id,
+        type: "privacy_notice",
+        version: data.consents.privacyNoticeVersion,
+        source: "wizard_in_store",
+        signatureUrl: data.consents.signatureUrl,
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent,
+      });
+
+      // 2. Marketing channel consents (one row per channel marked true).
+      const channelRows = (
+        Object.entries(data.consents.marketingChannels) as [
+          keyof typeof MARKETING_CHANNEL_TO_CONSENT,
+          boolean | undefined,
+        ][]
+      )
+        .filter(([, granted]) => granted === true)
+        .map(([channel]) => ({
+          customerId: created.id,
+          type: MARKETING_CHANNEL_TO_CONSENT[channel],
+          version: data.consents.privacyNoticeVersion,
+          source: "wizard_in_store",
+          ipAddress: meta?.ipAddress,
+          userAgent: meta?.userAgent,
+        }));
+
+      if (channelRows.length > 0) {
+        await tx.insert(consents).values(channelRows);
+      }
+
+      return created;
+    });
+
+    await this.auditService.log(
+      user,
+      "customer_registered",
+      "customer",
+      customer.id,
+      {
+        privacyNoticeVersion: data.consents.privacyNoticeVersion,
+        marketingChannels: data.consents.marketingChannels,
+      },
+      meta,
+    );
+
+    return customer;
+  }
+
+  /**
+   * Cross-store duplicate check for the wizard's "search before create" step.
+   * Returns minimal metadata only — never leaks PII from stores the BA can't
+   * access. The `inUserScope` flag tells the UI whether the BA can open the
+   * existing profile or needs to call support to claim it.
+   */
+  async checkDuplicate(params: CheckDuplicateDto, user: SessionUser) {
+    if (!params.email && !params.phone) {
+      return { hasMatch: false, matches: [] };
+    }
+
+    const conditions = [
+      ...(params.email ? [eq(customers.email, params.email)] : []),
+      ...(params.phone ? [eq(customers.phone, params.phone)] : []),
+    ];
+
+    const rows = await this.db
+      .select({
+        customerId: customers.id,
+        firstName: customers.firstName,
+        lastName: customers.lastName,
+        email: customers.email,
+        phone: customers.phone,
+        storeId: customers.registeredAtStoreId,
+        storeName: stores.displayName,
+      })
+      .from(customers)
+      .leftJoin(stores, eq(customers.registeredAtStoreId, stores.id))
+      .where(or(...conditions));
+
+    const accessibleStoreIds =
+      user.role === "admin"
+        ? null
+        : await this.scopeService.getAccessibleStoreIds(user);
+
+    const matches = rows.map((r) => ({
+      customerId: r.customerId,
+      firstName: r.firstName,
+      lastName: r.lastName,
+      matchedOn:
+        params.email && r.email === params.email
+          ? ("email" as const)
+          : ("phone" as const),
+      storeName: r.storeName ?? "—",
+      inUserScope:
+        accessibleStoreIds === null
+          ? true
+          : accessibleStoreIds.includes(r.storeId),
+    }));
+
+    return { hasMatch: matches.length > 0, matches };
   }
 
   async update(id: string, data: UpdateCustomerDto, user: SessionUser) {

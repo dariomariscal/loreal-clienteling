@@ -7,8 +7,10 @@ import {
   Param,
   Body,
   Query,
+  Req,
   Inject,
 } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
@@ -18,6 +20,8 @@ import {
   UpdateCustomerDto,
   SearchCustomerDto,
   CustomerFiltersDto,
+  RegisterCustomerDto,
+  CheckDuplicateDto,
 } from "../../dtos/customers.dto";
 import type { UserSession } from "../../common/types/session";
 
@@ -49,6 +53,17 @@ export class CustomersController {
     );
   }
 
+  @Get("check-duplicate")
+  @Roles(["ba", "manager", "supervisor", "admin"])
+  @ApiQuery({ name: "email", required: false, type: String })
+  @ApiQuery({ name: "phone", required: false, type: String })
+  checkDuplicate(
+    @Query() query: CheckDuplicateDto,
+    @Session() session: UserSession,
+  ) {
+    return this.customersService.checkDuplicate(query, session.user);
+  }
+
   @Get(":id")
   @Roles(["ba", "manager", "supervisor", "admin"])
   @ApiParam({ name: "id", type: String })
@@ -64,6 +79,22 @@ export class CustomersController {
     @Session() session: UserSession,
   ) {
     return this.customersService.create(body, session.user);
+  }
+
+  @Post("register")
+  @Roles(["ba", "manager"])
+  @ApiBody({ type: RegisterCustomerDto })
+  register(
+    @Body() body: RegisterCustomerDto,
+    @Session() session: UserSession,
+    @Req() req: Request,
+  ) {
+    return this.customersService.register(body, session.user, {
+      ipAddress:
+        (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ??
+        req.socket?.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    });
   }
 
   @Patch(":id")

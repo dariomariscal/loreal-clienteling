@@ -3,6 +3,7 @@ import {
   uuid,
   varchar,
   timestamp,
+  text,
   index,
 } from "drizzle-orm/pg-core";
 import { customers } from "./customers";
@@ -22,6 +23,11 @@ export const consents = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     source: varchar("source", { length: 100 }).notNull(),
     ipAddress: varchar("ip_address", { length: 45 }),
+    userAgent: text("user_agent"),
+    /** URL of the signature PNG in object storage. Only set for privacy_notice consents. */
+    signatureUrl: text("signature_url"),
+    /** For marketing channels requiring confirmation (e.g. WhatsApp double opt-in). */
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -13,6 +13,7 @@ import { ProductsModule } from "./modules/products/products.module";
 import { CustomersModule } from "./modules/customers/customers.module";
 import { BeautyModule } from "./modules/beauty/beauty.module";
 import { ConsentsModule } from "./modules/consents/consents.module";
+import { PrivacyNoticesModule } from "./modules/privacy-notices/privacy-notices.module";
 import { RecommendationsModule } from "./modules/recommendations/recommendations.module";
 import { PurchasesModule } from "./modules/purchases/purchases.module";
 import { SamplesModule } from "./modules/samples/samples.module";
@@ -45,6 +46,7 @@ import { HealthController } from "./health.controller";
     CustomersModule,
     BeautyModule,
     ConsentsModule,
+    PrivacyNoticesModule,
     RecommendationsModule,
     PurchasesModule,
     SamplesModule,

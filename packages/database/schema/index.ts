@@ -19,4 +19,5 @@ export { appointmentEventTypes } from "./appointment-event-types";
 export { communications } from "./communications";
 export { messageTemplates } from "./message-templates";
 export { consents } from "./consents";
+export { privacyNotices } from "./privacy-notices";
 export { auditLogs } from "./audit-logs";

@@ -7,6 +7,10 @@ import {
   IsIn,
   IsDate,
   IsUUID,
+  IsBoolean,
+  IsUrl,
+  ValidateNested,
+  IsObject,
 } from "class-validator";
 import { Type } from "class-transformer";
 import {
@@ -115,4 +119,76 @@ export class CustomerFiltersDto extends PaginationDto {
   @IsOptional()
   @IsIn(["asc", "desc"])
   sortOrder?: string;
+}
+
+// ── Registration (wizard payload: customer + consents in one shot) ──────────
+
+export class MarketingChannelsDto {
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @IsBoolean()
+  email?: boolean;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @IsBoolean()
+  sms?: boolean;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @IsBoolean()
+  whatsapp?: boolean;
+}
+
+export class RegistrationConsentsDto {
+  @ApiProperty({ type: String, example: "1.0", maxLength: 20 })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(20)
+  privacyNoticeVersion: string;
+
+  @ApiProperty({
+    type: String,
+    example: "https://r2.dev/signatures/uuid.png",
+    description: "URL of the uploaded signature PNG (use POST /uploads/signatures first).",
+  })
+  @IsString()
+  @IsUrl({ require_tld: false })
+  signatureUrl: string;
+
+  @ApiProperty({ type: MarketingChannelsDto })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => MarketingChannelsDto)
+  marketingChannels: MarketingChannelsDto;
+}
+
+export class RegisterCustomerDto {
+  @ApiProperty({ type: CreateCustomerDto })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CreateCustomerDto)
+  customer: CreateCustomerDto;
+
+  @ApiProperty({ type: RegistrationConsentsDto })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => RegistrationConsentsDto)
+  consents: RegistrationConsentsDto;
+}
+
+// ── Duplicate check (pre-registration anti-dedup) ───────────────────────────
+
+export class CheckDuplicateDto {
+  @ApiPropertyOptional({ type: String, example: "maria@example.com" })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ type: String, example: "5551234567" })
+  @IsOptional()
+  @IsString()
+  @MinLength(10)
+  @MaxLength(15)
+  phone?: string;
 }

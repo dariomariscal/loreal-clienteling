@@ -3,15 +3,20 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 import path from "node:path";
 
-// Load env from apps/api/.env when running locally. In containerized runtime
-// (Fly release_command, Docker) env vars are already injected, and dotenv is
-// not installed — so we skip the load and fall back to process.env.
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { config } = require("dotenv") as typeof import("dotenv");
-  config({ path: path.resolve(__dirname, "../../apps/api/.env") });
-} catch {
-  // dotenv not installed — relying on process.env (production / CI).
+// Load env from apps/api/.env when running locally — but ONLY if DATABASE_URL
+// isn't already in the environment. Otherwise an explicit
+// `DATABASE_URL=... pnpm migrate` is silently overridden by the .env, which
+// once caused a prod migration to look like it ran while actually hitting
+// localhost. In containerized runtime (Fly release_command, Docker) env vars
+// are already injected and dotenv isn't installed — so we skip the load.
+if (!process.env.DATABASE_URL) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { config } = require("dotenv") as typeof import("dotenv");
+    config({ path: path.resolve(__dirname, "../../apps/api/.env") });
+  } catch {
+    // dotenv not installed — relying on process.env (production / CI).
+  }
 }
 
 function toDirectNeonUrl(raw: string): string {
