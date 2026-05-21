@@ -36,7 +36,7 @@ export default async function DashboardLayout({
           </div>
         </div>
 
-        <GlobalCreateSheets />
+        <GlobalCreateSheets userId={session.user.id} />
       </SidebarProvider>
     </CreateMenuProvider>
   );

@@ -4,14 +4,20 @@ import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { BrandFormSheet } from "@/app/(dashboard)/marcas/_components/brand-form-sheet";
 import { StoreFormSheet } from "@/app/(dashboard)/tiendas/_components/store-form-sheet";
 import { CustomerRegistrationWizard } from "@/app/(dashboard)/clientes/_components/customer-registration-wizard";
-import { AppointmentFormSheet } from "@/app/(dashboard)/agenda/_components/appointment-form-sheet";
+import { AppointmentSheet } from "@/app/(dashboard)/clientes/[id]/_components/appointment-sheet";
+
+interface GlobalCreateSheetsProps {
+  /** Current user's id — needed by the appointment wizard to scope the
+   * availability fetches to the right BA. */
+  userId: string;
+}
 
 /**
  * Mounts all "create" sheets globally so that the sidebar's "+ Create"
  * button can open any of them without page navigation. Each sheet is
  * controlled by the CreateMenuProvider context.
  */
-export function GlobalCreateSheets() {
+export function GlobalCreateSheets({ userId }: GlobalCreateSheetsProps) {
   const { openEntity, close } = useCreateMenu();
 
   return (
@@ -28,9 +34,10 @@ export function GlobalCreateSheets() {
         open={openEntity === "customer"}
         onOpenChange={(o) => !o && close()}
       />
-      <AppointmentFormSheet
+      <AppointmentSheet
         open={openEntity === "appointment"}
         onOpenChange={(o) => !o && close()}
+        baUserId={userId}
       />
       {/* Product sheet — pending full-page refactor */}
     </>
