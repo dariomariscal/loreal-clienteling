@@ -56,7 +56,7 @@ function Trigger({
         "relative inline-flex h-10 shrink-0 items-center justify-center gap-1.5 px-3 text-sm font-medium whitespace-nowrap",
         "text-muted-foreground transition-colors duration-150",
         "hover:text-foreground",
-        "data-[selected]:text-foreground",
+        "data-selected:text-foreground",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:rounded-md",
         // The underline is rendered by Indicator below — no per-trigger
         // border-bottom to avoid jumpy double underlines.

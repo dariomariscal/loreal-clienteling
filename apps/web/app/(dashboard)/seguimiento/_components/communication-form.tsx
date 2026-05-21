@@ -117,7 +117,7 @@ export function CommunicationForm({
             )}
           />
           {showResults && searchResults.length > 0 && !selectedCustomer && (
-            <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-xl border border-border/50 bg-card shadow-lg ring-1 ring-foreground/[0.06]">
+            <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-xl border border-border/50 bg-card shadow-lg ring-1 ring-foreground/6">
               {searchResults.map((c) => (
                 <button
                   key={c.id}

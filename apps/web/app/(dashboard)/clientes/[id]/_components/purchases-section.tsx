@@ -76,7 +76,7 @@ export function PurchasesSection({
       {/* Summary strip */}
       <div className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-border/40 bg-muted/20 px-5 py-4">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
             Histórico
           </p>
           <p className="font-heading text-2xl tabular-nums text-foreground">

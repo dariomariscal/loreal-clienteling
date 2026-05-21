@@ -177,7 +177,7 @@ export function AppointmentSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <SheetBody className="!space-y-6">
+        <SheetBody className="space-y-6!">
           {/* ── Step 1: service type ─────────────────────────── */}
           <Step number={1} title="Tipo de servicio">
             {typesLoading ? (
@@ -270,7 +270,7 @@ export function AppointmentSheet({
           {/* ── Preview + extras ─────────────────────────────── */}
           {selectedType && slotStartsAt && (
             <div className="space-y-3">
-              <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+              <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
                 Vista previa
               </p>
               <BookingPreview
@@ -302,7 +302,7 @@ export function AppointmentSheet({
               <div className="space-y-1.5">
                 <label
                   htmlFor="appt-comments"
-                  className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground"
+                  className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground"
                 >
                   Comentarios (opcional)
                 </label>
@@ -363,7 +363,7 @@ function Step({
         <span className="flex size-5 items-center justify-center rounded-full bg-foreground text-[10px] font-medium text-background">
           {number}
         </span>
-        <h3 className="text-[11px] font-medium uppercase tracking-[0.1em] text-foreground">
+        <h3 className="text-[11px] font-medium uppercase tracking-widest text-foreground">
           {title}
         </h3>
       </div>
@@ -540,7 +540,7 @@ function BookingPreview({
         style={{ backgroundColor: accent }}
         aria-hidden
       />
-      <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+      <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
         {dateLabel}
       </p>
       <p className="mt-0.5 font-heading text-lg tabular-nums text-foreground">

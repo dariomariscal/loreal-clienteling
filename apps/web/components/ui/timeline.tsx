@@ -93,7 +93,7 @@ export function TimelineEvent({
           hides the tail so the column doesn't dangle past the final dot. */}
       <span
         aria-hidden
-        className="absolute top-3 left-[11px] -bottom-0 w-px bg-border last:hidden"
+        className="absolute top-3 bottom-0 left-[11px] w-px bg-border last:hidden"
       />
 
       <span

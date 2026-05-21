@@ -60,7 +60,7 @@ function MultiSelect({
     <Popover.Root>
       <div
         className={cn(
-          "group/multi flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-xl border border-input bg-transparent px-3 py-2 text-sm transition-all duration-200 hover:border-foreground/20 has-[[data-popup-open]]:border-ring has-[[data-popup-open]]:ring-3 has-[[data-popup-open]]:ring-ring/50",
+          "group/multi flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-xl border border-input bg-transparent px-3 py-2 text-sm transition-all duration-200 hover:border-foreground/20 has-data-popup-open:border-ring has-data-popup-open:ring-3 has-data-popup-open:ring-ring/50",
           disabled && "pointer-events-none opacity-50",
           className,
         )}
@@ -98,7 +98,7 @@ function MultiSelect({
 
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} className="z-50">
-          <Popover.Popup className="w-[var(--anchor-width)] min-w-[220px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/[0.06] outline-none">
+          <Popover.Popup className="w-(--anchor-width) min-w-[220px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/6 outline-none">
             <div className="border-b border-border/60 p-2">
               <input
                 type="text"

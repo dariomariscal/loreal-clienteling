@@ -89,7 +89,7 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex h-full w-full flex-col gap-0 bg-popover text-sm text-popover-foreground shadow-xl ring-1 ring-foreground/[0.06] outline-none duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] data-open:animate-in data-closed:animate-out",
+          "fixed z-50 flex h-full w-full flex-col gap-0 bg-popover text-sm text-popover-foreground shadow-xl ring-1 ring-foreground/6 outline-none duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] data-open:animate-in data-closed:animate-out",
           sideClasses,
           SIZE_CLASSES[size],
           className

@@ -48,7 +48,11 @@ export function PurchaseSheet({
       setPosRef("");
       createPurchase.reset();
     }
-  }, [open, createPurchase]);
+    // createPurchase identity changes on every render in React Query; depending
+    // on it would cause the effect to re-run on each render, retriggering the
+    // resets and creating an infinite loop. Keying off `open` is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const selectedIds = React.useMemo(
     () => new Set(cart.map((l) => l.product.id)),
@@ -114,7 +118,7 @@ export function PurchaseSheet({
       <SheetContent
         side="right"
         size="xl"
-        className="!max-w-[min(96vw,1180px)] !sm:max-w-[min(96vw,1180px)]"
+        className="max-w-[min(96vw,1180px)]! sm:max-w-[min(96vw,1180px)]!"
       >
         <SheetHeader>
           <SheetTitle>Registrar compra</SheetTitle>
@@ -140,7 +144,7 @@ export function PurchaseSheet({
             <div className="flex items-baseline justify-between border-b border-border/40 px-5 py-4">
               <div>
                 <p className="font-heading text-base text-foreground">Ticket</p>
-                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
                   {itemCount === 0
                     ? "Sin productos"
                     : itemCount === 1
@@ -182,7 +186,7 @@ export function PurchaseSheet({
               <div className="space-y-1">
                 <label
                   htmlFor="pos-ref"
-                  className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground"
+                  className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground"
                 >
                   Folio POS (opcional)
                 </label>
@@ -202,7 +206,7 @@ export function PurchaseSheet({
               </div>
 
               <div className="flex items-baseline justify-between">
-                <span className="text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Total
                 </span>
                 <span className="font-heading text-2xl tabular-nums text-foreground">
@@ -229,7 +233,7 @@ export function PurchaseSheet({
                 <Button
                   onClick={handleConfirm}
                   disabled={cart.length === 0 || createPurchase.isPending}
-                  className="flex-[2]"
+                  className="flex-2"
                 >
                   {createPurchase.isPending
                     ? "Registrando…"

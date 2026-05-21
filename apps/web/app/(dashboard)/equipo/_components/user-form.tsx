@@ -284,7 +284,7 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
                     </FormControl>
                     <SelectContent
                       alignItemWithTrigger={false}
-                      className="w-auto min-w-[var(--anchor-width)] max-w-[min(22rem,calc(100vw-2rem))]"
+                      className="w-auto min-w-(--anchor-width) max-w-[min(22rem,calc(100vw-2rem))]"
                     >
                       {stores.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
@@ -323,7 +323,7 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
                       </FormControl>
                       <SelectContent
                         alignItemWithTrigger={false}
-                        className="w-auto min-w-[var(--anchor-width)] max-w-[min(22rem,calc(100vw-2rem))]"
+                        className="w-auto min-w-(--anchor-width) max-w-[min(22rem,calc(100vw-2rem))]"
                       >
                         {!needsStore && !needsZone && (
                           <SelectItem value="">Sin asignar</SelectItem>
@@ -370,7 +370,7 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
                     </FormControl>
                     <SelectContent
                       alignItemWithTrigger={false}
-                      className="w-auto min-w-[var(--anchor-width)] max-w-[min(22rem,calc(100vw-2rem))]"
+                      className="w-auto min-w-(--anchor-width) max-w-[min(22rem,calc(100vw-2rem))]"
                     >
                       {!needsZone && <SelectItem value="">Sin asignar</SelectItem>}
                       {zones.map((z) => (

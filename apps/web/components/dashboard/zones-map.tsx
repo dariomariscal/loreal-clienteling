@@ -407,7 +407,7 @@ export function ZonesMap({
     <div
       ref={containerRef}
       className={cn(
-        "h-full w-full overflow-hidden rounded-2xl ring-1 ring-foreground/[0.06] shadow-sm",
+        "h-full w-full overflow-hidden rounded-2xl ring-1 ring-foreground/6 shadow-sm",
         className,
       )}
     />

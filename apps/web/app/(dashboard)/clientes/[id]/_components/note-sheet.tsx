@@ -114,7 +114,7 @@ export function NoteSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <SheetBody className="!space-y-4">
+        <SheetBody className="space-y-4!">
           {/* Editor — paper-like surface */}
           <div className="relative">
             <textarea
@@ -151,7 +151,7 @@ export function NoteSheet({
 
           {/* Quick tag chips */}
           <div>
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/70">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground/70">
               Etiquetar
             </p>
             <div className="flex flex-wrap gap-1.5">

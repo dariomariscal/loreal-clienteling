@@ -68,7 +68,7 @@ export function CreateMenuButton({ role }: CreateMenuButtonProps) {
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner side="right" align="start" sideOffset={8} className="z-50">
-            <Menu.Popup className="min-w-[200px] overflow-hidden rounded-xl border border-border/60 bg-popover p-1 shadow-lg ring-1 ring-foreground/[0.06] outline-none">
+            <Menu.Popup className="min-w-[200px] overflow-hidden rounded-xl border border-border/60 bg-popover p-1 shadow-lg ring-1 ring-foreground/6 outline-none">
               {visible.map((item) => (
                 <Menu.Item
                   key={item.entity}

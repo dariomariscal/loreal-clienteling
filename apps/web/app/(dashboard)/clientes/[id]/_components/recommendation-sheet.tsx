@@ -125,7 +125,7 @@ export function RecommendationSheet({
       <SheetContent
         side="right"
         size="xl"
-        className="!max-w-[min(96vw,1180px)] !sm:max-w-[min(96vw,1180px)]"
+        className="max-w-[min(96vw,1180px)]! sm:max-w-[min(96vw,1180px)]!"
       >
         <SheetHeader>
           <SheetTitle>Recomendar productos</SheetTitle>
@@ -153,7 +153,7 @@ export function RecommendationSheet({
                 <p className="font-heading text-base text-foreground">
                   Recomendaciones de hoy
                 </p>
-                <span className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
                   {lines.length === 0
                     ? "Sin productos"
                     : lines.length === 1
@@ -163,7 +163,7 @@ export function RecommendationSheet({
               </div>
 
               <div>
-                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
                   Motivo de visita
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -233,7 +233,7 @@ export function RecommendationSheet({
                 <Button
                   onClick={handleConfirm}
                   disabled={!canConfirm}
-                  className="flex-[2]"
+                  className="flex-2"
                 >
                   {isSubmitting
                     ? "Guardando…"

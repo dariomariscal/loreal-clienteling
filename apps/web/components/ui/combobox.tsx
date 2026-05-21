@@ -90,7 +90,7 @@ function Combobox({
 
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} className="z-50">
-          <Popover.Popup className="w-[var(--anchor-width)] min-w-[220px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/[0.06] outline-none">
+          <Popover.Popup className="w-(--anchor-width) min-w-[220px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/6 outline-none">
             <div className="border-b border-border/60 p-2">
               <input
                 type="text"

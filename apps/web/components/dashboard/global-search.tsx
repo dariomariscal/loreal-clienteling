@@ -160,7 +160,7 @@ export function GlobalSearch() {
       </div>
       <Popover.Portal>
         <Popover.Positioner anchor={anchorRef} sideOffset={6} className="z-50">
-          <Popover.Popup className="w-[var(--anchor-width)] min-w-[340px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/[0.06] outline-none">
+          <Popover.Popup className="w-(--anchor-width) min-w-[340px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/6 outline-none">
             {isLoading && results.length === 0 ? (
               <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
                 <Loader2Icon className="size-4 animate-spin" />
@@ -210,7 +210,7 @@ function ResultGroup({ label, icon: Icon, items, onSelect }: ResultGroupProps) {
   if (!items || items.length === 0) return null;
   return (
     <div className="mb-1 last:mb-0">
-      <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground/70">
+      <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
         {label}
       </p>
       {items.map((item) => (

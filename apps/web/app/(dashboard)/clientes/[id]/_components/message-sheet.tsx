@@ -293,7 +293,7 @@ export function MessageSheet({
         {/* Template chips */}
         {channelTemplates.length > 0 && (
           <div className="shrink-0 border-t border-border/30 bg-background px-5 py-2">
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
               Plantillas
             </p>
             <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
@@ -422,7 +422,7 @@ export function MessageSheet({
 
           {/* Followup type — small footer, mostly defaulted by template */}
           <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-            <span className="uppercase tracking-[0.1em]">Tipo</span>
+            <span className="uppercase tracking-widest">Tipo</span>
             <div className="flex flex-wrap gap-1">
               {FOLLOWUP_TYPES.map((f) => {
                 const active = followupType === f.value;

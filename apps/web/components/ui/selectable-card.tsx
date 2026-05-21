@@ -61,7 +61,7 @@ export function SelectableCard({
         // border / surface
         "border-input hover:bg-muted/50",
         // selected
-        "data-[state=on]:border-primary data-[state=on]:bg-primary/[0.04] data-[state=on]:ring-2 data-[state=on]:ring-primary/20",
+        "data-[state=on]:border-primary data-[state=on]:bg-primary/4 data-[state=on]:ring-2 data-[state=on]:ring-primary/20",
         // focus
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
         // disabled

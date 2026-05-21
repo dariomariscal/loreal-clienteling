@@ -152,7 +152,7 @@ function Group({
 }) {
   return (
     <section className="space-y-2.5">
-      <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+      <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
         {label}
       </p>
       <ul className="space-y-2">
@@ -214,7 +214,7 @@ function AppointmentCard({
       />
       <div className="flex items-start justify-between gap-4 pl-2">
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
             {dateLabel}
           </p>
           <p className="font-heading text-lg tabular-nums text-foreground">

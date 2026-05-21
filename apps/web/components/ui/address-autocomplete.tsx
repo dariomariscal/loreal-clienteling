@@ -87,7 +87,7 @@ function AddressAutocomplete({
       </div>
       <Popover.Portal>
         <Popover.Positioner anchor={anchorRef} sideOffset={6} className="z-50">
-          <Popover.Popup className="w-[var(--anchor-width)] min-w-[280px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/[0.06] outline-none">
+          <Popover.Popup className="w-(--anchor-width) min-w-[280px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/6 outline-none">
             <ul className="max-h-72 overflow-y-auto p-1">
               {suggestions.map((s) => (
                 <li key={s.mapboxId}>
