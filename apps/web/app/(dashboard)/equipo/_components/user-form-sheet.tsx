@@ -1,6 +1,13 @@
 "use client";
 
-import { useInviteUser, useStores, useBrands, useZones } from "@/lib/hooks";
+import { useState } from "react";
+import {
+  useCreateUserDirect,
+  useStores,
+  useBrands,
+  useZones,
+  type CreateDirectUserResult,
+} from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { UserForm, type UserFormData } from "./user-form";
+import { PasswordResultDialog } from "./password-result-dialog";
 
 interface UserFormSheetProps {
   open: boolean;
@@ -23,42 +31,53 @@ export function UserFormSheet({ open, onOpenChange }: UserFormSheetProps) {
   const { data: stores = [] } = useStores();
   const { data: brands = [] } = useBrands();
   const { data: zones = [] } = useZones();
-  const inviteUser = useInviteUser();
+  const createUser = useCreateUserDirect();
+
+  const [result, setResult] = useState<CreateDirectUserResult | null>(null);
 
   function handleSubmit(data: UserFormData) {
-    inviteUser.mutate(data, { onSuccess: () => onOpenChange(false) });
+    createUser.mutate(data, {
+      onSuccess: (res) => {
+        setResult(res);
+        onOpenChange(false);
+      },
+    });
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="lg">
-        <SheetHeader>
-          <SheetTitle>Invitar usuario</SheetTitle>
-          <SheetDescription>
-            Se enviará una invitación por correo. El usuario aparecerá como
-            &quot;Pendiente&quot; hasta que la acepte y configure su contraseña.
-          </SheetDescription>
-        </SheetHeader>
-        <SheetBody>
-          <UserForm
-            stores={stores}
-            brands={brands}
-            zones={zones}
-            onSubmit={handleSubmit}
-            isPending={inviteUser.isPending}
-          />
-        </SheetBody>
-        <SheetFooter>
-          <SheetClose>
-            <Button variant="outline" disabled={inviteUser.isPending}>
-              Cancelar
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent size="lg">
+          <SheetHeader>
+            <SheetTitle>Crear usuario</SheetTitle>
+            <SheetDescription>
+              El usuario quedará activo de inmediato con una contraseña temporal.
+              Te la mostraremos una sola vez para que se la entregues.
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody>
+            <UserForm
+              stores={stores}
+              brands={brands}
+              zones={zones}
+              onSubmit={handleSubmit}
+              isPending={createUser.isPending}
+            />
+          </SheetBody>
+          <SheetFooter>
+            <SheetClose>
+              <Button variant="outline" disabled={createUser.isPending}>
+                Cancelar
+              </Button>
+            </SheetClose>
+            <Button type="submit" form="user-form" disabled={createUser.isPending}>
+              {createUser.isPending ? "Creando..." : "Crear usuario"}
             </Button>
-          </SheetClose>
-          <Button type="submit" form="user-form" disabled={inviteUser.isPending}>
-            {inviteUser.isPending ? "Enviando..." : "Enviar invitación"}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <PasswordResultDialog result={result} onClose={() => setResult(null)} />
+    </>
   );
 }

@@ -10,6 +10,7 @@ export interface SessionUser {
   zoneId: string | null;
   brandId: string | null;
   active: boolean;
+  mustChangePassword: boolean;
 }
 
 export interface Session {
@@ -45,6 +46,7 @@ export async function getSession(): Promise<Session | null> {
       zoneId: meta.zoneId ?? null,
       brandId: meta.brandId ?? null,
       active: meta.active ?? true,
+      mustChangePassword: meta.mustChangePassword ?? false,
     },
   };
 }

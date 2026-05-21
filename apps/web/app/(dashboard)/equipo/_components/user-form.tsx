@@ -21,7 +21,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import type { Store, Brand, Zone } from "@/lib/hooks";
+import { useStore, type Store, type Brand, type Zone } from "@/lib/hooks";
 
 const EMAIL_DOMAIN = "@loreal.mx";
 
@@ -71,8 +71,14 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
     () => Object.fromEntries(stores.map((s) => [s.id, s])),
     [stores],
   );
-  const brandMap = Object.fromEntries(brands.map((b) => [b.id, b.displayName]));
-  const zoneMap = Object.fromEntries(zones.map((z) => [z.id, z.displayName]));
+  const brandMap = useMemo(
+    () => Object.fromEntries(brands.map((b) => [b.id, b])),
+    [brands],
+  );
+  const zoneMap = useMemo(
+    () => Object.fromEntries(zones.map((z) => [z.id, z.displayName])),
+    [zones],
+  );
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -86,18 +92,64 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
     },
   });
 
-  // Auto-derive zone from store. Once the user picks a store, fill the zone
-  // field unless the admin has already chosen a different one.
+  const role = form.watch("role");
   const storeId = form.watch("storeId");
+
+  const needsStore = role === "ba" || role === "manager";
+  const needsZone = role === "supervisor";
+  const showBrand = role !== "admin";
+
+  // Pull brand availability for the selected store. Only ba/manager pick a
+  // store and care about its brand catalogue.
+  const { data: storeDetail } = useStore(needsStore && storeId ? storeId : "");
+  const allowedBrandIds = storeDetail?.brandIds ?? null;
+
+  const availableBrands = useMemo(() => {
+    if (!showBrand) return [];
+    if (!needsStore) return brands; // supervisor: any brand
+    if (!allowedBrandIds) return []; // ba/manager without store yet
+    return allowedBrandIds
+      .map((id) => brandMap[id])
+      .filter((b): b is Brand => Boolean(b));
+  }, [showBrand, needsStore, brands, allowedBrandIds, brandMap]);
+
+  // Auto-derive zone from store (ba/manager flow).
   useEffect(() => {
-    if (!storeId) return;
+    if (!needsStore || !storeId) return;
     const derivedZoneId = storeMap[storeId]?.zoneId ?? "";
     if (!derivedZoneId) return;
-    const currentZone = form.getValues("zoneId");
-    if (!currentZone) {
-      form.setValue("zoneId", derivedZoneId, { shouldDirty: false });
+    form.setValue("zoneId", derivedZoneId, { shouldDirty: false });
+  }, [needsStore, storeId, storeMap, form]);
+
+  // Auto-pick brand when the store sells exactly one. Clear stale picks when
+  // they no longer match the store's catalogue.
+  useEffect(() => {
+    if (!needsStore || !allowedBrandIds) return;
+    const current = form.getValues("brandId");
+    if (allowedBrandIds.length === 1) {
+      if (current !== allowedBrandIds[0]) {
+        form.setValue("brandId", allowedBrandIds[0], { shouldDirty: false });
+      }
+      return;
     }
-  }, [storeId, storeMap, form]);
+    if (current && !allowedBrandIds.includes(current)) {
+      form.setValue("brandId", "", { shouldDirty: false });
+    }
+  }, [needsStore, allowedBrandIds, form]);
+
+  // Reset scope fields when the role changes so leftover values don't sneak
+  // into the payload (e.g. switching to admin should clear storeId).
+  useEffect(() => {
+    if (role === "admin") {
+      form.setValue("storeId", "");
+      form.setValue("zoneId", "");
+      form.setValue("brandId", "");
+      return;
+    }
+    if (role === "supervisor") {
+      form.setValue("storeId", "");
+    }
+  }, [role, form]);
 
   function handleSubmit(values: UserFormValues) {
     onSubmit({
@@ -109,6 +161,19 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
       zoneId: values.zoneId || undefined,
     });
   }
+
+  const brandHelp = (() => {
+    if (!showBrand) return null;
+    if (!needsStore) return null;
+    if (!storeId) return "Selecciona primero una sucursal.";
+    if (allowedBrandIds && allowedBrandIds.length === 0) {
+      return "Esta sucursal no tiene marcas asignadas.";
+    }
+    if (allowedBrandIds && allowedBrandIds.length === 1) {
+      return "Asignada automáticamente: solo hay una marca en esta sucursal.";
+    }
+    return null;
+  })();
 
   return (
     <Form {...form}>
@@ -159,11 +224,11 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
           control={form.control}
           name="role"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="min-w-0">
               <FormLabel>Rol</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger disabled={isPending}>
+                  <SelectTrigger disabled={isPending} className="w-full">
                     <SelectValue placeholder="Seleccionar rol">
                       {field.value ? ROLE_LABELS[field.value] ?? field.value : undefined}
                     </SelectValue>
@@ -183,83 +248,112 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <FormField
-            control={form.control}
-            name="storeId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tienda</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                  <FormControl>
-                    <SelectTrigger disabled={isPending}>
-                      <SelectValue placeholder="Seleccionar tienda">
-                        {field.value
-                          ? storeMap[field.value]?.displayName ?? field.value
-                          : "Sin asignar"}
-                      </SelectValue>
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="">Sin asignar</SelectItem>
-                    {stores.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="brandId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Marca</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                  <FormControl>
-                    <SelectTrigger disabled={isPending}>
-                      <SelectValue placeholder="Seleccionar marca">
-                        {field.value ? brandMap[field.value] ?? field.value : "Sin asignar"}
-                      </SelectValue>
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="">Sin asignar</SelectItem>
-                    {brands.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {needsStore && (
+            <FormField
+              control={form.control}
+              name="storeId"
+              render={({ field }) => (
+                <FormItem className="min-w-0">
+                  <FormLabel>Sucursal</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger disabled={isPending} className="w-full">
+                        <SelectValue placeholder="Seleccionar sucursal">
+                          {field.value
+                            ? storeMap[field.value]?.displayName ?? field.value
+                            : "Seleccionar"}
+                        </SelectValue>
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent
+                      alignItemWithTrigger={false}
+                      className="w-auto min-w-[var(--anchor-width)] max-w-[min(22rem,calc(100vw-2rem))]"
+                    >
+                      {stores.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {showBrand && (
+            <FormField
+              control={form.control}
+              name="brandId"
+              render={({ field }) => {
+                const disabled =
+                  isPending ||
+                  (needsStore && (!storeId || availableBrands.length === 0)) ||
+                  (needsStore && availableBrands.length === 1);
+                return (
+                  <FormItem className="min-w-0">
+                    <FormLabel>Marca</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl>
+                        <SelectTrigger disabled={disabled} className="w-full">
+                          <SelectValue placeholder="Seleccionar marca">
+                            {field.value
+                              ? brandMap[field.value]?.displayName ?? field.value
+                              : "Sin asignar"}
+                          </SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent
+                        alignItemWithTrigger={false}
+                        className="w-auto min-w-[var(--anchor-width)] max-w-[min(22rem,calc(100vw-2rem))]"
+                      >
+                        {!needsStore && <SelectItem value="">Sin asignar</SelectItem>}
+                        {availableBrands.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {brandHelp ? (
+                      <p className="text-xs text-muted-foreground">{brandHelp}</p>
+                    ) : null}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+          )}
+
           <FormField
             control={form.control}
             name="zoneId"
             render={({ field }) => {
-              const derived = storeId ? storeMap[storeId]?.zoneId : null;
+              const derived = needsStore && storeId ? storeMap[storeId]?.zoneId : null;
               const isDerived = !!derived && field.value === derived;
+              const disabled = isPending || (needsStore && !!derived);
               return (
-                <FormItem>
+                <FormItem className="min-w-0">
                   <FormLabel>
-                    Zona{isDerived ? <span className="ml-1 text-xs text-muted-foreground">(auto)</span> : null}
+                    Zona
+                    {isDerived ? (
+                      <span className="ml-1 text-xs text-muted-foreground">(auto)</span>
+                    ) : null}
                   </FormLabel>
                   <Select onValueChange={field.onChange} value={field.value ?? ""}>
                     <FormControl>
-                      <SelectTrigger disabled={isPending}>
+                      <SelectTrigger disabled={disabled} className="w-full">
                         <SelectValue placeholder="Seleccionar zona">
                           {field.value ? zoneMap[field.value] ?? field.value : "Sin asignar"}
                         </SelectValue>
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="">Sin asignar</SelectItem>
+                    <SelectContent
+                      alignItemWithTrigger={false}
+                      className="w-auto min-w-[var(--anchor-width)] max-w-[min(22rem,calc(100vw-2rem))]"
+                    >
+                      {!needsZone && <SelectItem value="">Sin asignar</SelectItem>}
                       {zones.map((z) => (
                         <SelectItem key={z.id} value={z.id}>
                           {z.displayName}
@@ -275,8 +369,8 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
         </div>
 
         <p className="text-xs text-muted-foreground">
-          La contraseña se genera automáticamente. Podrás verla y copiarla desde la lista
-          de equipo una vez creado el usuario.
+          Se generará una contraseña temporal que solo verás una vez al terminar de crear
+          el usuario. Cópiala y entrégala por un canal seguro.
         </p>
       </form>
     </Form>

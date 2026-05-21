@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { and, count, eq, sql } from "drizzle-orm";
-import { brands, stores, users, zones } from "@loreal/database";
+import { brandStores, brands, stores, users, zones } from "@loreal/database";
 import {
   DATABASE_TOKEN,
   type Database,
@@ -17,6 +17,7 @@ import {
 } from "../../integrations/clerk/clerk.provider";
 import { AuditService } from "../../common/services/audit.service";
 import { ScopeService } from "../../common/services/scope.service";
+import { generateTemporaryPassword } from "../../common/services/password-generator";
 import type { SessionUser } from "../../common/types/session";
 
 interface UserFilters {
@@ -38,6 +39,16 @@ interface InviteUserData {
   storeId?: string;
   zoneId?: string;
   brandId?: string;
+}
+
+interface CreateDirectUserData extends InviteUserData {}
+
+interface CreateDirectUserResult {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  temporaryPassword: string;
 }
 
 interface UpdateUserData {
@@ -164,41 +175,22 @@ export class UsersService {
    * the invite in listings before acceptance.
    */
   async invite(data: InviteUserData, invitedBy: SessionUser) {
-    if (!data.email.toLowerCase().endsWith("@loreal.mx")) {
-      throw new ConflictException("El correo debe terminar en @loreal.mx");
-    }
-
-    const [existing] = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, data.email.toLowerCase()));
-    if (existing) {
-      throw new ConflictException("Ya existe un usuario con ese correo");
-    }
-
-    // Auto-derive zone from store when not provided explicitly.
-    let zoneId = data.zoneId;
-    if (data.storeId && !zoneId) {
-      const [store] = await this.db
-        .select({ zoneId: stores.zoneId })
-        .from(stores)
-        .where(eq(stores.id, data.storeId));
-      if (store?.zoneId) zoneId = store.zoneId;
-    }
+    const email = await this.assertNewLorealEmail(data.email);
+    const scope = await this.resolveAssignmentScope(data);
 
     const publicMetadata = {
       role: data.role,
       fullName: data.fullName,
-      storeId: data.storeId ?? null,
-      zoneId: zoneId ?? null,
-      brandId: data.brandId ?? null,
+      storeId: scope.storeId,
+      zoneId: scope.zoneId,
+      brandId: scope.brandId,
       active: true,
       invitationStatus: "pending",
       invitedByUserId: invitedBy.id,
     };
 
     const invitation = await this.clerk.invitations.createInvitation({
-      emailAddress: data.email.toLowerCase(),
+      emailAddress: email,
       publicMetadata,
       redirectUrl: process.env.CLERK_INVITATION_REDIRECT_URL,
     });
@@ -208,13 +200,67 @@ export class UsersService {
       "user_invited",
       "user",
       invitation.id,
-      { email: data.email, role: data.role },
+      { email, role: data.role },
     );
 
     return {
       invitationId: invitation.id,
-      email: data.email,
+      email,
       status: "pending" as const,
+    };
+  }
+
+  /**
+   * Creates a Clerk user directly (no invitation email) with a generated
+   * temporary password. The plaintext password is returned ONCE in the
+   * response so the admin can hand it off — it is never persisted locally.
+   * The local mirror row will be filled in by the `user.created` webhook;
+   * if the webhook races us, the upsert on conflict makes both safe.
+   */
+  async createDirect(
+    data: CreateDirectUserData,
+    createdBy: SessionUser,
+  ): Promise<CreateDirectUserResult> {
+    const email = await this.assertNewLorealEmail(data.email);
+    const scope = await this.resolveAssignmentScope(data);
+
+    const [firstName, ...rest] = data.fullName.trim().split(/\s+/);
+    const lastName = rest.join(" ") || undefined;
+
+    const temporaryPassword = generateTemporaryPassword();
+
+    const clerkUser = await this.clerk.users.createUser({
+      emailAddress: [email],
+      password: temporaryPassword,
+      firstName,
+      lastName,
+      publicMetadata: {
+        role: data.role,
+        fullName: data.fullName,
+        storeId: scope.storeId,
+        zoneId: scope.zoneId,
+        brandId: scope.brandId,
+        active: true,
+        invitationStatus: "accepted",
+        invitedByUserId: createdBy.id,
+        mustChangePassword: true,
+      },
+    });
+
+    await this.auditService.log(
+      createdBy,
+      "user_created_direct",
+      "user",
+      clerkUser.id,
+      { email, role: data.role, storeId: scope.storeId, brandId: scope.brandId },
+    );
+
+    return {
+      userId: clerkUser.id,
+      email,
+      fullName: data.fullName,
+      role: data.role,
+      temporaryPassword,
     };
   }
 
@@ -257,6 +303,56 @@ export class UsersService {
   }
 
   /**
+   * Clears the `mustChangePassword` flag for the calling user. Called from
+   * the frontend after the user picks their own password through Clerk so
+   * the dashboard stops redirecting them to the change-password screen.
+   */
+  async acknowledgePasswordChange(user: SessionUser) {
+    await this.clerk.users.updateUser(user.id, {
+      publicMetadata: { mustChangePassword: false },
+    });
+    await this.auditService.log(
+      user,
+      "user_password_changed",
+      "user",
+      user.id,
+    );
+    return { ok: true as const };
+  }
+
+  /**
+   * Resets a user's password to a freshly generated temporary one. All other
+   * active sessions are signed out so the previous password stops working,
+   * and `mustChangePassword` is flipped back on so the user is prompted to
+   * pick a new one at next login. The plaintext is returned ONCE and never
+   * persisted.
+   */
+  async resetPassword(id: string, requester: SessionUser) {
+    const existing = await this.findOne(id);
+    const temporaryPassword = generateTemporaryPassword();
+
+    await this.clerk.users.updateUser(id, {
+      password: temporaryPassword,
+      signOutOfOtherSessions: true,
+      publicMetadata: { mustChangePassword: true },
+    });
+
+    await this.auditService.log(
+      requester,
+      "user_password_reset",
+      "user",
+      id,
+    );
+
+    return {
+      userId: id,
+      email: existing.email,
+      fullName: existing.fullName,
+      temporaryPassword,
+    };
+  }
+
+  /**
    * Revoke a pending Clerk invitation. For already-accepted users use
    * `update(id, { active: false })`.
    */
@@ -272,5 +368,81 @@ export class UsersService {
       invitationId,
     );
     return { invitationId, status: "revoked" as const };
+  }
+
+  private async assertNewLorealEmail(rawEmail: string): Promise<string> {
+    const email = rawEmail.trim().toLowerCase();
+    if (!email.endsWith("@loreal.mx")) {
+      throw new ConflictException("El correo debe terminar en @loreal.mx");
+    }
+    const [existing] = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email));
+    if (existing) {
+      throw new ConflictException("Ya existe un usuario con ese correo");
+    }
+    return email;
+  }
+
+  /**
+   * Resolves the {storeId, zoneId, brandId} a new user should be assigned to.
+   *
+   * Rules:
+   * - ba/manager: storeId is required. zoneId is auto-derived from the store
+   *   when not provided. brandId, if provided, must belong to brandStores of
+   *   that store; if omitted and the store sells exactly one brand, that
+   *   brand is auto-picked.
+   * - supervisor: zoneId is required (a storeId is ignored — supervisors
+   *   roam across all stores in the zone).
+   * - admin: no scope fields apply.
+   */
+  private async resolveAssignmentScope(
+    data: InviteUserData,
+  ): Promise<{ storeId: string | null; zoneId: string | null; brandId: string | null }> {
+    if (data.role === "admin") {
+      return { storeId: null, zoneId: null, brandId: null };
+    }
+
+    if (data.role === "supervisor") {
+      if (!data.zoneId) {
+        throw new ConflictException("Un supervisor requiere zoneId");
+      }
+      return { storeId: null, zoneId: data.zoneId, brandId: data.brandId ?? null };
+    }
+
+    // ba | manager
+    if (!data.storeId) {
+      throw new ConflictException("Este rol requiere storeId");
+    }
+
+    const [store] = await this.db
+      .select({ id: stores.id, zoneId: stores.zoneId })
+      .from(stores)
+      .where(eq(stores.id, data.storeId));
+    if (!store) {
+      throw new NotFoundException("Sucursal no encontrada");
+    }
+
+    const storeBrands = await this.db
+      .select({ brandId: brandStores.brandId })
+      .from(brandStores)
+      .where(eq(brandStores.storeId, store.id));
+    const storeBrandIds = storeBrands.map((b) => b.brandId);
+
+    let brandId = data.brandId ?? null;
+    if (brandId) {
+      if (!storeBrandIds.includes(brandId)) {
+        throw new ConflictException(
+          "La marca seleccionada no está asignada a esta sucursal",
+        );
+      }
+    } else if (storeBrandIds.length === 1) {
+      brandId = storeBrandIds[0];
+    }
+
+    const zoneId = data.zoneId ?? store.zoneId ?? null;
+
+    return { storeId: store.id, zoneId, brandId };
   }
 }

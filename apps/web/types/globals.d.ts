@@ -13,6 +13,7 @@ declare global {
       zoneId?: string | null;
       brandId?: string | null;
       active?: boolean;
+      mustChangePassword?: boolean;
     };
   }
 
@@ -25,5 +26,6 @@ declare global {
     active?: boolean;
     invitationStatus?: "pending" | "accepted" | "revoked";
     invitedByUserId?: string;
+    mustChangePassword?: boolean;
   }
 }

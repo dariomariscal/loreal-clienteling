@@ -22,6 +22,10 @@ export default async function DashboardLayout({
     redirect(ROUTES.SIGN_IN);
   }
 
+  if (session.user.mustChangePassword) {
+    redirect(ROUTES.CHANGE_PASSWORD);
+  }
+
   return (
     <CreateMenuProvider>
       <SidebarProvider>

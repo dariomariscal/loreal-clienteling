@@ -9,10 +9,11 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../auth/decorators/current-user.decorator";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import type { SessionUser } from "../../common/types/session";
+import { CreateUserDto } from "../../dtos/users.dto";
 import { UsersService } from "./users.service";
 
 @ApiTags("Users")
@@ -72,6 +73,21 @@ export class UsersController {
     return this.usersService.invite(body, user);
   }
 
+  /**
+   * Creates a Clerk user directly with a generated password and returns it
+   * once. Use when the admin will hand over credentials manually instead of
+   * sending an invitation email.
+   */
+  @Post()
+  @Roles(["admin"])
+  @ApiBody({ type: CreateUserDto })
+  createDirect(
+    @Body() body: CreateUserDto,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.usersService.createDirect(body, user);
+  }
+
   @Patch(":id")
   @Roles(["admin"])
   update(
@@ -80,6 +96,25 @@ export class UsersController {
     @CurrentUser() user: SessionUser,
   ) {
     return this.usersService.update(id, body, user);
+  }
+
+  /**
+   * Clears mustChangePassword for the current user. No @Roles — every signed
+   * in user can call this for themselves after Clerk accepts their new
+   * password.
+   */
+  @Post("me/acknowledge-password-change")
+  acknowledgePasswordChange(@CurrentUser() user: SessionUser) {
+    return this.usersService.acknowledgePasswordChange(user);
+  }
+
+  @Post(":id/reset-password")
+  @Roles(["admin"])
+  resetPassword(
+    @Param("id") id: string,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.usersService.resetPassword(id, user);
   }
 
   @Delete("invitations/:invitationId")

@@ -5,5 +5,6 @@ export const ROUTES = {
   SIGN_IN: "/sign-in",
   ACCEPT_INVITATION: "/accept-invitation",
   FORGOT_PASSWORD: "/forgot-password",
+  CHANGE_PASSWORD: "/cambiar-contrasena",
   DASHBOARD: "/",
 } as const;

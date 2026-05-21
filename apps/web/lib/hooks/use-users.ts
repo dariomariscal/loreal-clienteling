@@ -92,6 +92,23 @@ export function useInviteUser() {
   });
 }
 
+export interface CreateDirectUserResult {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  temporaryPassword: string;
+}
+
+export function useCreateUserDirect() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: InvitePayload) =>
+      api.post<CreateDirectUserResult>("/users", data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
 export function useUpdateUser() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -107,6 +124,22 @@ export function useUpdateUser() {
       active?: boolean;
       fullName?: string;
     }) => api.patch<User>(`/users/${id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export interface ResetPasswordResult {
+  userId: string;
+  email: string;
+  fullName: string;
+  temporaryPassword: string;
+}
+
+export function useResetUserPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<ResetPasswordResult>(`/users/${id}/reset-password`, {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 }

@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useUsers, useStores, useBrands, type User } from "@/lib/hooks";
+import { KeyRoundIcon } from "lucide-react";
+import {
+  useUsers,
+  useStores,
+  useBrands,
+  useResetUserPassword,
+  type User,
+  type ResetPasswordResult,
+} from "@/lib/hooks";
 import { can } from "@/lib/permissions";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DataTable, type Column } from "@/components/ui/data-table";
@@ -11,6 +19,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectTrigger,
   SelectValue,
@@ -18,6 +36,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { UserFormSheet } from "./user-form-sheet";
+import { PasswordResultDialog } from "./password-result-dialog";
 
 const ROLE_LABEL: Record<string, string> = {
   ba: "Beauty Advisor",
@@ -51,6 +70,21 @@ export function UsersPage({ user }: UsersPageProps) {
   const { data: brands = [] } = useBrands();
 
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [resetResult, setResetResult] = useState<ResetPasswordResult | null>(null);
+  const resetPassword = useResetUserPassword();
+
+  const canManage = can(role, "user.manage");
+
+  function confirmReset() {
+    if (!resetTarget) return;
+    resetPassword.mutate(resetTarget.id, {
+      onSuccess: (res) => {
+        setResetTarget(null);
+        setResetResult(res);
+      },
+    });
+  }
 
   const storeMap = Object.fromEntries(stores.map((s) => [s.id, s.displayName]));
   const brandMap = Object.fromEntries(brands.map((b) => [b.id, b.displayName]));
@@ -105,14 +139,41 @@ export function UsersPage({ user }: UsersPageProps) {
     },
   ];
 
+  if (canManage) {
+    columns.push({
+      key: "actions",
+      label: "",
+      className: "w-px text-right",
+      render: (_, row) => (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setResetTarget(row)}
+            disabled={row.invitationStatus === "pending"}
+            title={
+              row.invitationStatus === "pending"
+                ? "El usuario aún no ha aceptado la invitación"
+                : "Restablecer contraseña"
+            }
+          >
+            <KeyRoundIcon className="mr-1.5 h-3.5 w-3.5" />
+            Restablecer
+          </Button>
+        </div>
+      ),
+    });
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
         title="Equipo"
         description={`${usersResponse?.total ?? 0} usuarios`}
         action={
-          can(role, "user.manage") ? (
-            <Button onClick={() => setInviteOpen(true)}>Invitar usuario</Button>
+          canManage ? (
+            <Button onClick={() => setInviteOpen(true)}>Crear usuario</Button>
           ) : undefined
         }
       />
@@ -139,9 +200,9 @@ export function UsersPage({ user }: UsersPageProps) {
           title="Aún no tienes equipo registrado"
           description="Agrega a tus Beauty Advisors, gerentes y supervisores para empezar a operar la plataforma."
           action={
-            can(role, "user.manage") ? (
+            canManage ? (
               <Button onClick={() => setInviteOpen(true)}>
-                Invitar primer usuario
+                Crear primer usuario
               </Button>
             ) : undefined
           }
@@ -156,6 +217,46 @@ export function UsersPage({ user }: UsersPageProps) {
       )}
 
       <UserFormSheet open={inviteOpen} onOpenChange={setInviteOpen} />
+
+      <Dialog
+        open={!!resetTarget}
+        onOpenChange={(open) => {
+          if (!open && !resetPassword.isPending) setResetTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restablecer contraseña</DialogTitle>
+            <DialogDescription>
+              Se generará una nueva contraseña temporal para{" "}
+              <strong>{resetTarget?.fullName}</strong> y se cerrarán sus sesiones
+              activas. La verás una sola vez.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <p className="text-sm text-muted-foreground">
+              {resetTarget?.email}
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <DialogClose>
+              <Button variant="outline" disabled={resetPassword.isPending}>
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button onClick={confirmReset} disabled={resetPassword.isPending}>
+              {resetPassword.isPending ? "Generando..." : "Restablecer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <PasswordResultDialog
+        result={resetResult}
+        onClose={() => setResetResult(null)}
+        title="Contraseña restablecida"
+        description="Entrega esta contraseña al usuario por un canal seguro. Tendrá que cambiarla al volver a iniciar sesión."
+      />
     </div>
   );
 }
