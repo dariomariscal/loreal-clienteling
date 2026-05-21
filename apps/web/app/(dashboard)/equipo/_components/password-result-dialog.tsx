@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, CopyIcon, KeyRoundIcon } from "lucide-react";
+import { CheckGlyph, CopyGlyph, KeyRoundGlyph } from "@/components/ui/glyphs";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -53,7 +53,7 @@ export function PasswordResultDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <KeyRoundIcon className="h-4 w-4" />
+            <KeyRoundGlyph className="h-4 w-4" />
             {title}
           </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -81,11 +81,11 @@ export function PasswordResultDialog({
             >
               {copied === "both" ? (
                 <>
-                  <CheckIcon className="mr-2 h-4 w-4" /> Copiado
+                  <CheckGlyph className="mr-2 h-4 w-4" /> Copiado
                 </>
               ) : (
                 <>
-                  <CopyIcon className="mr-2 h-4 w-4" /> Copiar correo y contraseña
+                  <CopyGlyph className="mr-2 h-4 w-4" /> Copiar correo y contraseña
                 </>
               )}
             </Button>
@@ -123,7 +123,7 @@ function Field({ label, value, mono, onCopy, copied }: FieldProps) {
         </code>
         {onCopy ? (
           <Button type="button" variant="outline" size="icon" onClick={onCopy}>
-            {copied ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
+            {copied ? <CheckGlyph className="h-4 w-4" /> : <CopyGlyph className="h-4 w-4" />}
           </Button>
         ) : null}
       </div>

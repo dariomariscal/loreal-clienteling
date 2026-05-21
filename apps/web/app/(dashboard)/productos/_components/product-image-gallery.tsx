@@ -2,14 +2,15 @@
 
 import * as React from "react";
 import {
-  ImageIcon,
-  Loader2Icon,
-  PlusIcon,
-  StarIcon,
-  Trash2Icon,
-  UploadCloudIcon,
-  XIcon,
-} from "lucide-react";
+  ImageGlyph,
+  SpinnerGlyph,
+  PlusGlyph,
+  StarGlyph,
+  StarSolidGlyph,
+  TrashGlyph,
+  UploadCloudGlyph,
+  CloseGlyph,
+} from "@/components/ui/glyphs";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -198,7 +199,7 @@ export function ProductImageGallery({
             }}
             aria-label="Subir imágenes"
           />
-          <UploadCloudIcon className="size-7 text-muted-foreground/50" />
+          <UploadCloudGlyph className="size-7 text-muted-foreground/50" />
           <div className="space-y-0.5">
             <p className="text-sm font-medium">
               Arrastra archivos o{" "}
@@ -231,7 +232,7 @@ export function ProductImageGallery({
               />
               {activeIndex === 0 && (
                 <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-foreground/85 px-1.5 py-0.5 text-[10px] font-medium text-background backdrop-blur-sm">
-                  <StarIcon className="size-2.5 fill-current" />
+                  <StarSolidGlyph className="size-2.5" />
                   Principal
                 </div>
               )}
@@ -245,7 +246,7 @@ export function ProductImageGallery({
                       onClick={() => makePrimary(activeIndex)}
                       className="h-7 bg-background/90 px-2 text-xs backdrop-blur-sm"
                     >
-                      <StarIcon className="size-3" />
+                      <StarGlyph className="size-3" />
                       Principal
                     </Button>
                   )}
@@ -257,7 +258,7 @@ export function ProductImageGallery({
                     className="size-7 bg-background/90 backdrop-blur-sm"
                     aria-label="Eliminar imagen"
                   >
-                    <Trash2Icon className="size-3.5" />
+                    <TrashGlyph className="size-3.5" />
                   </Button>
                 </div>
               )}
@@ -270,7 +271,7 @@ export function ProductImageGallery({
                 </p>
               ) : (
                 <>
-                  <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
+                  <SpinnerGlyph className="size-5 animate-spin text-muted-foreground" />
                   <span className="text-xs tabular-nums text-muted-foreground">
                     {activeItem?.progress ?? 0}%
                   </span>
@@ -404,13 +405,13 @@ function Thumbnail({
         <img src={item.url} alt="" className="size-full object-cover" />
       ) : (
         <div className="flex size-full items-center justify-center">
-          <ImageIcon className="size-4 text-muted-foreground/40" />
+          <ImageGlyph className="size-4 text-muted-foreground/40" />
         </div>
       )}
 
       {isPrimary && item.url && (
         <div className="pointer-events-none absolute left-1 top-1 rounded bg-foreground/85 px-1 py-0.5 text-[8px] font-medium text-background">
-          <StarIcon className="size-2 fill-current" />
+          <StarSolidGlyph className="size-2" />
         </div>
       )}
 
@@ -439,7 +440,7 @@ function Thumbnail({
           className="absolute right-0.5 top-0.5 inline-flex size-4 items-center justify-center rounded-full bg-background/90 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
           aria-label="Quitar imagen"
         >
-          <XIcon className="size-2.5" />
+          <CloseGlyph className="size-2.5" />
         </span>
       )}
     </button>
@@ -478,7 +479,7 @@ function AddSlot({
       )}
       aria-label="Añadir imagen"
     >
-      <PlusIcon className="size-4" />
+      <PlusGlyph className="size-4" />
       <span className="text-[9px] font-medium">Añadir</span>
     </button>
   );

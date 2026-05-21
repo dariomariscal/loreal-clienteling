@@ -4,12 +4,12 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Popover } from "@base-ui/react/popover";
 import {
-  SearchIcon,
-  UserIcon,
-  PackageIcon,
-  StoreIcon,
-  Loader2Icon,
-} from "lucide-react";
+  SearchGlyph,
+  UserGlyph,
+  PackageGlyph,
+  StoreGlyph,
+  SpinnerGlyph,
+} from "@/components/ui/glyphs";
 
 import { cn } from "@/lib/utils";
 import {
@@ -144,7 +144,7 @@ export function GlobalSearch() {
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <div ref={anchorRef} className="relative w-full max-w-sm">
-        <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
+        <SearchGlyph className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
         <input
           ref={inputRef}
           type="text"
@@ -163,7 +163,7 @@ export function GlobalSearch() {
           <Popover.Popup className="w-(--anchor-width) min-w-[340px] overflow-hidden rounded-xl border border-border/60 bg-popover shadow-lg ring-1 ring-foreground/6 outline-none">
             {isLoading && results.length === 0 ? (
               <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                <Loader2Icon className="size-4 animate-spin" />
+                <SpinnerGlyph className="size-4 animate-spin" />
                 Buscando...
               </div>
             ) : results.length === 0 ? (
@@ -174,19 +174,19 @@ export function GlobalSearch() {
               <div className="max-h-96 overflow-y-auto p-1">
                 <ResultGroup
                   label="Clientes"
-                  icon={UserIcon}
+                  icon={UserGlyph}
                   items={grouped.customer}
                   onSelect={handleSelect}
                 />
                 <ResultGroup
                   label="Productos"
-                  icon={PackageIcon}
+                  icon={PackageGlyph}
                   items={grouped.product}
                   onSelect={handleSelect}
                 />
                 <ResultGroup
                   label="Tiendas"
-                  icon={StoreIcon}
+                  icon={StoreGlyph}
                   items={grouped.store}
                   onSelect={handleSelect}
                 />

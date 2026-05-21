@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Popover } from "@base-ui/react/popover"
-import { MapPinIcon, Loader2Icon } from "lucide-react"
+import { MapPinGlyph, SpinnerGlyph } from "@/components/ui/glyphs"
 
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -70,7 +70,7 @@ function AddressAutocomplete({
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <div ref={anchorRef} className="relative">
-        <MapPinIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
+        <MapPinGlyph className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
         <Input
           id={id}
           type="text"
@@ -82,7 +82,7 @@ function AddressAutocomplete({
           autoComplete="off"
         />
         {isLoading && (
-          <Loader2Icon className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          <SpinnerGlyph className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </div>
       <Popover.Portal>
@@ -96,7 +96,7 @@ function AddressAutocomplete({
                     onClick={() => handleSelect(s.mapboxId, `${s.name}, ${s.placeFormatted}`)}
                     className="flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
                   >
-                    <MapPinIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <MapPinGlyph className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                     <span className="flex-1">
                       <span className="block font-medium">{s.name}</span>
                       <span className="block text-xs text-muted-foreground">

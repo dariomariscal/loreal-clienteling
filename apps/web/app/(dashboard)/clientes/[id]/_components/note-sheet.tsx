@@ -14,21 +14,35 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  LockGlyph,
+  TagPreferenceGlyph,
+  TagAllergyGlyph,
+  TagEventGlyph,
+  TagObjectionGlyph,
+  TagFollowupGlyph,
+} from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
+
+type GlyphComponent = React.ComponentType<{ className?: string }>;
 
 // ── Quick tags ─────────────────────────────────────────────────────
 // One-tap tags prepended to the body. We keep this list short so the
 // barra inferior stays calm; the BA can still type anything else.
 
-const QUICK_TAGS = [
-  { key: "preference", label: "Preferencia", emoji: "💄" },
-  { key: "allergy", label: "Alergia", emoji: "⚠️" },
-  { key: "event", label: "Evento", emoji: "🎉" },
-  { key: "objection", label: "Objeción", emoji: "💭" },
-  { key: "followup", label: "Seguimiento", emoji: "📌" },
-] as const;
+const QUICK_TAGS: ReadonlyArray<{
+  key: string;
+  label: string;
+  Glyph: GlyphComponent;
+}> = [
+  { key: "preference", label: "Preferencia", Glyph: TagPreferenceGlyph },
+  { key: "allergy", label: "Alergia", Glyph: TagAllergyGlyph },
+  { key: "event", label: "Evento", Glyph: TagEventGlyph },
+  { key: "objection", label: "Objeción", Glyph: TagObjectionGlyph },
+  { key: "followup", label: "Seguimiento", Glyph: TagFollowupGlyph },
+];
 
-type TagKey = (typeof QUICK_TAGS)[number]["key"];
+type TagKey = string;
 
 interface NoteSheetProps {
   open: boolean;
@@ -157,6 +171,7 @@ export function NoteSheet({
             <div className="flex flex-wrap gap-1.5">
               {QUICK_TAGS.map((t) => {
                 const active = tags.includes(t.key);
+                const Glyph = t.Glyph;
                 return (
                   <button
                     key={t.key}
@@ -170,7 +185,7 @@ export function NoteSheet({
                         : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground",
                     )}
                   >
-                    <span aria-hidden>{t.emoji}</span>
+                    <Glyph className="size-3.5" />
                     {t.label}
                   </button>
                 );
@@ -194,7 +209,7 @@ export function NoteSheet({
             />
             <div className="flex-1">
               <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <LockIcon className="size-3.5" />
+                <LockGlyph className="size-3.5" />
                 Nota privada
               </div>
               <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
@@ -225,19 +240,3 @@ export function NoteSheet({
   );
 }
 
-function LockIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="7" width="10" height="7" rx="1.5" />
-      <path d="M5.5 7V5a2.5 2.5 0 1 1 5 0v2" />
-    </svg>
-  );
-}

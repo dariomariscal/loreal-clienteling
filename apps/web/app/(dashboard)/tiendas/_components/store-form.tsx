@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MapPinIcon } from "lucide-react";
+import { MapPinGlyph } from "@/components/ui/glyphs";
 import {
   type CreateStore,
   type StoreHours,
@@ -278,7 +278,7 @@ export function StoreForm({
 
         {(district || inferredZone) && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-muted/40 px-3 py-2.5 text-xs">
-            <MapPinIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <MapPinGlyph className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="text-muted-foreground">Detectado:</span>
             {district && (
               <Badge variant="secondary" size="default">

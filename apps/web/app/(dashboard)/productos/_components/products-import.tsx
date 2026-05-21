@@ -4,13 +4,13 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeftIcon,
-  UploadCloudIcon,
-  CheckCircle2Icon,
-  AlertCircleIcon,
-  DownloadIcon,
-  Loader2Icon,
-} from "lucide-react";
+  BackGlyph,
+  UploadCloudGlyph,
+  CheckCircleGlyph,
+  AlertCircleGlyph,
+  DownloadGlyph,
+  SpinnerGlyph,
+} from "@/components/ui/glyphs";
 
 import { useBrands, useBulkCreateProducts } from "@/lib/hooks";
 import {
@@ -152,7 +152,7 @@ export function ProductsImport() {
         href="/productos"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeftIcon className="size-4" />
+        <BackGlyph className="size-4" />
         Volver a productos
       </Link>
 
@@ -161,7 +161,7 @@ export function ProductsImport() {
         description={`Hasta ${BULK_PRODUCT_LIMIT} productos por archivo. Valida antes de confirmar.`}
         action={
           <Button variant="outline" onClick={handleDownloadTemplate}>
-            <DownloadIcon className="mr-1.5 size-4" />
+            <DownloadGlyph className="mr-1.5 size-4" />
             Descargar plantilla
           </Button>
         }
@@ -290,7 +290,7 @@ function UploadCard({
         isDragging && "border-accent bg-accent/5",
       )}
     >
-      <UploadCloudIcon className="size-10 text-muted-foreground/50" />
+      <UploadCloudGlyph className="size-10 text-muted-foreground/50" />
       <div className="space-y-1">
         <p className="text-base font-medium">
           Arrastra tu archivo CSV o{" "}
@@ -417,7 +417,7 @@ function PreviewStage({
           >
             {isPending ? (
               <>
-                <Loader2Icon className="mr-1.5 size-4 animate-spin" />
+                <SpinnerGlyph className="mr-1.5 size-4 animate-spin" />
                 Importando...
               </>
             ) : (
@@ -525,9 +525,9 @@ function ResultStage({
         )}
       >
         {allSucceeded ? (
-          <CheckCircle2Icon className="mt-0.5 size-5 text-success" />
+          <CheckCircleGlyph className="mt-0.5 size-5 text-success" />
         ) : (
-          <AlertCircleIcon className="mt-0.5 size-5 text-warning" />
+          <AlertCircleGlyph className="mt-0.5 size-5 text-warning" />
         )}
         <div className="space-y-1">
           <p className="font-medium">

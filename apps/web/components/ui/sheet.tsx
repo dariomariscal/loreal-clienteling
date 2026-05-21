@@ -2,10 +2,10 @@
 
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
-import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { CloseGlyph } from "@/components/ui/glyphs"
 
 type Side = "right" | "left"
 type Size = "sm" | "default" | "lg" | "xl"
@@ -108,7 +108,7 @@ function SheetContent({
               />
             }
           >
-            <XIcon />
+            <CloseGlyph className="size-4" />
             <span className="sr-only">Cerrar</span>
           </DialogPrimitive.Close>
         )}

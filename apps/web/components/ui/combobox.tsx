@@ -2,7 +2,11 @@
 
 import * as React from "react"
 import { Popover } from "@base-ui/react/popover"
-import { CheckIcon, ChevronDownIcon, PlusIcon } from "lucide-react"
+import {
+  CheckGlyph,
+  ChevronDownGlyph,
+  PlusGlyph,
+} from "@/components/ui/glyphs"
 
 import { cn } from "@/lib/utils"
 
@@ -85,7 +89,7 @@ function Combobox({
             {placeholder}
           </span>
         )}
-        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+        <ChevronDownGlyph className="size-4 shrink-0 text-muted-foreground" />
       </Popover.Trigger>
 
       <Popover.Portal>
@@ -120,7 +124,7 @@ function Combobox({
                     )}
                   >
                     <span className="flex size-4 shrink-0 items-center justify-center pt-0.5">
-                      {isSelected && <CheckIcon className="size-3.5" />}
+                      {isSelected && <CheckGlyph className="size-3.5" />}
                     </span>
                     {opt.icon}
                     <span className="flex-1 text-left">
@@ -140,7 +144,7 @@ function Combobox({
                   onClick={handleCreate}
                   className="mt-1 flex w-full items-center gap-2 rounded-lg border-t border-border/60 px-2 py-1.5 pt-2 text-sm font-medium text-accent transition-colors hover:bg-muted"
                 >
-                  <PlusIcon className="size-3.5" />
+                  <PlusGlyph className="size-3.5" />
                   {createLabel(search.trim())}
                 </button>
               )}

@@ -1,7 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { UploadCloudIcon, XIcon, ImageIcon, Loader2Icon } from "lucide-react"
+import {
+  UploadCloudGlyph,
+  CloseGlyph,
+  ImageGlyph,
+  SpinnerGlyph,
+} from "@/components/ui/glyphs"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -146,7 +151,7 @@ function Dropzone({
             }}
             aria-label="Subir archivos"
           />
-          <UploadCloudIcon className="size-8 text-muted-foreground/50" />
+          <UploadCloudGlyph className="size-8 text-muted-foreground/50" />
           <div className="space-y-1">
             <p className="text-sm font-medium">
               Arrastra archivos o{" "}
@@ -214,13 +219,13 @@ function FilePreview({
         />
       ) : (
         <div className="flex size-full items-center justify-center">
-          <ImageIcon className="size-8 text-muted-foreground/40" />
+          <ImageGlyph className="size-8 text-muted-foreground/40" />
         </div>
       )}
 
       {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80 backdrop-blur-sm">
-          <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
+          <SpinnerGlyph className="size-5 animate-spin text-muted-foreground" />
           <span className="text-xs tabular-nums text-muted-foreground">
             {item.progress}%
           </span>
@@ -242,7 +247,7 @@ function FilePreview({
           className="absolute right-1 top-1 size-6 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
           aria-label="Quitar archivo"
         >
-          <XIcon className="size-3" />
+          <CloseGlyph className="size-3" />
         </Button>
       )}
     </div>

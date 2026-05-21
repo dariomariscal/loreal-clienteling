@@ -7,7 +7,31 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BeautyIllustration } from "@/components/ui/illustrations";
+import {
+  ConcernAcneGlyph,
+  ConcernAgingGlyph,
+  ConcernPigmentationGlyph,
+  ConcernDrynessGlyph,
+  ConcernSensitivityGlyph,
+  ConcernPoresGlyph,
+  ConcernDarkCirclesGlyph,
+  ConcernRednessGlyph,
+  FragranceFloralGlyph,
+  FragranceWoodyGlyph,
+  FragranceCitrusGlyph,
+  FragranceOrientalGlyph,
+  FragranceFreshGlyph,
+  FragranceGourmandGlyph,
+  RoutineMorningGlyph,
+  RoutineNightGlyph,
+  RoutineBothGlyph,
+  InterestSkincareGlyph,
+  InterestMakeupGlyph,
+  InterestFragranceGlyph,
+} from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
+
+type GlyphComponent = React.ComponentType<{ className?: string }>;
 import { BeautyWizardSheet } from "./beauty-wizard-sheet";
 import { ShadeSheet } from "./shade-sheet";
 
@@ -52,36 +76,36 @@ const SUBTONE_GRADIENT: Record<string, string> = {
   warm: "linear-gradient(135deg, #F3D49B 0%, #D9A66B 100%)",
 };
 
-const CONCERN_LABELS: Record<string, { label: string; emoji: string }> = {
-  acne: { label: "Acné", emoji: "🎯" },
-  aging: { label: "Anti-edad", emoji: "⏳" },
-  pigmentation: { label: "Pigmentación", emoji: "🌗" },
-  dryness: { label: "Hidratación", emoji: "💧" },
-  sensitivity: { label: "Sensibilidad", emoji: "🌿" },
-  pores: { label: "Poros", emoji: "◯" },
-  dark_circles: { label: "Ojeras", emoji: "👁️" },
-  redness: { label: "Rojeces", emoji: "🌹" },
+const CONCERN_LABELS: Record<string, { label: string; Glyph: GlyphComponent }> = {
+  acne: { label: "Acné", Glyph: ConcernAcneGlyph },
+  aging: { label: "Anti-edad", Glyph: ConcernAgingGlyph },
+  pigmentation: { label: "Pigmentación", Glyph: ConcernPigmentationGlyph },
+  dryness: { label: "Hidratación", Glyph: ConcernDrynessGlyph },
+  sensitivity: { label: "Sensibilidad", Glyph: ConcernSensitivityGlyph },
+  pores: { label: "Poros", Glyph: ConcernPoresGlyph },
+  dark_circles: { label: "Ojeras", Glyph: ConcernDarkCirclesGlyph },
+  redness: { label: "Rojeces", Glyph: ConcernRednessGlyph },
 };
 
-const FRAGRANCE_LABELS: Record<string, { label: string; emoji: string }> = {
-  floral: { label: "Floral", emoji: "🌸" },
-  woody: { label: "Amaderada", emoji: "🌳" },
-  citrus: { label: "Cítrica", emoji: "🍋" },
-  oriental: { label: "Oriental", emoji: "🪔" },
-  fresh: { label: "Fresca", emoji: "🌊" },
-  gourmand: { label: "Gourmand", emoji: "🍯" },
+const FRAGRANCE_LABELS: Record<string, { label: string; Glyph: GlyphComponent }> = {
+  floral: { label: "Floral", Glyph: FragranceFloralGlyph },
+  woody: { label: "Amaderada", Glyph: FragranceWoodyGlyph },
+  citrus: { label: "Cítrica", Glyph: FragranceCitrusGlyph },
+  oriental: { label: "Oriental", Glyph: FragranceOrientalGlyph },
+  fresh: { label: "Fresca", Glyph: FragranceFreshGlyph },
+  gourmand: { label: "Gourmand", Glyph: FragranceGourmandGlyph },
 };
 
-const ROUTINE_LABELS: Record<string, { label: string; emoji: string }> = {
-  morning: { label: "Rutina AM", emoji: "🌅" },
-  night: { label: "Rutina PM", emoji: "🌙" },
-  both: { label: "AM + PM", emoji: "🌗" },
+const ROUTINE_LABELS: Record<string, { label: string; Glyph: GlyphComponent }> = {
+  morning: { label: "Rutina AM", Glyph: RoutineMorningGlyph },
+  night: { label: "Rutina PM", Glyph: RoutineNightGlyph },
+  both: { label: "AM + PM", Glyph: RoutineBothGlyph },
 };
 
-const INTEREST_LABELS: Record<string, { label: string; emoji: string }> = {
-  skincare: { label: "Skincare", emoji: "💧" },
-  makeup: { label: "Maquillaje", emoji: "💄" },
-  fragrance: { label: "Fragancia", emoji: "🌸" },
+const INTEREST_LABELS: Record<string, { label: string; Glyph: GlyphComponent }> = {
+  skincare: { label: "Skincare", Glyph: InterestSkincareGlyph },
+  makeup: { label: "Maquillaje", Glyph: InterestMakeupGlyph },
+  fragrance: { label: "Fragancia", Glyph: InterestFragranceGlyph },
 };
 
 const SHADE_CATEGORY_LABELS: Record<string, string> = {
@@ -234,11 +258,12 @@ export function BeautySection({ customerId, customerName }: BeautySectionProps) 
             <ul className="flex flex-wrap gap-1.5">
               {concerns.map((c) => {
                 const meta = CONCERN_LABELS[c];
+                const Glyph = meta?.Glyph;
                 return (
                   <li key={c}>
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs">
-                      {meta && (
-                        <span aria-hidden>{meta.emoji}</span>
+                      {Glyph && (
+                        <Glyph className="size-3.5 text-muted-foreground" />
                       )}
                       {meta?.label ?? c}
                     </span>
@@ -312,7 +337,7 @@ export function BeautySection({ customerId, customerName }: BeautySectionProps) 
             {profile?.routineType && (
               <PrefRow label="Rutina">
                 <Chip
-                  emoji={ROUTINE_LABELS[profile.routineType]?.emoji}
+                  Glyph={ROUTINE_LABELS[profile.routineType]?.Glyph}
                   label={
                     ROUTINE_LABELS[profile.routineType]?.label ??
                     profile.routineType
@@ -326,7 +351,7 @@ export function BeautySection({ customerId, customerName }: BeautySectionProps) 
                 {interests.map((i) => (
                   <Chip
                     key={i}
-                    emoji={INTEREST_LABELS[i]?.emoji}
+                    Glyph={INTEREST_LABELS[i]?.Glyph}
                     label={INTEREST_LABELS[i]?.label ?? i}
                   />
                 ))}
@@ -338,7 +363,7 @@ export function BeautySection({ customerId, customerName }: BeautySectionProps) 
                 {fragrances.map((f) => (
                   <Chip
                     key={f}
-                    emoji={FRAGRANCE_LABELS[f]?.emoji}
+                    Glyph={FRAGRANCE_LABELS[f]?.Glyph}
                     label={FRAGRANCE_LABELS[f]?.label ?? f}
                   />
                 ))}
@@ -452,11 +477,11 @@ function PrefRow({
 }
 
 function Chip({
-  emoji,
+  Glyph,
   label,
   accent,
 }: {
-  emoji?: string;
+  Glyph?: GlyphComponent;
   label: string;
   accent?: "success" | "destructive";
 }) {
@@ -472,7 +497,14 @@ function Chip({
           !accent && "border-border bg-card text-foreground",
         )}
       >
-        {emoji && <span aria-hidden>{emoji}</span>}
+        {Glyph && (
+          <Glyph
+            className={cn(
+              "size-3.5",
+              !accent && "text-muted-foreground",
+            )}
+          />
+        )}
         {label}
       </span>
     </li>

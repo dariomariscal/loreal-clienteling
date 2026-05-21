@@ -13,7 +13,36 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  SkinDryGlyph,
+  SkinOilyGlyph,
+  SkinCombinationGlyph,
+  SkinSensitiveGlyph,
+  SkinNormalGlyph,
+  ConcernAcneGlyph,
+  ConcernAgingGlyph,
+  ConcernPigmentationGlyph,
+  ConcernDrynessGlyph,
+  ConcernSensitivityGlyph,
+  ConcernPoresGlyph,
+  ConcernDarkCirclesGlyph,
+  ConcernRednessGlyph,
+  FragranceFloralGlyph,
+  FragranceWoodyGlyph,
+  FragranceCitrusGlyph,
+  FragranceOrientalGlyph,
+  FragranceFreshGlyph,
+  FragranceGourmandGlyph,
+  RoutineMorningGlyph,
+  RoutineNightGlyph,
+  RoutineBothGlyph,
+  InterestSkincareGlyph,
+  InterestMakeupGlyph,
+  InterestFragranceGlyph,
+} from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
+
+type GlyphComponent = React.ComponentType<{ className?: string }>;
 
 // ── Beauty profile wizard — Ulta/Lancôme pattern ────────────────────
 // One question per step, big visual selections, progress dots up top.
@@ -43,38 +72,43 @@ interface Draft {
 
 // ── Step data ─────────────────────────────────────────────────────
 
-const SKIN_TYPES = [
+const SKIN_TYPES: ReadonlyArray<{
+  value: string;
+  label: string;
+  description: string;
+  Glyph: GlyphComponent;
+}> = [
   {
     value: "dry",
     label: "Seca",
     description: "Se siente tirante, escamosa o áspera",
-    emoji: "🍂",
+    Glyph: SkinDryGlyph,
   },
   {
     value: "oily",
     label: "Grasa",
     description: "Brillo y poros visibles, especialmente en zona T",
-    emoji: "✨",
+    Glyph: SkinOilyGlyph,
   },
   {
     value: "combination",
     label: "Mixta",
     description: "Zona T grasa, mejillas normales o secas",
-    emoji: "🌗",
+    Glyph: SkinCombinationGlyph,
   },
   {
     value: "sensitive",
     label: "Sensible",
     description: "Se enrojece, irrita o reacciona con facilidad",
-    emoji: "🌿",
+    Glyph: SkinSensitiveGlyph,
   },
   {
     value: "normal",
     label: "Normal",
     description: "Equilibrada, sin extremos",
-    emoji: "🌸",
+    Glyph: SkinNormalGlyph,
   },
-] as const;
+];
 
 // Real swatch hex values picked to read on neutral backgrounds.
 const SKIN_TONES = [
@@ -106,37 +140,43 @@ const SKIN_SUBTONES = [
   },
 ] as const;
 
-const SKIN_CONCERNS = [
-  { value: "acne", label: "Acné", emoji: "🎯" },
-  { value: "aging", label: "Anti-edad", emoji: "⏳" },
-  { value: "pigmentation", label: "Pigmentación", emoji: "🌗" },
-  { value: "dryness", label: "Hidratación", emoji: "💧" },
-  { value: "sensitivity", label: "Sensibilidad", emoji: "🌿" },
-  { value: "pores", label: "Poros", emoji: "◯" },
-  { value: "dark_circles", label: "Ojeras", emoji: "👁️" },
-  { value: "redness", label: "Rojeces", emoji: "🌹" },
-] as const;
+type LabeledGlyph = {
+  value: string;
+  label: string;
+  Glyph: GlyphComponent;
+};
 
-const FRAGRANCES = [
-  { value: "floral", label: "Floral", emoji: "🌸" },
-  { value: "woody", label: "Amaderada", emoji: "🌳" },
-  { value: "citrus", label: "Cítrica", emoji: "🍋" },
-  { value: "oriental", label: "Oriental", emoji: "🪔" },
-  { value: "fresh", label: "Fresca", emoji: "🌊" },
-  { value: "gourmand", label: "Gourmand", emoji: "🍯" },
-] as const;
+const SKIN_CONCERNS: ReadonlyArray<LabeledGlyph> = [
+  { value: "acne", label: "Acné", Glyph: ConcernAcneGlyph },
+  { value: "aging", label: "Anti-edad", Glyph: ConcernAgingGlyph },
+  { value: "pigmentation", label: "Pigmentación", Glyph: ConcernPigmentationGlyph },
+  { value: "dryness", label: "Hidratación", Glyph: ConcernDrynessGlyph },
+  { value: "sensitivity", label: "Sensibilidad", Glyph: ConcernSensitivityGlyph },
+  { value: "pores", label: "Poros", Glyph: ConcernPoresGlyph },
+  { value: "dark_circles", label: "Ojeras", Glyph: ConcernDarkCirclesGlyph },
+  { value: "redness", label: "Rojeces", Glyph: ConcernRednessGlyph },
+];
 
-const ROUTINE_TYPES = [
-  { value: "morning", label: "Sólo AM", emoji: "🌅" },
-  { value: "night", label: "Sólo PM", emoji: "🌙" },
-  { value: "both", label: "AM + PM", emoji: "🌗" },
-] as const;
+const FRAGRANCES: ReadonlyArray<LabeledGlyph> = [
+  { value: "floral", label: "Floral", Glyph: FragranceFloralGlyph },
+  { value: "woody", label: "Amaderada", Glyph: FragranceWoodyGlyph },
+  { value: "citrus", label: "Cítrica", Glyph: FragranceCitrusGlyph },
+  { value: "oriental", label: "Oriental", Glyph: FragranceOrientalGlyph },
+  { value: "fresh", label: "Fresca", Glyph: FragranceFreshGlyph },
+  { value: "gourmand", label: "Gourmand", Glyph: FragranceGourmandGlyph },
+];
 
-const INTERESTS = [
-  { value: "skincare", label: "Skincare", emoji: "💧" },
-  { value: "makeup", label: "Maquillaje", emoji: "💄" },
-  { value: "fragrance", label: "Fragancia", emoji: "🌸" },
-] as const;
+const ROUTINE_TYPES: ReadonlyArray<LabeledGlyph> = [
+  { value: "morning", label: "Sólo AM", Glyph: RoutineMorningGlyph },
+  { value: "night", label: "Sólo PM", Glyph: RoutineNightGlyph },
+  { value: "both", label: "AM + PM", Glyph: RoutineBothGlyph },
+];
+
+const INTERESTS: ReadonlyArray<LabeledGlyph> = [
+  { value: "skincare", label: "Skincare", Glyph: InterestSkincareGlyph },
+  { value: "makeup", label: "Maquillaje", Glyph: InterestMakeupGlyph },
+  { value: "fragrance", label: "Fragancia", Glyph: InterestFragranceGlyph },
+];
 
 const COMMON_PREFERRED = [
   "retinol",
@@ -383,28 +423,31 @@ function StepSkinType({
         hint="Elige la opción que mejor describe el tipo de piel de la clienta."
       />
       <ul className="grid gap-2 sm:grid-cols-2">
-        {SKIN_TYPES.map((t) => (
-          <SelectableCard
-            key={t.value}
-            selected={draft.skinType === t.value}
-            onClick={() => onSelect(t.value)}
-          >
-            <span
-              className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted/60 text-xl"
-              aria-hidden
+        {SKIN_TYPES.map((t) => {
+          const Glyph = t.Glyph;
+          return (
+            <SelectableCard
+              key={t.value}
+              selected={draft.skinType === t.value}
+              onClick={() => onSelect(t.value)}
             >
-              {t.emoji}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-heading text-[14px] text-foreground">
-                {t.label}
-              </p>
-              <p className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">
-                {t.description}
-              </p>
-            </div>
-          </SelectableCard>
-        ))}
+              <span
+                className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted/60 text-foreground"
+                aria-hidden
+              >
+                <Glyph className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-heading text-[14px] text-foreground">
+                  {t.label}
+                </p>
+                <p className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">
+                  {t.description}
+                </p>
+              </div>
+            </SelectableCard>
+          );
+        })}
       </ul>
     </div>
   );
@@ -527,6 +570,7 @@ function StepConcerns({
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {SKIN_CONCERNS.map((c) => {
           const active = draft.skinConcerns.includes(c.value);
+          const Glyph = c.Glyph;
           return (
             <li key={c.value}>
               <button
@@ -539,9 +583,7 @@ function StepConcerns({
                     : "border-border bg-card text-foreground hover:border-foreground/30",
                 )}
               >
-                <span className="text-lg" aria-hidden>
-                  {c.emoji}
-                </span>
+                <Glyph className="size-4 shrink-0" />
                 <span className="text-[13px] font-medium">{c.label}</span>
               </button>
             </li>
@@ -585,7 +627,7 @@ function StepPreferences({
             <ChipToggle
               key={i.value}
               active={draft.interests.includes(i.value)}
-              emoji={i.emoji}
+              Glyph={i.Glyph}
               label={i.label}
               onClick={() => onToggleInterest(i.value)}
             />
@@ -600,7 +642,7 @@ function StepPreferences({
             <ChipToggle
               key={r.value}
               active={draft.routineType === r.value}
-              emoji={r.emoji}
+              Glyph={r.Glyph}
               label={r.label}
               onClick={() => onRoutine(r.value)}
             />
@@ -615,7 +657,7 @@ function StepPreferences({
             <ChipToggle
               key={f.value}
               active={draft.fragrancePreferences.includes(f.value)}
-              emoji={f.emoji}
+              Glyph={f.Glyph}
               label={f.label}
               onClick={() => onToggleFragrance(f.value)}
             />
@@ -732,12 +774,12 @@ function SelectableCard({
 
 function ChipToggle({
   active,
-  emoji,
+  Glyph,
   label,
   onClick,
 }: {
   active: boolean;
-  emoji?: string;
+  Glyph?: GlyphComponent;
   label: string;
   onClick: () => void;
 }) {
@@ -753,7 +795,7 @@ function ChipToggle({
             : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground",
         )}
       >
-        {emoji && <span aria-hidden>{emoji}</span>}
+        {Glyph && <Glyph className="size-3.5" />}
         {label}
       </button>
     </li>

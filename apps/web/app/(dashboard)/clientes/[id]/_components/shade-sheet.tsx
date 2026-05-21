@@ -13,7 +13,15 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { ProductPicker } from "@/components/dashboard/product-picker";
+import {
+  ShadeFoundationGlyph,
+  ShadeConcealerGlyph,
+  ShadeLipstickGlyph,
+  ShadeBlushGlyph,
+} from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
+
+type GlyphComponent = React.ComponentType<{ className?: string }>;
 
 // ── Shade picker — Sephora ColorIQ "by product" pattern ────────────
 // Three small steps: category → product → swatch.
@@ -28,12 +36,16 @@ interface ShadeSheetProps {
   customerName: string;
 }
 
-const CATEGORIES = [
-  { value: "foundation", label: "Base", emoji: "🧴" },
-  { value: "concealer", label: "Corrector", emoji: "✏️" },
-  { value: "lipstick", label: "Labial", emoji: "💋" },
-  { value: "blush", label: "Rubor", emoji: "🌸" },
-] as const;
+const CATEGORIES: ReadonlyArray<{
+  value: string;
+  label: string;
+  Glyph: GlyphComponent;
+}> = [
+  { value: "foundation", label: "Base", Glyph: ShadeFoundationGlyph },
+  { value: "concealer", label: "Corrector", Glyph: ShadeConcealerGlyph },
+  { value: "lipstick", label: "Labial", Glyph: ShadeLipstickGlyph },
+  { value: "blush", label: "Rubor", Glyph: ShadeBlushGlyph },
+];
 
 type Step = "category" | "product" | "shade";
 
@@ -221,6 +233,7 @@ function CategoryStep({
       <ul className="grid grid-cols-2 gap-2">
         {CATEGORIES.map((c) => {
           const active = value === c.value;
+          const Glyph = c.Glyph;
           return (
             <li key={c.value}>
               <button
@@ -234,10 +247,10 @@ function CategoryStep({
                 )}
               >
                 <span
-                  className="flex size-10 items-center justify-center rounded-xl bg-muted/60 text-xl"
+                  className="flex size-10 items-center justify-center rounded-xl bg-muted/60 text-foreground"
                   aria-hidden
                 >
-                  {c.emoji}
+                  <Glyph className="size-5" />
                 </span>
                 <p className="font-heading text-[14px] text-foreground">
                   {c.label}

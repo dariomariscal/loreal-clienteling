@@ -13,7 +13,19 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { ProductPicker } from "@/components/dashboard/product-picker";
+import {
+  CloseGlyph,
+  RecommendGlyph,
+  ReasonNewPurchaseGlyph,
+  ReasonRebuyGlyph,
+  ReasonGiftGlyph,
+  ReasonConcernGlyph,
+  ReasonPromotionGlyph,
+  ReasonBrowsingGlyph,
+} from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
+
+type GlyphComponent = React.ComponentType<{ className?: string }>;
 
 // ── Recommendation composer — Look Builder ─────────────────────────
 // Left: visual product catalog (reused from purchase flow).
@@ -33,14 +45,18 @@ interface DraftLine {
   notes: string;
 }
 
-const VISIT_REASONS = [
-  { value: "new_purchase", label: "Nueva compra", emoji: "🛍️" },
-  { value: "rebuy", label: "Recompra", emoji: "🔁" },
-  { value: "gift", label: "Regalo", emoji: "🎁" },
-  { value: "concern", label: "Preocupación", emoji: "💭" },
-  { value: "promotion", label: "Promoción", emoji: "✨" },
-  { value: "browsing", label: "Exploración", emoji: "👀" },
-] as const;
+const VISIT_REASONS: ReadonlyArray<{
+  value: string;
+  label: string;
+  Glyph: GlyphComponent;
+}> = [
+  { value: "new_purchase", label: "Nueva compra", Glyph: ReasonNewPurchaseGlyph },
+  { value: "rebuy", label: "Recompra", Glyph: ReasonRebuyGlyph },
+  { value: "gift", label: "Regalo", Glyph: ReasonGiftGlyph },
+  { value: "concern", label: "Preocupación", Glyph: ReasonConcernGlyph },
+  { value: "promotion", label: "Promoción", Glyph: ReasonPromotionGlyph },
+  { value: "browsing", label: "Exploración", Glyph: ReasonBrowsingGlyph },
+];
 
 export function RecommendationSheet({
   open,
@@ -169,6 +185,7 @@ export function RecommendationSheet({
                 <div className="flex flex-wrap gap-1.5">
                   {VISIT_REASONS.map((r) => {
                     const active = visitReason === r.value;
+                    const Glyph = r.Glyph;
                     return (
                       <button
                         key={r.value}
@@ -184,7 +201,7 @@ export function RecommendationSheet({
                             : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground",
                         )}
                       >
-                        <span aria-hidden>{r.emoji}</span>
+                        <Glyph className="size-3" />
                         {r.label}
                       </button>
                     );
@@ -298,7 +315,7 @@ function LookLine({
               aria-label="Quitar"
               className="shrink-0 rounded p-1 text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive"
             >
-              <XIcon className="size-3" />
+              <CloseGlyph className="size-3" />
             </button>
           </div>
         </div>
@@ -325,7 +342,7 @@ function EmptyLook() {
   return (
     <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-2 px-4 text-center">
       <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground/60">
-        <SparkleIcon className="size-5" />
+        <RecommendGlyph className="size-5" />
       </div>
       <p className="font-heading text-sm text-foreground">Tablero vacío</p>
       <p className="text-[12px] leading-snug text-muted-foreground">
@@ -335,33 +352,3 @@ function EmptyLook() {
   );
 }
 
-function XIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    >
-      <path d="m4 4 8 8M12 4l-8 8" />
-    </svg>
-  );
-}
-
-function SparkleIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" />
-    </svg>
-  );
-}

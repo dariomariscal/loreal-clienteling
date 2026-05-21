@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRoundIcon } from "lucide-react";
+import { KeyRoundGlyph } from "@/components/ui/glyphs";
 import {
   useUsers,
   useStores,
@@ -173,7 +173,7 @@ export function UsersPage({ user }: UsersPageProps) {
                 : "Restablecer contraseña"
             }
           >
-            <KeyRoundIcon className="mr-1.5 h-3.5 w-3.5" />
+            <KeyRoundGlyph className="mr-1.5 h-3.5 w-3.5" />
             Restablecer
           </Button>
         </div>

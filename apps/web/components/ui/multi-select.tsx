@@ -2,7 +2,11 @@
 
 import * as React from "react"
 import { Popover } from "@base-ui/react/popover"
-import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react"
+import {
+  CheckGlyph,
+  ChevronDownGlyph,
+  CloseGlyph,
+} from "@/components/ui/glyphs"
 
 import { cn } from "@/lib/utils"
 
@@ -78,7 +82,7 @@ function MultiSelect({
               className="rounded-full p-0.5 transition-colors hover:bg-foreground/10"
               aria-label={`Quitar ${opt.label}`}
             >
-              <XIcon className="size-3" />
+              <CloseGlyph className="size-3" />
             </button>
           </span>
         ))}
@@ -92,7 +96,7 @@ function MultiSelect({
           ) : (
             <span aria-hidden />
           )}
-          <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+          <ChevronDownGlyph className="size-4 shrink-0 text-muted-foreground" />
         </Popover.Trigger>
       </div>
 
@@ -127,7 +131,7 @@ function MultiSelect({
                       )}
                     >
                       <span className="flex size-4 items-center justify-center">
-                        {isSelected && <CheckIcon className="size-3.5" />}
+                        {isSelected && <CheckGlyph className="size-3.5" />}
                       </span>
                       {opt.icon}
                       <span className="flex-1 text-left">{opt.label}</span>

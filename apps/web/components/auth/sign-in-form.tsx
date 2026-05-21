@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth, useSignIn } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { EyeGlyph, EyeOffGlyph } from "@/components/ui/glyphs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -175,9 +175,9 @@ export function SignInForm() {
                       tabIndex={-1}
                     >
                       {showPassword ? (
-                        <EyeOffIcon className="h-4 w-4" />
+                        <EyeOffGlyph className="h-4 w-4" />
                       ) : (
-                        <EyeIcon className="h-4 w-4" />
+                        <EyeGlyph className="h-4 w-4" />
                       )}
                     </button>
                   </div>

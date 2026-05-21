@@ -23,7 +23,17 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  ServiceCabinGlyph,
+  ServiceFacialGlyph,
+  ServiceAnniversaryGlyph,
+  ServiceVipCabinGlyph,
+  ServiceProductFollowupGlyph,
+  ServiceCustomGlyph,
+} from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
+
+type GlyphComponent = React.ComponentType<{ className?: string }>;
 
 // ── Appointment composer — Calendly-style 3-step wizard ────────────
 // Step 1: service type (chips with icon + duration)
@@ -48,13 +58,13 @@ interface AppointmentSheetProps {
   defaultStartsAt?: string | null;
 }
 
-const EVENT_TYPE_ICON: Record<string, string> = {
-  cabin_service: "✨",
-  facial: "💆",
-  anniversary_event: "🎁",
-  vip_cabin: "👑",
-  product_followup: "📦",
-  custom: "📌",
+const EVENT_TYPE_GLYPH: Record<string, GlyphComponent> = {
+  cabin_service: ServiceCabinGlyph,
+  facial: ServiceFacialGlyph,
+  anniversary_event: ServiceAnniversaryGlyph,
+  vip_cabin: ServiceVipCabinGlyph,
+  product_followup: ServiceProductFollowupGlyph,
+  custom: ServiceCustomGlyph,
 };
 
 const DEFAULT_DURATION = 60;
@@ -440,7 +450,7 @@ function ServiceCard({
   recommended: boolean;
   onSelect: () => void;
 }) {
-  const icon = EVENT_TYPE_ICON[type.code] ?? "📌";
+  const Glyph = EVENT_TYPE_GLYPH[type.code] ?? ServiceCustomGlyph;
   const color = type.color ?? "var(--accent)";
 
   return (
@@ -461,10 +471,10 @@ function ServiceCard({
         </span>
       )}
       <span
-        className="flex size-7 items-center justify-center rounded-lg text-base"
+        className="flex size-7 items-center justify-center rounded-lg text-foreground"
         style={{ backgroundColor: `color-mix(in oklab, ${color} 18%, transparent)` }}
       >
-        {icon}
+        <Glyph className="size-4" />
       </span>
       <p className="line-clamp-2 font-heading text-[13px] leading-tight text-foreground">
         {type.displayName}

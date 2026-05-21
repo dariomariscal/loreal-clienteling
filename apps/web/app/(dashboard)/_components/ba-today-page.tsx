@@ -12,7 +12,16 @@ import type {
 } from "@loreal/contracts";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  FollowupBirthdayGlyph,
+  FollowupReplenishmentGlyph,
+  FollowupSpecialEventGlyph,
+  FollowupCheckInGlyph,
+  FollowupGeneralGlyph,
+} from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
+
+type GlyphComponent = React.ComponentType<{ className?: string }>;
 
 // ── BA "Today" — Tulip Advisor pattern ─────────────────────────────
 // One-fetch home screen with 5 actionable buckets, not generic KPIs.
@@ -336,8 +345,9 @@ function BirthdayRow({ birthday }: { birthday: TodayBirthday }) {
           <p className="truncate text-sm text-foreground">
             {birthday.firstName} {birthday.lastName}
           </p>
-          <p className="text-[12px] text-muted-foreground">
-            🎂 {label}
+          <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+            <FollowupBirthdayGlyph className="size-3.5 shrink-0" />
+            {label}
           </p>
         </div>
         {birthday.lifecycleSegment === "vip" && (
@@ -407,14 +417,15 @@ function NewCustomerRow({ customer }: { customer: TodayNewCustomer }) {
 }
 
 function FollowupRow({ followup }: { followup: TodayPendingFollowup }) {
+  const Glyph = followupGlyph(followup.followupType);
   return (
     <li>
       <Link
         href={`/clientes/${followup.customerId}?tab=overview`}
         className="group/row flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/30"
       >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-base">
-          {followupEmoji(followup.followupType)}
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+          <Glyph className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-foreground">
@@ -444,18 +455,18 @@ function formatDaysUntil(days: number): string {
   return `En ${days} días`;
 }
 
-function followupEmoji(type: string): string {
+function followupGlyph(type: string): GlyphComponent {
   switch (type) {
     case "birthday":
-      return "🎂";
+      return FollowupBirthdayGlyph;
     case "replenishment":
-      return "📦";
+      return FollowupReplenishmentGlyph;
     case "special_event":
-      return "✨";
+      return FollowupSpecialEventGlyph;
     case "3_months":
     case "6_months":
-      return "📌";
+      return FollowupCheckInGlyph;
     default:
-      return "💬";
+      return FollowupGeneralGlyph;
   }
 }

@@ -2,14 +2,14 @@
 
 import { Menu } from "@base-ui/react/menu"
 import {
-  PlusIcon,
-  TagIcon,
-  StoreIcon,
-  UserPlusIcon,
-  PackageIcon,
-  HeartIcon,
-  CalendarPlusIcon,
-} from "lucide-react"
+  PlusGlyph,
+  TagGlyph,
+  StoreGlyph,
+  UserPlusGlyph,
+  PackageGlyph,
+  HeartGlyph,
+  CalendarPlusGlyph,
+} from "@/components/ui/glyphs"
 
 import { cn } from "@/lib/utils"
 import { can, type Permission } from "@/lib/permissions"
@@ -27,12 +27,12 @@ interface CreateMenuItem {
 }
 
 const ITEMS: readonly CreateMenuItem[] = [
-  { entity: "brand", label: "Marca", icon: TagIcon, permission: "brand.create" },
-  { entity: "store", label: "Tienda", icon: StoreIcon, permission: "store.create" },
-  { entity: "user", label: "Beauty Advisor", icon: UserPlusIcon, permission: "user.manage" },
-  { entity: "product", label: "Producto", icon: PackageIcon, permission: "product.create" },
-  { entity: "customer", label: "Cliente", icon: HeartIcon, permission: "customer.create" },
-  { entity: "appointment", label: "Cita", icon: CalendarPlusIcon, permission: "appointment.create" },
+  { entity: "brand", label: "Marca", icon: TagGlyph, permission: "brand.create" },
+  { entity: "store", label: "Tienda", icon: StoreGlyph, permission: "store.create" },
+  { entity: "user", label: "Beauty Advisor", icon: UserPlusGlyph, permission: "user.manage" },
+  { entity: "product", label: "Producto", icon: PackageGlyph, permission: "product.create" },
+  { entity: "customer", label: "Cliente", icon: HeartGlyph, permission: "customer.create" },
+  { entity: "appointment", label: "Cita", icon: CalendarPlusGlyph, permission: "appointment.create" },
 ]
 
 interface CreateMenuButtonProps {
@@ -58,7 +58,7 @@ export function CreateMenuButton({ role }: CreateMenuButtonProps) {
           )}
           aria-label="Crear nuevo"
         >
-          <PlusIcon className="size-4 shrink-0" />
+          <PlusGlyph className="size-4 shrink-0" />
           {!collapsed && <span>Crear</span>}
           {!collapsed && (
             <kbd className="ml-auto hidden rounded bg-accent-foreground/10 px-1.5 py-0.5 font-mono text-[10px] tracking-wide opacity-70 md:inline-block">

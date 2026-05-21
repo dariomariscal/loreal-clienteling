@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { getMapboxToken } from "@/lib/hooks/use-geocoding"
-import { MapPinIcon } from "lucide-react"
+import { MapPinGlyph } from "@/components/ui/glyphs"
 
 interface StaticMapProps {
   lat?: number | null
@@ -37,7 +37,7 @@ function StaticMap({
         )}
       >
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <MapPinIcon className="size-6 opacity-40" />
+          <MapPinGlyph className="size-6 opacity-40" />
           <span className="text-xs">
             {token
               ? "Selecciona una dirección para ver el mapa"

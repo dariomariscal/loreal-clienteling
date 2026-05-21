@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { StoreIcon, PencilIcon, PlusIcon } from "lucide-react";
+import { StoreGlyph, PencilGlyph, PlusGlyph } from "@/components/ui/glyphs";
 import {
   useZones,
   useStores,
@@ -66,7 +66,7 @@ export function ZonesPage({ user }: ZonesPageProps) {
         action={
           can(role, "zone.create") && stores.length > 0 ? (
             <Button onClick={() => startCreate([])}>
-              <PlusIcon className="size-4" />
+              <PlusGlyph className="size-4" />
               Nueva zona
             </Button>
           ) : undefined
@@ -151,7 +151,7 @@ export function ZonesPage({ user }: ZonesPageProps) {
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-[13px] font-medium">{z.displayName}</div>
                               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                <StoreIcon className="size-3" />
+                                <StoreGlyph className="size-3" />
                                 {storeCount}
                                 <span aria-hidden>·</span>
                                 {z.municipalityIds.length}{" "}
@@ -166,7 +166,7 @@ export function ZonesPage({ user }: ZonesPageProps) {
                               className="shrink-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                               aria-label={`Editar ${z.displayName}`}
                             >
-                              <PencilIcon className="size-3.5 text-muted-foreground" />
+                              <PencilGlyph className="size-3.5 text-muted-foreground" />
                             </button>
                           )}
                         </div>

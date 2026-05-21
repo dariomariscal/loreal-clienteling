@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircleIcon, ArrowLeftIcon } from "lucide-react";
+import { AlertCircleGlyph, BackGlyph } from "@/components/ui/glyphs";
 import {
   useBrands,
   useProduct,
@@ -72,7 +72,7 @@ export function ProductEditor({ mode, productId }: ProductEditorProps) {
         href="/productos"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeftIcon className="size-4" />
+        <BackGlyph className="size-4" />
         Volver a productos
       </Link>
 
@@ -105,7 +105,7 @@ export function ProductEditor({ mode, productId }: ProductEditorProps) {
 
       {mutationError && (
         <Alert variant="destructive">
-          <AlertCircleIcon />
+          <AlertCircleGlyph />
           <AlertTitle>
             No pudimos {isEdit ? "guardar los cambios" : "crear el producto"}
           </AlertTitle>
