@@ -46,8 +46,10 @@ const SEGMENT_VARIANT: Record<
 };
 
 interface CustomersPageProps {
-  user: { role?: string | null };
+  user: { id: string; role?: string | null };
 }
+
+type CartView = "mine" | "store";
 
 export function CustomersPage({ user }: CustomersPageProps) {
   const role = user.role ?? "ba";
@@ -57,6 +59,9 @@ export function CustomersPage({ user }: CustomersPageProps) {
   const [search, setSearch] = useState("");
   const [segment, setSegment] = useState("");
   const [page, setPage] = useState(1);
+  // BAs default to their own cartera ("Client Book" in industry parlance);
+  // managers and admins land on the store view because that's their job.
+  const [view, setView] = useState<CartView>(role === "ba" ? "mine" : "store");
   const limit = 20;
 
   const isSearching = search.length >= 2;
@@ -68,6 +73,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
           page: page.toString(),
           limit: limit.toString(),
           ...(segment ? { segment } : {}),
+          ...(view === "mine" ? { baUserId: user.id } : {}),
         },
   );
 
@@ -166,6 +172,22 @@ export function CustomersPage({ user }: CustomersPageProps) {
           ) : undefined
         }
       />
+
+      {/* Client Book / Store Book toggle — Tulip-style segmentation. We
+          always show it; BAs see "Mi cartera" by default, managers see
+          "Tienda". The toggle is suppressed while a search is active
+          since search hits the global index already. */}
+      {!showEmptyState && !isSearching && (
+        <CartViewToggle
+          value={view}
+          onChange={(v) => {
+            setView(v);
+            setPage(1);
+          }}
+          mineCount={view === "mine" ? totalCustomers : undefined}
+          storeCount={view === "store" ? totalCustomers : undefined}
+        />
+      )}
 
       {/* Filters */}
       {!showEmptyState && (
@@ -277,5 +299,68 @@ function EditIcon({ className }: { className?: string }) {
     >
       <path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z" />
     </svg>
+  );
+}
+
+// ── Client Book / Store Book toggle ───────────────────────────────
+
+function CartViewToggle({
+  value,
+  onChange,
+  mineCount,
+  storeCount,
+}: {
+  value: CartView;
+  onChange: (v: CartView) => void;
+  mineCount?: number;
+  storeCount?: number;
+}) {
+  const items: { key: CartView; label: string; subtitle: string; count?: number }[] = [
+    {
+      key: "mine",
+      label: "Mi cartera",
+      subtitle: "Clientas que has atendido",
+      count: mineCount,
+    },
+    {
+      key: "store",
+      label: "Tienda",
+      subtitle: "Toda la cartera de la tienda",
+      count: storeCount,
+    },
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Vista de cartera"
+      className="inline-flex w-full gap-1 rounded-2xl border border-border/60 bg-muted/20 p-1 sm:w-auto"
+    >
+      {items.map((item) => {
+        const active = value === item.key;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(item.key)}
+            className={[
+              "flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm transition-all duration-200 sm:flex-none",
+              active
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            ].join(" ")}
+          >
+            <span className="font-medium">{item.label}</span>
+            {item.count !== undefined && (
+              <span className="text-[11px] tabular-nums text-muted-foreground">
+                {item.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
