@@ -167,7 +167,11 @@ export function CustomerDetailPage({
         </TabsContent>
 
         <TabsContent value="belleza">
-          <BeautySection customerId={customerId} role={role} />
+          <BeautySection
+            customerId={customerId}
+            customerName={`${customer.firstName} ${customer.lastName}`}
+            role={role}
+          />
         </TabsContent>
 
         <TabsContent value="compras">
