@@ -1,6 +1,12 @@
 "use client";
 
-import { QueryClient, QueryClientProvider, isServer } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  isServer,
+} from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -35,6 +41,31 @@ function getQueryClient() {
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <CacheResetOnUserChange />
+      {children}
+    </QueryClientProvider>
   );
+}
+
+// Safety net: the browser QueryClient is a singleton, so cached data from
+// a previous Clerk session would leak into the next user's first paint.
+// Watch the userId and wipe the cache whenever it changes.
+function CacheResetOnUserChange() {
+  const { isLoaded, userId } = useAuth();
+  const previousUserId = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (previousUserId.current === undefined) {
+      previousUserId.current = userId ?? null;
+      return;
+    }
+    if (previousUserId.current !== userId) {
+      browserQueryClient?.clear();
+      previousUserId.current = userId ?? null;
+    }
+  }, [isLoaded, userId]);
+
+  return null;
 }
