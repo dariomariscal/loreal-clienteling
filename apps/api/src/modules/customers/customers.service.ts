@@ -72,6 +72,9 @@ export class CustomersService {
       ...(filters?.dateTo
         ? [lte(customers.customerSince, filters.dateTo)]
         : []),
+      ...(filters?.birthdayWithinDays
+        ? [birthdayWithinDaysCondition(filters.birthdayWithinDays)]
+        : []),
     ];
 
     const where = conditions.length > 1 ? and(...conditions) : conditions[0];
@@ -808,4 +811,38 @@ export class CustomersService {
 
     return { success: true, requestFolio };
   }
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Build a SQL predicate that matches customers whose birthday (month + day)
+ * falls within the next N days from today, wrapping around the year end.
+ *
+ * The DB stores `birthDate` as a `date` column. We pull `month` and `day`
+ * out and compare via day-of-year math so a December birthday still matches
+ * when "today" is late December and the window extends into January.
+ */
+function birthdayWithinDaysCondition(days: number) {
+  return sql`
+    ${customers.birthDate} IS NOT NULL AND (
+      (
+        make_date(
+          extract(year from current_date)::int,
+          extract(month from ${customers.birthDate})::int,
+          extract(day from ${customers.birthDate})::int
+        ) BETWEEN current_date AND current_date + (${days} || ' days')::interval
+      )
+      OR
+      (
+        -- Wrap-around: if the window crosses Jan 1, also include birthdays
+        -- that fall in the early days of next year.
+        make_date(
+          extract(year from current_date)::int + 1,
+          extract(month from ${customers.birthDate})::int,
+          extract(day from ${customers.birthDate})::int
+        ) BETWEEN current_date AND current_date + (${days} || ' days')::interval
+      )
+    )
+  `;
 }

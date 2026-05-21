@@ -13,20 +13,25 @@ export class AppointmentsController {
   constructor(@Inject(AppointmentsService) private appointmentsService: AppointmentsService) {}
 
   @Get()
+  @Roles(["ba", "manager", "supervisor", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
   findAll(
     @Query("from") from: string | undefined,
     @Query("to") to: string | undefined,
+    @Query("baUserId") baUserId: string | undefined,
     @Session() session: UserSession,
   ) {
     return this.appointmentsService.findAll(session.user, {
       from: from ? new Date(from) : undefined,
       to: to ? new Date(to) : undefined,
+      baUserId,
     });
   }
 
   @Get("calendar")
+  @Roles(["ba", "manager", "supervisor", "admin"])
   @ApiQuery({ name: "from", type: String, required: true })
   @ApiQuery({ name: "to", type: String, required: true })
   @ApiQuery({ name: "baUserId", type: String, required: false })

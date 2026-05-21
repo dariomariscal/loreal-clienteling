@@ -76,15 +76,23 @@ export class AppointmentsService {
     @Inject(ScopeService) private scopeService: ScopeService,
   ) {}
 
-  async findAll(user: SessionUser, filters?: { from?: Date; to?: Date }) {
+  async findAll(
+    user: SessionUser,
+    filters?: { from?: Date; to?: Date; baUserId?: string },
+  ) {
     const conditions: any[] = [];
 
-    // BA sees only their appointments; manager/supervisor/admin see by store scope
+    // BAs only ever see their own list — `baUserId` from the query is
+    // ignored for them so they can't snoop on coworkers. Managers and
+    // above use it as an explicit filter on top of their store scope.
     if (user.role === "ba") {
       conditions.push(eq(appointments.baUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
       if (scope) conditions.push(scope);
+      if (filters?.baUserId) {
+        conditions.push(eq(appointments.baUserId, filters.baUserId));
+      }
     }
 
     if (filters?.from) conditions.push(gte(appointments.scheduledAt, filters.from));

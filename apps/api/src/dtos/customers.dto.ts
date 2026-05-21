@@ -11,6 +11,9 @@ import {
   IsUrl,
   ValidateNested,
   IsObject,
+  IsInt,
+  Min,
+  Max,
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
 
@@ -121,6 +124,20 @@ export class CustomerFiltersDto extends PaginationDto {
   @IsOptional()
   @IsString()
   baUserId?: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    description:
+      "Filter customers whose birthday (month + day) falls in the next N days from today.",
+    minimum: 1,
+    maximum: 365,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  birthdayWithinDays?: number;
 
   @ApiPropertyOptional({ type: String, enum: ["name", "customerSince", "lastContactAt", "lastTransactionAt", "ltv"] })
   @IsOptional()

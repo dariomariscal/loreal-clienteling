@@ -24,6 +24,7 @@ import { CustomerNotesModule } from "./modules/customer-notes/customer-notes.mod
 import { AuditModule } from "./modules/audit/audit.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { SchedulerModule } from "./modules/scheduler/scheduler.module";
+import { AdvisorModule } from "./modules/advisor/advisor.module";
 import { UsersModule } from "./modules/users/users.module";
 import { UploadsModule } from "./modules/uploads/uploads.module";
 import { HealthController } from "./health.controller";
@@ -58,6 +59,7 @@ import { HealthController } from "./health.controller";
     AuditModule,
     AnalyticsModule,
     SchedulerModule,
+    AdvisorModule,
     UsersModule,
     UploadsModule,
   ],
