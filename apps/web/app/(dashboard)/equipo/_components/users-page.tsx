@@ -6,6 +6,7 @@ import {
   useUsers,
   useStores,
   useBrands,
+  useZones,
   useResetUserPassword,
   type User,
   type ResetPasswordResult,
@@ -62,12 +63,19 @@ interface UsersPageProps {
 export function UsersPage({ user }: UsersPageProps) {
   const role = user.role ?? "ba";
   const [roleFilter, setRoleFilter] = useState<string>("");
-  const { data: usersResponse, isLoading } = useUsers(
-    roleFilter ? { role: roleFilter } : undefined,
-  );
+  const [brandFilter, setBrandFilter] = useState<string>("");
+  const filters =
+    roleFilter || brandFilter
+      ? {
+          ...(roleFilter ? { role: roleFilter } : {}),
+          ...(brandFilter ? { brandId: brandFilter } : {}),
+        }
+      : undefined;
+  const { data: usersResponse, isLoading } = useUsers(filters);
   const users = usersResponse?.data ?? [];
   const { data: stores = [] } = useStores();
   const { data: brands = [] } = useBrands();
+  const { data: zones = [] } = useZones();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState<User | null>(null);
@@ -88,6 +96,7 @@ export function UsersPage({ user }: UsersPageProps) {
 
   const storeMap = Object.fromEntries(stores.map((s) => [s.id, s.displayName]));
   const brandMap = Object.fromEntries(brands.map((b) => [b.id, b.displayName]));
+  const zoneMap = Object.fromEntries(zones.map((z) => [z.id, z.displayName]));
 
   const columns: Column<User>[] = [
     {
@@ -115,8 +124,14 @@ export function UsersPage({ user }: UsersPageProps) {
     },
     {
       key: "storeId",
-      label: "Tienda",
-      render: (_, row) => row.storeName ?? storeMap[row.storeId ?? ""] ?? "—",
+      label: "Ámbito",
+      render: (_, row) => {
+        if (row.role === "supervisor") {
+          return zoneMap[row.zoneId ?? ""] ?? row.zoneId ?? "—";
+        }
+        if (row.role === "admin") return "Nacional";
+        return row.storeName ?? storeMap[row.storeId ?? ""] ?? "—";
+      },
     },
     {
       key: "brandId",
@@ -178,8 +193,8 @@ export function UsersPage({ user }: UsersPageProps) {
         }
       />
 
-      {/* Role filter */}
-      <div className="flex gap-2">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2">
         <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v ?? "")}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Todos los roles" />
@@ -190,6 +205,19 @@ export function UsersPage({ user }: UsersPageProps) {
             <SelectItem value="manager">Gerente</SelectItem>
             <SelectItem value="supervisor">Supervisor</SelectItem>
             <SelectItem value="admin">Administrador</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={brandFilter} onValueChange={(v) => setBrandFilter(v ?? "")}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Todas las marcas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todas las marcas</SelectItem>
+            {brands.map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                {b.displayName}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

@@ -55,7 +55,7 @@ export function DashboardPage({ user }: DashboardPageProps) {
         </h1>
         <p className="text-sm text-muted-foreground">
           {role === "manager" && "Resumen de tu tienda"}
-          {role === "supervisor" && "Resumen de tu zona"}
+          {role === "supervisor" && "Resumen de tu zona y marca"}
           {role === "admin" && "Resumen nacional"}
           {role === "ba" && "Tu resumen del día"}
         </p>

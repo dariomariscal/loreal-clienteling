@@ -1,7 +1,7 @@
 import { Injectable, Inject, ForbiddenException } from "@nestjs/common";
 import { eq, inArray, sql, type SQL, type Column } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { stores, customers } from "@loreal/database";
+import { stores, customers, brandStores } from "@loreal/database";
 import type { SessionUser } from "../types/session";
 
 @Injectable()
@@ -27,6 +27,8 @@ export class ScopeService {
     return eq(storeIdColumn, user.storeId);
   }
 
+
+
   /**
    * Returns a Drizzle WHERE condition that filters rows by the user's brand.
    */
@@ -44,10 +46,14 @@ export class ScopeService {
     if (user.role === "admin") return [];
     if (user.role === "supervisor") {
       if (!user.zoneId) throw new ForbiddenException("Supervisor has no zone assigned");
+      if (!user.brandId) throw new ForbiddenException("Supervisor has no brand assigned");
       const result = await this.db
         .select({ id: stores.id })
         .from(stores)
-        .where(eq(stores.zoneId, user.zoneId));
+        .innerJoin(brandStores, eq(brandStores.storeId, stores.id))
+        .where(
+          sql`${stores.zoneId} = ${user.zoneId} AND ${brandStores.brandId} = ${user.brandId}`,
+        );
       return result.map((r) => r.id);
     }
     if (!user.storeId) throw new ForbiddenException("User has no store assigned");

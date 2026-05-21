@@ -80,12 +80,19 @@ export class UsersService {
       if (user.storeId) conditions.push(eq(users.storeId, user.storeId));
     } else if (user.role === "supervisor") {
       const storeIds = await this.scopeService.getAccessibleStoreIds(user);
-      if (storeIds.length > 0) {
+      if (storeIds.length === 0) {
+        conditions.push(sql`false`);
+      } else {
         conditions.push(
           sql`${users.storeId} IN (${sql.join(
             storeIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
+        );
+      }
+      if (user.brandId) {
+        conditions.push(
+          sql`(${users.brandId} = ${user.brandId} OR ${users.brandId} IS NULL)`,
         );
       }
     }
@@ -283,6 +290,14 @@ export class UsersService {
   async update(id: string, data: UpdateUserData, updatedBy: SessionUser) {
     const existing = await this.findOne(id);
 
+    const nextRole = data.role ?? existing.role;
+    if (nextRole === "supervisor") {
+      const nextZoneId = data.zoneId !== undefined ? data.zoneId : existing.zoneId;
+      const nextBrandId = data.brandId !== undefined ? data.brandId : existing.brandId;
+      if (!nextZoneId) throw new ConflictException("Un supervisor requiere zoneId");
+      if (!nextBrandId) throw new ConflictException("Un supervisor requiere brandId");
+    }
+
     const updateValues: Record<string, unknown> = {};
     if (data.role !== undefined) updateValues.role = data.role;
     if (data.storeId !== undefined) updateValues.storeId = data.storeId;
@@ -388,8 +403,8 @@ export class UsersService {
    *   when not provided. brandId, if provided, must belong to brandStores of
    *   that store; if omitted and the store sells exactly one brand, that
    *   brand is auto-picked.
-   * - supervisor: zoneId is required (a storeId is ignored — supervisors
-   *   roam across all stores in the zone).
+   * - supervisor: zoneId AND brandId are required (a storeId is ignored —
+   *   supervisors roam across all stores in the zone that carry their brand).
    * - admin: no scope fields apply.
    */
   private async resolveAssignmentScope(
@@ -403,7 +418,10 @@ export class UsersService {
       if (!data.zoneId) {
         throw new ConflictException("Un supervisor requiere zoneId");
       }
-      return { storeId: null, zoneId: data.zoneId, brandId: data.brandId ?? null };
+      if (!data.brandId) {
+        throw new ConflictException("Un supervisor requiere brandId");
+      }
+      return { storeId: null, zoneId: data.zoneId, brandId: data.brandId };
     }
 
     // ba | manager

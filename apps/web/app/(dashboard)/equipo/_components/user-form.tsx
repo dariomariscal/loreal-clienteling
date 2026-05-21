@@ -27,18 +27,32 @@ const EMAIL_DOMAIN = "@loreal.mx";
 
 const EMAIL_LOCAL_RE = /^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?$/i;
 
-const userFormSchema = z.object({
-  fullName: z.string().min(1, "Requerido").max(200),
-  emailLocal: z
-    .string()
-    .min(1, "Requerido")
-    .max(64, "Máximo 64 caracteres")
-    .regex(EMAIL_LOCAL_RE, "Solo letras, números, punto, guion y guion bajo"),
-  role: z.enum(USER_ROLES as [string, ...string[]]),
-  storeId: z.string().optional(),
-  zoneId: z.string().optional(),
-  brandId: z.string().optional(),
-});
+const userFormSchema = z
+  .object({
+    fullName: z.string().min(1, "Requerido").max(200),
+    emailLocal: z
+      .string()
+      .min(1, "Requerido")
+      .max(64, "Máximo 64 caracteres")
+      .regex(EMAIL_LOCAL_RE, "Solo letras, números, punto, guion y guion bajo"),
+    role: z.enum(USER_ROLES as [string, ...string[]]),
+    storeId: z.string().optional(),
+    zoneId: z.string().optional(),
+    brandId: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === "supervisor") {
+      if (!data.zoneId) {
+        ctx.addIssue({ code: "custom", path: ["zoneId"], message: "Requerido para supervisor" });
+      }
+      if (!data.brandId) {
+        ctx.addIssue({ code: "custom", path: ["brandId"], message: "Requerido para supervisor" });
+      }
+    }
+    if ((data.role === "ba" || data.role === "manager") && !data.storeId) {
+      ctx.addIssue({ code: "custom", path: ["storeId"], message: "Requerido para este rol" });
+    }
+  });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
@@ -164,6 +178,9 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
 
   const brandHelp = (() => {
     if (!showBrand) return null;
+    if (needsZone) {
+      return "El supervisor solo verá datos de esta marca dentro de su zona.";
+    }
     if (!needsStore) return null;
     if (!storeId) return "Selecciona primero una sucursal.";
     if (allowedBrandIds && allowedBrandIds.length === 0) {
@@ -308,7 +325,9 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
                         alignItemWithTrigger={false}
                         className="w-auto min-w-[var(--anchor-width)] max-w-[min(22rem,calc(100vw-2rem))]"
                       >
-                        {!needsStore && <SelectItem value="">Sin asignar</SelectItem>}
+                        {!needsStore && !needsZone && (
+                          <SelectItem value="">Sin asignar</SelectItem>
+                        )}
                         {availableBrands.map((b) => (
                           <SelectItem key={b.id} value={b.id}>
                             {b.displayName}
