@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { cn } from "@/lib/utils";
 import { useClerk } from "@clerk/nextjs";
@@ -79,25 +79,25 @@ const ROLE_LABELS: Record<string, string> = {
 /** Returns the correct brand logo component based on user role and brand code */
 function BrandLogo({ role, brandCode, collapsed }: { role: string; brandCode?: string; collapsed: boolean }) {
   const logoClass = "text-sidebar-accent-foreground";
-  const size = collapsed ? 20 : 28;
+  const size = collapsed ? 24 : 56;
 
   // Admin without brand → central L'Oréal logo
   if (role === "admin" && !brandCode) {
-    return <LorealLogo width={collapsed ? 20 : 80} className={logoClass} />;
+    return <LorealLogo width={collapsed ? 24 : 150} className={logoClass} />;
   }
 
   const code = brandCode?.toUpperCase();
 
   if (code === "YSL") {
-    return <YslLogo width={size * 1.6} className={logoClass} />;
+    return <YslLogo width={size * 2.4} className={logoClass} />;
   }
 
   if (code === "LANCOME") {
-    return <LancomeLogo width={size * 1.5} className={logoClass} />;
+    return <LancomeLogo width={size * 2.4} className={logoClass} />;
   }
 
   // Default: Lancôme for any other brand
-  return <LancomeLogo width={size * 1.5} className={logoClass} />;
+  return <LancomeLogo width={size * 2.4} className={logoClass} />;
 }
 
 function SidebarContent({ user }: SidebarProps) {
@@ -120,15 +120,8 @@ function SidebarContent({ user }: SidebarProps) {
         "relative flex h-16 shrink-0 items-center border-b border-sidebar-border/50 px-4",
         collapsed ? "justify-center" : "justify-between"
       )}>
-        <div className={cn("flex items-center gap-2.5 overflow-hidden", collapsed && "justify-center")}>
+        <div className={cn("flex items-center overflow-hidden", collapsed && "justify-center")}>
           <BrandLogo role={role} brandCode={brand?.code} collapsed={collapsed} />
-          {!collapsed && (
-            <div className="flex flex-col overflow-hidden">
-              <span className="truncate text-[10px] tracking-widest text-sidebar-foreground/40 uppercase">
-                Clienteling
-              </span>
-            </div>
-          )}
         </div>
         {!collapsed && (
           <button
@@ -292,21 +285,47 @@ function SidebarContent({ user }: SidebarProps) {
   );
 }
 
+// ── Brand tinting ────────────────────────────────────────────────
+// Subtle wash of the brand's primaryColor over the default sidebar
+// tokens. color-mix keeps the sidebar dark and legible while picking
+// up the brand vibe. Empty object → default tokens.
+function useBrandSidebarStyle(brandId: string | null | undefined): React.CSSProperties {
+  const { data: brand } = useBrand(brandId ?? "");
+  // Single-brand listing flattens primaryColor onto the brand row; the
+  // detail endpoint nests it under `config`. Read both so we don't care
+  // which one populated the cache first.
+  const primary = brand?.config?.primaryColor ?? brand?.primaryColor;
+  if (!primary) return {};
+  return {
+    "--sidebar": `color-mix(in oklab, ${primary} 18%, oklch(0.13 0.005 285))`,
+    "--sidebar-accent": `color-mix(in oklab, ${primary} 28%, oklch(0.22 0.005 285))`,
+    "--sidebar-border": `color-mix(in oklab, ${primary} 22%, oklch(0.25 0.005 285))`,
+    "--sidebar-ring": primary,
+    "--sidebar-primary": primary,
+  } as React.CSSProperties;
+}
+
 // ── Desktop sidebar ──────────────────────────────────────────────
 
 export function DashboardSidebar({ user }: SidebarProps) {
   const { collapsed, mobileOpen, setMobileOpen } = useSidebar();
   const pathname = usePathname();
-
-  // Close mobile drawer on route change
+  const brandStyle = useBrandSidebarStyle(user.brandId);
+  // Mount the mobile drawer only once the user has opened it, so the two
+  // <SidebarContent> trees never coexist during SSR/first render. Otherwise
+  // base-ui's useId-generated IDs (Menu.Trigger, SelectTrigger, Input, ...)
+  // get assigned in a different order on the client and trigger a hydration
+  // mismatch that cascades through the page.
+  const [hasOpenedMobile, setHasOpenedMobile] = useState(false);
   useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname, setMobileOpen]);
+    if (mobileOpen) setHasOpenedMobile(true);
+  }, [mobileOpen]);
 
   return (
     <>
       {/* Desktop sidebar */}
       <aside
+        style={brandStyle}
         className={cn(
           "hidden shrink-0 flex-col border-r border-sidebar-border/50 bg-sidebar text-sidebar-foreground transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:flex",
           collapsed ? "w-[68px]" : "w-[260px]"
@@ -324,15 +343,19 @@ export function DashboardSidebar({ user }: SidebarProps) {
         />
       )}
 
-      {/* Mobile drawer */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-[280px] flex-col border-r border-sidebar-border/50 bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden",
-          mobileOpen ? "translate-x-0 flex" : "-translate-x-full"
-        )}
-      >
-        <SidebarContent user={user} />
-      </aside>
+      {/* Mobile drawer — mounted lazily on first open to avoid duplicate
+          useId trees during SSR (see hasOpenedMobile comment above). */}
+      {hasOpenedMobile && (
+        <aside
+          style={brandStyle}
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 w-[280px] flex-col border-r border-sidebar-border/50 bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden",
+            mobileOpen ? "translate-x-0 flex" : "-translate-x-full"
+          )}
+        >
+          <SidebarContent user={user} />
+        </aside>
+      )}
     </>
   );
 }

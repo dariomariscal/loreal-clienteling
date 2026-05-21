@@ -298,6 +298,10 @@ export class UsersService {
       if (!nextBrandId) throw new ConflictException("Un supervisor requiere brandId");
     }
 
+    if (data.brandId) await this.assertBrandExists(data.brandId);
+    if (data.zoneId) await this.assertZoneExists(data.zoneId);
+    if (data.storeId) await this.assertStoreExists(data.storeId);
+
     const updateValues: Record<string, unknown> = {};
     if (data.role !== undefined) updateValues.role = data.role;
     if (data.storeId !== undefined) updateValues.storeId = data.storeId;
@@ -421,6 +425,8 @@ export class UsersService {
       if (!data.brandId) {
         throw new ConflictException("Un supervisor requiere brandId");
       }
+      await this.assertZoneExists(data.zoneId);
+      await this.assertBrandExists(data.brandId);
       return { storeId: null, zoneId: data.zoneId, brandId: data.brandId };
     }
 
@@ -457,5 +463,83 @@ export class UsersService {
     const zoneId = data.zoneId ?? store.zoneId ?? null;
 
     return { storeId: store.id, zoneId, brandId };
+  }
+
+  // Reference checks. ba/manager hit FK validations indirectly through the
+  // brandStores/stores joins, but supervisor and the generic update path
+  // store raw ids onto users.brand_id / users.zone_id (text columns without
+  // a real FK because users.id is a Clerk text id), so a deleted or typoed
+  // id would silently turn into an orphan reference.
+  private async assertBrandExists(brandId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ id: brands.id })
+      .from(brands)
+      .where(eq(brands.id, brandId));
+    if (!row) throw new NotFoundException("Marca no encontrada");
+  }
+
+  private async assertZoneExists(zoneId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ id: zones.id })
+      .from(zones)
+      .where(eq(zones.id, zoneId));
+    if (!row) throw new NotFoundException("Zona no encontrada");
+  }
+
+  private async assertStoreExists(storeId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .where(eq(stores.id, storeId));
+    if (!row) throw new NotFoundException("Sucursal no encontrada");
+  }
+
+  // Reverse-side checks. Call these from BrandsService/ZonesService/StoresService
+  // before deleting an entity, so we never strand a user pointing at a row that
+  // no longer exists. Returns the offending usernames so the caller can surface
+  // a useful error instead of a generic 409.
+  async assertNoUsersReferenceBrand(brandId: string): Promise<void> {
+    const refs = await this.db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.brandId, brandId));
+    if (refs.length > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: ${refs.length} usuario(s) tienen esta marca asignada (${refs
+          .slice(0, 3)
+          .map((r) => r.email)
+          .join(", ")}${refs.length > 3 ? "…" : ""})`,
+      );
+    }
+  }
+
+  async assertNoUsersReferenceZone(zoneId: string): Promise<void> {
+    const refs = await this.db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.zoneId, zoneId));
+    if (refs.length > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: ${refs.length} usuario(s) tienen esta zona asignada (${refs
+          .slice(0, 3)
+          .map((r) => r.email)
+          .join(", ")}${refs.length > 3 ? "…" : ""})`,
+      );
+    }
+  }
+
+  async assertNoUsersReferenceStore(storeId: string): Promise<void> {
+    const refs = await this.db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.storeId, storeId));
+    if (refs.length > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: ${refs.length} usuario(s) tienen esta sucursal asignada (${refs
+          .slice(0, 3)
+          .map((r) => r.email)
+          .join(", ")}${refs.length > 3 ? "…" : ""})`,
+      );
+    }
   }
 }
