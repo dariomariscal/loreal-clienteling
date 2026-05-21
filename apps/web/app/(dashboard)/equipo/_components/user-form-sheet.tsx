@@ -51,8 +51,8 @@ export function UserFormSheet({ open, onOpenChange }: UserFormSheetProps) {
           <SheetHeader>
             <SheetTitle>Crear usuario</SheetTitle>
             <SheetDescription>
-              El usuario quedará activo de inmediato con una contraseña temporal.
-              Te la mostraremos una sola vez para que se la entregues.
+              El usuario quedará activo de inmediato con la contraseña que se
+              genere. Te la mostraremos una sola vez para que se la entregues.
             </SheetDescription>
           </SheetHeader>
           <SheetBody>

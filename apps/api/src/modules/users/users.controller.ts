@@ -98,16 +98,6 @@ export class UsersController {
     return this.usersService.update(id, body, user);
   }
 
-  /**
-   * Clears mustChangePassword for the current user. No @Roles — every signed
-   * in user can call this for themselves after Clerk accepts their new
-   * password.
-   */
-  @Post("me/acknowledge-password-change")
-  acknowledgePasswordChange(@CurrentUser() user: SessionUser) {
-    return this.usersService.acknowledgePasswordChange(user);
-  }
-
   @Post(":id/reset-password")
   @Roles(["admin"])
   resetPassword(

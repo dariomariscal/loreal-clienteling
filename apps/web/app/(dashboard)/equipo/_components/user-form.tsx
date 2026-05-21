@@ -369,7 +369,7 @@ export function UserForm({ stores, brands, zones, onSubmit, isPending }: UserFor
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Se generará una contraseña temporal que solo verás una vez al terminar de crear
+          Se generará una contraseña que solo verás una vez al terminar de crear
           el usuario. Cópiala y entrégala por un canal seguro.
         </p>
       </form>

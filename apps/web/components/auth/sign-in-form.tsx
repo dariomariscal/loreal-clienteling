@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useSignIn } from "@clerk/nextjs";
+import { useAuth, useSignIn } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -30,10 +31,21 @@ type SignInValues = z.infer<typeof signInSchema>;
 
 export function SignInForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // If Clerk already has an active session (e.g. user hit /sign-in directly
+  // while still authenticated), bounce them to the dashboard so they don't
+  // hit the "already signed in" error on submit.
+  useEffect(() => {
+    if (!authLoaded || !isSignedIn) return;
+    const redirectUrl = searchParams.get("redirect_url") ?? "/";
+    router.replace(redirectUrl);
+  }, [authLoaded, isSignedIn, router, searchParams]);
 
   const form = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
@@ -147,12 +159,28 @@ export function SignInForm() {
                   </Link>
                 </div>
                 <FormControl>
-                  <Input
-                    {...field}
-                    type="password"
-                    placeholder="Mínimo 8 caracteres"
-                    autoComplete="current-password"
-                  />
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Mínimo 8 caracteres"
+                      autoComplete="current-password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground transition-colors hover:text-foreground"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOffIcon className="h-4 w-4" />
+                      ) : (
+                        <EyeIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

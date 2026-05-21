@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 export interface PasswordResultPayload {
   email: string;
-  temporaryPassword: string;
+  password: string;
 }
 
 interface PasswordResultDialogProps {
@@ -29,7 +29,7 @@ export function PasswordResultDialog({
   result,
   onClose,
   title = "Usuario creado",
-  description = "Esta contraseña solo se muestra una vez. Cópiala y entrégala al usuario por un canal seguro; tendrá que cambiarla en su primer acceso.",
+  description = "Esta contraseña solo se muestra una vez. Cópiala y entrégala al usuario por un canal seguro.",
 }: PasswordResultDialogProps) {
   const [copied, setCopied] = useState<"password" | "both" | null>(null);
 
@@ -62,10 +62,10 @@ export function PasswordResultDialog({
           <DialogBody className="space-y-4">
             <Field label="Correo" value={result.email} />
             <Field
-              label="Contraseña temporal"
-              value={result.temporaryPassword}
+              label="Contraseña"
+              value={result.password}
               mono
-              onCopy={() => copy(result.temporaryPassword, "password")}
+              onCopy={() => copy(result.password, "password")}
               copied={copied === "password"}
             />
             <Button
@@ -74,7 +74,7 @@ export function PasswordResultDialog({
               className="w-full"
               onClick={() =>
                 copy(
-                  `Correo: ${result.email}\nContraseña: ${result.temporaryPassword}`,
+                  `Correo: ${result.email}\nContraseña: ${result.password}`,
                   "both",
                 )
               }

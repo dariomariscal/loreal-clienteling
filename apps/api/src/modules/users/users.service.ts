@@ -48,7 +48,7 @@ interface CreateDirectUserResult {
   email: string;
   fullName: string;
   role: string;
-  temporaryPassword: string;
+  password: string;
 }
 
 interface UpdateUserData {
@@ -212,10 +212,11 @@ export class UsersService {
 
   /**
    * Creates a Clerk user directly (no invitation email) with a generated
-   * temporary password. The plaintext password is returned ONCE in the
-   * response so the admin can hand it off — it is never persisted locally.
-   * The local mirror row will be filled in by the `user.created` webhook;
-   * if the webhook races us, the upsert on conflict makes both safe.
+   * password. The plaintext is returned ONCE in the response so the admin
+   * can hand it off — it is never persisted locally. We also write the
+   * local mirror row synchronously so the admin's listing refresh sees the
+   * new user immediately; the `user.created` webhook still arrives later
+   * and its onConflictDoUpdate makes both writes safe.
    */
   async createDirect(
     data: CreateDirectUserData,
@@ -227,11 +228,11 @@ export class UsersService {
     const [firstName, ...rest] = data.fullName.trim().split(/\s+/);
     const lastName = rest.join(" ") || undefined;
 
-    const temporaryPassword = generateTemporaryPassword();
+    const password = generateTemporaryPassword();
 
     const clerkUser = await this.clerk.users.createUser({
       emailAddress: [email],
-      password: temporaryPassword,
+      password,
       firstName,
       lastName,
       publicMetadata: {
@@ -243,9 +244,24 @@ export class UsersService {
         active: true,
         invitationStatus: "accepted",
         invitedByUserId: createdBy.id,
-        mustChangePassword: true,
       },
     });
+
+    await this.db
+      .insert(users)
+      .values({
+        id: clerkUser.id,
+        email,
+        fullName: data.fullName,
+        role: data.role,
+        storeId: scope.storeId,
+        zoneId: scope.zoneId,
+        brandId: scope.brandId,
+        active: true,
+        invitationStatus: "accepted",
+        invitedByUserId: createdBy.id,
+      })
+      .onConflictDoNothing({ target: users.id });
 
     await this.auditService.log(
       createdBy,
@@ -260,7 +276,7 @@ export class UsersService {
       email,
       fullName: data.fullName,
       role: data.role,
-      temporaryPassword,
+      password,
     };
   }
 
@@ -303,38 +319,17 @@ export class UsersService {
   }
 
   /**
-   * Clears the `mustChangePassword` flag for the calling user. Called from
-   * the frontend after the user picks their own password through Clerk so
-   * the dashboard stops redirecting them to the change-password screen.
-   */
-  async acknowledgePasswordChange(user: SessionUser) {
-    await this.clerk.users.updateUser(user.id, {
-      publicMetadata: { mustChangePassword: false },
-    });
-    await this.auditService.log(
-      user,
-      "user_password_changed",
-      "user",
-      user.id,
-    );
-    return { ok: true as const };
-  }
-
-  /**
-   * Resets a user's password to a freshly generated temporary one. All other
-   * active sessions are signed out so the previous password stops working,
-   * and `mustChangePassword` is flipped back on so the user is prompted to
-   * pick a new one at next login. The plaintext is returned ONCE and never
-   * persisted.
+   * Resets a user's password to a freshly generated one and signs out all
+   * other active sessions so the previous password stops working. The
+   * plaintext is returned ONCE and never persisted.
    */
   async resetPassword(id: string, requester: SessionUser) {
     const existing = await this.findOne(id);
-    const temporaryPassword = generateTemporaryPassword();
+    const password = generateTemporaryPassword();
 
     await this.clerk.users.updateUser(id, {
-      password: temporaryPassword,
+      password,
       signOutOfOtherSessions: true,
-      publicMetadata: { mustChangePassword: true },
     });
 
     await this.auditService.log(
@@ -348,7 +343,7 @@ export class UsersService {
       userId: id,
       email: existing.email,
       fullName: existing.fullName,
-      temporaryPassword,
+      password,
     };
   }
 

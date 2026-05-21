@@ -97,7 +97,7 @@ export interface CreateDirectUserResult {
   email: string;
   fullName: string;
   role: string;
-  temporaryPassword: string;
+  password: string;
 }
 
 export function useCreateUserDirect() {
@@ -132,7 +132,7 @@ export interface ResetPasswordResult {
   userId: string;
   email: string;
   fullName: string;
-  temporaryPassword: string;
+  password: string;
 }
 
 export function useResetUserPassword() {

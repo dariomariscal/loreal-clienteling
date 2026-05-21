@@ -228,7 +228,7 @@ export function UsersPage({ user }: UsersPageProps) {
           <DialogHeader>
             <DialogTitle>Restablecer contraseña</DialogTitle>
             <DialogDescription>
-              Se generará una nueva contraseña temporal para{" "}
+              Se generará una nueva contraseña para{" "}
               <strong>{resetTarget?.fullName}</strong> y se cerrarán sus sesiones
               activas. La verás una sola vez.
             </DialogDescription>
@@ -255,7 +255,7 @@ export function UsersPage({ user }: UsersPageProps) {
         result={resetResult}
         onClose={() => setResetResult(null)}
         title="Contraseña restablecida"
-        description="Entrega esta contraseña al usuario por un canal seguro. Tendrá que cambiarla al volver a iniciar sesión."
+        description="Entrega esta contraseña al usuario por un canal seguro."
       />
     </div>
   );
