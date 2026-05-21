@@ -23,8 +23,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { EmptyState } from "@/components/ui/empty-state";
-import { TimelineIllustration } from "@/components/ui/illustrations";
 import { CustomerProfileHeader } from "./customer-profile-header";
 import { CustomerKpiCards } from "./customer-kpi-cards";
 import {
@@ -41,6 +39,7 @@ import { PurchaseSheet } from "./purchase-sheet";
 import { AppointmentSheet } from "./appointment-sheet";
 import { RecommendationSheet } from "./recommendation-sheet";
 import { MessageSheet } from "./message-sheet";
+import { ActivityTimeline } from "./activity-timeline";
 
 // ── Tab keys ───────────────────────────────────────────────────────
 // Order matches the spec §3.4. Overview is the default landing tab; Notas
@@ -164,11 +163,7 @@ export function CustomerDetailPage({
         </TabsList>
 
         <TabsContent value="overview">
-          <EmptyState
-            illustration={<TimelineIllustration />}
-            title="Resumen disponible próximamente"
-            description="Aquí verás un timeline cronológico con compras, recomendaciones, citas y mensajes."
-          />
+          <ActivityTimeline customerId={customerId} />
         </TabsContent>
 
         <TabsContent value="belleza">
