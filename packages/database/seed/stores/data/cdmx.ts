@@ -1,0 +1,208 @@
+import type { SeedStore } from "../types";
+
+export const SEED_STORES_CDMX: SeedStore[] = [
+  {
+    code: "LIV-CDMX-CENTRO",
+    displayName: "Liverpool Centro",
+    chain: "liverpool",
+    address:
+      "Venustiano Carranza 92, Centro, 06060 Cuauhtémoc, CDMX",
+    geocodeQuery: "Venustiano Carranza 92, Centro, Cuauhtemoc, CDMX",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Centro",
+    postcode: "06060",
+    phone: "5551332800",
+    hours: {
+      store: { "mon-sat": "11:00-21:00", sun: "11:00-20:30" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-LAS-ANTENAS",
+    displayName: "Liverpool Parque Las Antenas",
+    chain: "liverpool",
+    address:
+      "Av. Periférico 3278, La Esperanza, 09910 Iztapalapa, CDMX",
+    geocodeQuery: "Parque Las Antenas, Iztapalapa",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "La Esperanza",
+    postcode: "09910",
+    phone: "5591284600",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-COAPA",
+    displayName: "Liverpool Galerías Coapa",
+    chain: "liverpool",
+    address:
+      "Calz. del Hueso 519, Residencial Acoxpa, Centro Comercial Galerías Coapa, 14300 Tlalpan, CDMX",
+    geocodeQuery: "Galerias Coapa, Tlalpan",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Residencial Acoxpa",
+    postcode: "14300",
+    phone: "5556279600",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-INSURGENTES",
+    displayName: "Liverpool Galerías Insurgentes",
+    chain: "liverpool",
+    address:
+      "Av. Insurgentes Sur 1310, Del Valle, 03100 Benito Juárez, CDMX",
+    geocodeQuery: "Galerias Insurgentes, CDMX",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Del Valle",
+    postcode: "03100",
+    phone: "5554801300",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-MITIKAH",
+    displayName: "Liverpool Mitikah",
+    chain: "liverpool",
+    address:
+      "Mayorazgo 130, Xoco, 03330 Benito Juárez, CDMX",
+    geocodeQuery: "Mitikah, Xoco, CDMX",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Xoco",
+    postcode: "03330",
+    phone: "5591568600",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-LINDAVISTA",
+    displayName: "Liverpool Lindavista",
+    chain: "liverpool",
+    address:
+      "Colector 13 No. 280 Local A01, Magdalena de las Salinas, Plaza Parque Lindavista, 07760 Gustavo A. Madero, CDMX",
+    geocodeQuery: "Parque Lindavista, CDMX",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Magdalena de las Salinas",
+    postcode: "07760",
+    phone: "5557471000",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-TEPEYAC",
+    displayName: "Liverpool Tepeyac",
+    chain: "liverpool",
+    address:
+      "Av. Ing. Eduardo Molina 6730, Granjas Modernas, 07460 Gustavo A. Madero, CDMX",
+    geocodeQuery: "Liverpool Eduardo Molina, Gustavo A Madero",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Granjas Modernas",
+    postcode: "07460",
+    phone: "5591568800",
+    hours: {
+      store: { "mon-sun": "10:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-PARQUE-DELTA",
+    displayName: "Liverpool Parque Delta",
+    chain: "liverpool",
+    address:
+      "Av. Cuauhtémoc 462, Narvarte, Centro Comercial Parque Delta, 03020 Benito Juárez, CDMX",
+    geocodeQuery: "Parque Delta, Narvarte, CDMX",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Narvarte",
+    postcode: "03020",
+    phone: "5556361100",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-PERISUR",
+    displayName: "Liverpool Perisur",
+    chain: "liverpool",
+    address:
+      "Av. Periférico Sur 4690, Jardines del Pedregal de San Ángel, 04500 Coyoacán, CDMX",
+    geocodeQuery: "Perisur, Coyoacan, CDMX",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Jardines del Pedregal de San Ángel",
+    postcode: "04500",
+    phone: "5554471200",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-POLANCO",
+    displayName: "Liverpool Polanco",
+    chain: "liverpool",
+    address:
+      "Mariano Escobedo 425, Chapultepec Morales, 11000 Miguel Hidalgo, CDMX",
+    geocodeQuery: "Liverpool Polanco, Mariano Escobedo",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Chapultepec Morales",
+    postcode: "11000",
+    phone: "5553286400",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-SANTA-FE",
+    displayName: "Liverpool Santa Fe",
+    chain: "liverpool",
+    address:
+      "Av. Vasco de Quiroga 3800, Santa Fe Cuajimalpa, 05348 Cuajimalpa de Morelos, CDMX",
+    geocodeQuery: "Liverpool Santa Fe, CDMX",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Santa Fe Cuajimalpa",
+    postcode: "05348",
+    phone: "5552579000",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+  {
+    code: "LIV-CDMX-TEZONTLE",
+    displayName: "Liverpool Tezontle",
+    chain: "liverpool",
+    address:
+      "Av. Canal de Tezontle 851, Dr. Alfonso Ortiz Tirado, 09020 Iztapalapa, CDMX",
+    geocodeQuery: "Liverpool Canal de Tezontle, Iztapalapa",
+    city: "Ciudad de México",
+    state: "Ciudad de México",
+    district: "Dr. Alfonso Ortiz Tirado",
+    postcode: "09020",
+    phone: "5556401400",
+    hours: {
+      store: { "mon-sun": "11:00-21:00" },
+    },
+    brandCodes: ["LANCOME", "YSL"],
+  },
+];

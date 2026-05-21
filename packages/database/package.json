@@ -20,7 +20,7 @@
     "studio": "drizzle-kit studio",
     "seed": "tsx seed/index.ts",
     "seed:municipalities": "tsx seed/municipalities.ts",
-    "seed:stores": "tsx seed/stores.ts"
+    "seed:stores": "tsx seed/stores/index.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
