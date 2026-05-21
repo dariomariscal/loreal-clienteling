@@ -33,7 +33,9 @@ export function StoreFormSheet({
 }: StoreFormSheetProps) {
   const isEdit = Boolean(store);
   const { data: brands = [] } = useBrands();
-  const { data: storeDetail } = useStore(store?.id ?? "");
+  const { data: storeDetail, isFetching: isLoadingDetail } = useStore(
+    store?.id ?? "",
+  );
   const createStore = useCreateStore();
   const updateStore = useUpdateStore();
   const isPending = createStore.isPending || updateStore.isPending;
@@ -49,23 +51,30 @@ export function StoreFormSheet({
     }
   }
 
-  const defaults: Partial<CreateStore> | undefined = store
-    ? {
-        code: store.code,
-        displayName: store.displayName,
-        chain: store.chain,
-        address: store.address ?? undefined,
-        city: store.city ?? undefined,
-        state: store.state ?? undefined,
-        district: store.district ?? undefined,
-        postcode: store.postcode ?? undefined,
-        lat: store.lat != null ? Number(store.lat) : undefined,
-        lng: store.lng != null ? Number(store.lng) : undefined,
-        phone: store.phone ?? undefined,
-        hours: store.hours ?? undefined,
-        brandIds: storeDetail?.brandIds ?? [],
-      }
-    : undefined;
+  // Wait for the store detail (which carries the assigned brandIds) before
+  // mounting the form. react-hook-form reads defaultValues only on mount, so
+  // rendering it before storeDetail arrives leaves the brand multiselect
+  // permanently empty even after the brandIds resolve.
+  const detailReady = !isEdit || (!isLoadingDetail && storeDetail);
+
+  const defaults: Partial<CreateStore> | undefined =
+    store && storeDetail
+      ? {
+          code: store.code,
+          displayName: store.displayName,
+          chain: store.chain,
+          address: store.address ?? undefined,
+          city: store.city ?? undefined,
+          state: store.state ?? undefined,
+          district: store.district ?? undefined,
+          postcode: store.postcode ?? undefined,
+          lat: store.lat != null ? Number(store.lat) : undefined,
+          lng: store.lng != null ? Number(store.lng) : undefined,
+          phone: store.phone ?? undefined,
+          hours: store.hours ?? undefined,
+          brandIds: storeDetail.brandIds ?? [],
+        }
+      : undefined;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -74,12 +83,18 @@ export function StoreFormSheet({
           <SheetTitle>{isEdit ? "Editar tienda" : "Nueva tienda"}</SheetTitle>
         </SheetHeader>
         <SheetBody>
-          <StoreForm
-            defaultValues={defaults}
-            brands={brands}
-            onSubmit={handleSubmit}
-            isPending={isPending}
-          />
+          {detailReady ? (
+            <StoreForm
+              defaultValues={defaults}
+              brands={brands}
+              onSubmit={handleSubmit}
+              isPending={isPending}
+            />
+          ) : (
+            <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+              Cargando...
+            </div>
+          )}
         </SheetBody>
         <SheetFooter>
           <SheetClose>
