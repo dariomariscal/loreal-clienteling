@@ -124,8 +124,13 @@ interface BeautySectionProps {
 export function BeautySection({ customerId, customerName }: BeautySectionProps) {
   const { data: profile, isLoading } = useBeautyProfile(customerId);
   // Look up product/brand for each shade so we can render names instead of
-  // raw UUIDs. Same trade-off as the recommendations section.
-  const { data: products = [] } = useProducts({ limit: "200" });
+  // raw UUIDs. Only fetch when the profile actually has shades — otherwise
+  // we pay for a 100-row product list every time the tab opens.
+  const hasShades = (profile?.shades?.length ?? 0) > 0;
+  const { data: products = [] } = useProducts(
+    hasShades ? { limit: "100" } : undefined,
+    { enabled: hasShades },
+  );
   const productMap = React.useMemo(
     () => new Map(products.map((p) => [p.id, p])),
     [products],

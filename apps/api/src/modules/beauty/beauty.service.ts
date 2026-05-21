@@ -31,7 +31,10 @@ export class BeautyService {
     return { ...profile, shades };
   }
 
-  async upsertProfile(data: UpsertBeautyProfileDto, user: SessionUser) {
+  async upsertProfile(
+    data: UpsertBeautyProfileDto & { customerId: string },
+    user: SessionUser,
+  ) {
     await this.scopeService.assertCustomerAccess(data.customerId, user);
 
     const [existing] = await this.db

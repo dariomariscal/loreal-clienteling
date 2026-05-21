@@ -21,9 +21,12 @@ import {
 } from "@loreal/contracts";
 
 export class UpsertBeautyProfileDto {
-  @ApiProperty({ type: String, format: "uuid" })
+  // customerId comes from the URL path; controller overrides whatever the
+  // client sends. Keep it optional so the body validates with or without it.
+  @ApiPropertyOptional({ type: String, format: "uuid" })
+  @IsOptional()
   @IsUUID()
-  customerId: string;
+  customerId?: string;
 
   @ApiPropertyOptional({ type: String, enum: SKIN_TYPES })
   @IsOptional()

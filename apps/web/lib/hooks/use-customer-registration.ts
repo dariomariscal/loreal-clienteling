@@ -22,15 +22,19 @@ export function useDuplicateCheck(params: {
 }) {
   const email = params.email ?? "";
   const phone = params.phone ?? "";
-  const isQueryable =
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /^\d{10}$/.test(phone);
+  // Match what the backend's class-validator accepts: real email shape and a
+  // 10-digit MX phone. Only send the fields that individually pass — sending a
+  // partial phone alongside a valid email made every keystroke 400.
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  const phoneValid = /^\d{10}$/.test(phone);
+  const isQueryable = emailValid || phoneValid;
 
   return useQuery({
     queryKey: registrationKeys.duplicateCheck(email, phone),
     queryFn: () => {
       const query: Record<string, string> = {};
-      if (email) query.email = email;
-      if (phone) query.phone = phone;
+      if (emailValid) query.email = email;
+      if (phoneValid) query.phone = phone;
       return api.get<DuplicateCheckResponse>(
         "/customers/check-duplicate",
         query,
@@ -38,6 +42,7 @@ export function useDuplicateCheck(params: {
     },
     enabled: isQueryable,
     staleTime: 30 * 1000,
+    retry: false,
   });
 }
 

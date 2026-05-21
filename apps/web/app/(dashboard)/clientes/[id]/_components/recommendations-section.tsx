@@ -48,7 +48,7 @@ export function RecommendationsSection({
   // Fetch a page of products so we can render images + names alongside the
   // recommendation rows. The list is small in v1; we can switch to a
   // bulk-by-id endpoint when this gets slow.
-  const { data: products = [] } = useProducts({ limit: "200" });
+  const { data: products = [] } = useProducts({ limit: "100" });
   const productMap = React.useMemo(
     () => new Map(products.map((p) => [p.id, p])),
     [products],

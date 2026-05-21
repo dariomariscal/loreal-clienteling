@@ -54,6 +54,9 @@ export function useBrand(id: string) {
     queryKey: brandKeys.detail(id),
     queryFn: () => api.get<BrandWithConfig>(`/brands/${id}`),
     enabled: !!id,
+    // A 404 here means the brand id is stale (deleted brand, dev fixture, etc.)
+    // Retrying just floods the console with the same error.
+    retry: false,
   });
 }
 

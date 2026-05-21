@@ -44,7 +44,10 @@ const productKeys = {
 
 // ── Queries ────────────────────────────────────────────────────────
 
-export function useProducts(params?: { page?: string; limit?: string; category?: string; search?: string }) {
+export function useProducts(
+  params?: { page?: string; limit?: string; category?: string; search?: string },
+  options?: { enabled?: boolean },
+) {
   const queryParams: Record<string, string> = {};
   if (params?.page) queryParams.page = params.page;
   if (params?.limit) queryParams.limit = params.limit;
@@ -54,6 +57,7 @@ export function useProducts(params?: { page?: string; limit?: string; category?:
   return useQuery({
     queryKey: productKeys.all(queryParams),
     queryFn: () => api.get<Product[]>("/products", queryParams),
+    enabled: options?.enabled ?? true,
   });
 }
 
