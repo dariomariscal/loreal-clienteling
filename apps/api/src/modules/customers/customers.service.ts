@@ -14,6 +14,7 @@ import {
   appointments,
   appointmentEventTypes,
   communications,
+  customerNotes,
   users,
   stores,
 } from "@loreal/database";
@@ -365,6 +366,40 @@ export class CustomersService {
       .orderBy(desc(communications.sentAt))
       .limit(fetchSize);
 
+    // Notes — private notes are only visible to their author or admins.
+    // Everyone else just doesn't see them in the timeline; the dedicated
+    // notes tab enforces the same rule server-side already.
+    const noteRows = await this.db
+      .select({
+        id: customerNotes.id,
+        createdAt: customerNotes.createdAt,
+        body: customerNotes.body,
+        productId: customerNotes.productId,
+        productName: products.name,
+        private: customerNotes.private,
+        authorUserId: customerNotes.authorUserId,
+        authorName: users.fullName,
+      })
+      .from(customerNotes)
+      .leftJoin(users, eq(customerNotes.authorUserId, users.id))
+      .leftJoin(products, eq(products.id, customerNotes.productId))
+      .where(
+        and(
+          eq(customerNotes.customerId, customerId),
+          ...(beforeCondition
+            ? [beforeCondition(customerNotes.createdAt)]
+            : []),
+          user.role === "admin"
+            ? sql`true`
+            : or(
+                eq(customerNotes.private, false),
+                eq(customerNotes.authorUserId, user.id),
+              )!,
+        ),
+      )
+      .orderBy(desc(customerNotes.createdAt))
+      .limit(fetchSize);
+
     type RawEvent = {
       id: string;
       type:
@@ -372,7 +407,8 @@ export class CustomersService {
         | "purchase"
         | "recommendation"
         | "appointment"
-        | "communication";
+        | "communication"
+        | "note";
       occurredAt: Date;
       actor: { id: string | null; name: string | null };
       title: string;
@@ -440,6 +476,24 @@ export class CustomersService {
         body: row.subject ?? row.body.slice(0, 140),
         amount: null,
         metadata: { channel: row.channel, followupType: row.followupType },
+      });
+    }
+
+    for (const row of noteRows) {
+      events.push({
+        id: `note:${row.id}`,
+        type: "note",
+        occurredAt: new Date(row.createdAt),
+        actor: { id: row.authorUserId, name: row.authorName },
+        title: row.productName
+          ? `Nota · ${row.productName}`
+          : "Nota",
+        body: row.body,
+        amount: null,
+        metadata: {
+          private: row.private,
+          productId: row.productId,
+        },
       });
     }
 
