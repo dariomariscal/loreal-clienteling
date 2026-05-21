@@ -3,7 +3,8 @@ export type CustomerActivityType =
   | "purchase"
   | "recommendation"
   | "appointment"
-  | "communication";
+  | "communication"
+  | "note";
 
 export interface CustomerActivityActor {
   id: string | null;
