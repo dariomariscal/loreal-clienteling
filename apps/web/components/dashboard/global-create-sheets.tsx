@@ -3,7 +3,7 @@
 import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { BrandFormSheet } from "@/app/(dashboard)/marcas/_components/brand-form-sheet";
 import { StoreFormSheet } from "@/app/(dashboard)/tiendas/_components/store-form-sheet";
-import { CustomerFormSheet } from "@/app/(dashboard)/clientes/_components/customer-form-sheet";
+import { CustomerRegistrationWizard } from "@/app/(dashboard)/clientes/_components/customer-registration-wizard";
 import { AppointmentFormSheet } from "@/app/(dashboard)/agenda/_components/appointment-form-sheet";
 
 /**
@@ -24,7 +24,7 @@ export function GlobalCreateSheets() {
         open={openEntity === "store"}
         onOpenChange={(o) => !o && close()}
       />
-      <CustomerFormSheet
+      <CustomerRegistrationWizard
         open={openEntity === "customer"}
         onOpenChange={(o) => !o && close()}
       />

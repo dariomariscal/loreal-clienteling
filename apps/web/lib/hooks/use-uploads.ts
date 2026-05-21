@@ -7,7 +7,7 @@ export interface PresignedUpload {
 }
 
 export interface UploadFolder {
-  folder: "logos" | "products" | "avatars" | "documents";
+  folder: "logos" | "products" | "avatars" | "documents" | "signatures";
 }
 
 /**

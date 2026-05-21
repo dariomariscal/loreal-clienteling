@@ -12,3 +12,5 @@ export * from "./use-customer-detail";
 export * from "./use-appointments";
 export * from "./use-appointment-event-types";
 export * from "./use-communications";
+export * from "./use-privacy-notices";
+export * from "./use-customer-registration";

@@ -12,7 +12,18 @@ import {
   ValidateNested,
   IsObject,
 } from "class-validator";
-import { Type } from "class-transformer";
+import { Type, Transform } from "class-transformer";
+
+/**
+ * Strip every non-digit and the optional Mexican country code so the DB
+ * stores a clean 10-digit string. Validators downstream still enforce length.
+ */
+function normalizeMxPhone(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return raw as undefined;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("52")) return digits.slice(2);
+  return digits;
+}
 import {
   ApiProperty,
   ApiPropertyOptional,
@@ -39,11 +50,12 @@ export class CreateCustomerDto {
   @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ type: String, example: "5551234567", minLength: 10, maxLength: 15 })
+  @ApiPropertyOptional({ type: String, example: "5551234567", minLength: 10, maxLength: 10 })
   @IsOptional()
+  @Transform(({ value }) => normalizeMxPhone(value))
   @IsString()
-  @MinLength(10)
-  @MaxLength(15)
+  @MinLength(10, { message: "El teléfono debe tener 10 dígitos (formato MX)" })
+  @MaxLength(10, { message: "El teléfono debe tener 10 dígitos (formato MX)" })
   phone?: string;
 
   @ApiPropertyOptional({
@@ -187,8 +199,9 @@ export class CheckDuplicateDto {
 
   @ApiPropertyOptional({ type: String, example: "5551234567" })
   @IsOptional()
+  @Transform(({ value }) => normalizeMxPhone(value))
   @IsString()
   @MinLength(10)
-  @MaxLength(15)
+  @MaxLength(10)
   phone?: string;
 }
