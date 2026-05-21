@@ -13,7 +13,6 @@ export interface UpsertBeautyProfile {
 }
 
 export interface CreateShade {
-  beautyProfileId: string;
   category: string;
   brandId: string;
   productId: string;
