@@ -1,12 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomer, useDeleteCustomerArco } from "@/lib/hooks";
 import { can } from "@/lib/permissions";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,45 +16,50 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ProfileSection } from "./profile-section";
+import {
+  Tabs,
+  TabsContent,
+  TabsIndicator,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  TimelineIllustration,
+  NotesIllustration,
+} from "@/components/ui/illustrations";
+import { CustomerProfileHeader } from "./customer-profile-header";
+import { CustomerKpiCards } from "./customer-kpi-cards";
+import {
+  CustomerQuickActions,
+  type QuickActionId,
+} from "./customer-quick-actions";
 import { BeautySection } from "./beauty-section";
 import { PurchasesSection } from "./purchases-section";
 import { RecommendationsSection } from "./recommendations-section";
 import { AppointmentsSection } from "./appointments-section";
-import { CommunicationsSection } from "./communications-section";
-import { ConsentsSection } from "./consents-section";
 
-// ── Label maps ─────────────────────────────────────────────────────
-
-const SEGMENT_LABEL: Record<string, string> = {
-  new: "Nueva",
-  returning: "Recurrente",
-  vip: "VIP",
-  at_risk: "En riesgo",
-};
-
-const SEGMENT_VARIANT: Record<string, "default" | "info" | "success" | "warning"> = {
-  new: "info",
-  returning: "default",
-  vip: "success",
-  at_risk: "warning",
-};
-
-// ── Tabs ───────────────────────────────────────────────────────────
+// ── Tab keys ───────────────────────────────────────────────────────
+// Order matches the spec §3.4. Overview is the default landing tab; Notas
+// is new in this refactor. Consentimientos and Seguimiento moved into the
+// header "⋯ Acciones" menu (out of this surface).
 
 const TABS = [
-  { key: "perfil", label: "Perfil" },
+  { key: "overview", label: "Resumen" },
   { key: "belleza", label: "Belleza" },
   { key: "compras", label: "Compras" },
   { key: "recomendaciones", label: "Recomendaciones" },
   { key: "citas", label: "Citas" },
-  { key: "seguimiento", label: "Seguimiento" },
-  { key: "consentimientos", label: "Consentimientos" },
+  { key: "notas", label: "Notas" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
 
-// ── Component ──────────────────────────────────────────────────────
+const DEFAULT_TAB: TabKey = "overview";
+
+function isTabKey(value: string | null): value is TabKey {
+  return !!value && TABS.some((t) => t.key === value);
+}
 
 interface CustomerDetailPageProps {
   customerId: string;
@@ -70,36 +72,48 @@ export function CustomerDetailPage({
 }: CustomerDetailPageProps) {
   const role = user.role ?? "ba";
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: customer, isLoading } = useCustomer(customerId);
-  const [activeTab, setActiveTab] = useState<TabKey>("perfil");
-  const [showArco, setShowArco] = useState(false);
+
+  // URL-synced active tab — shareable links + browser back/forward.
+  const activeTab: TabKey = React.useMemo(() => {
+    const fromUrl = searchParams.get("tab");
+    return isTabKey(fromUrl) ? fromUrl : DEFAULT_TAB;
+  }, [searchParams]);
+
+  const setActiveTab = React.useCallback(
+    (next: string) => {
+      if (!isTabKey(next)) return;
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === DEFAULT_TAB) params.delete("tab");
+      else params.set("tab", next);
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : "?", { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  // Local UI state — sheets opened from quick actions and the ARCO dialog
+  // are coordinated here so siblings never need to talk to each other.
+  const [_openAction, setOpenAction] = React.useState<QuickActionId | null>(
+    null,
+  );
+  const [showArco, setShowArco] = React.useState(false);
   const deleteArco = useDeleteCustomerArco();
 
+  // ── Loading / not-found ──────────────────────────────────────────
+
   if (isLoading) {
-    return (
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="h-6 w-32 animate-pulse rounded-xl bg-muted" />
-        <div className="h-8 w-64 animate-pulse rounded-xl bg-muted" />
-        <div className="h-4 w-48 animate-pulse rounded-xl bg-muted" />
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   if (!customer) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4">
-        <Link
-          href="/clientes"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Volver a clientes
-        </Link>
+      <div className="mx-auto max-w-5xl space-y-4 py-8">
         <p className="text-sm text-muted-foreground">Cliente no encontrado.</p>
       </div>
     );
   }
-
-  const seg = customer.lifecycleSegment;
 
   function handleArcoDelete(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -116,108 +130,115 @@ export function CustomerDetailPage({
     );
   }
 
+  function handleQuickAction(id: QuickActionId) {
+    // Sprint 1: sheets are stubbed. Each one will own a sheet component in
+    // its respective sprint (2–7). For now, jump to the relevant tab so the
+    // BA can still complete the action via the existing section UI.
+    setOpenAction(id);
+    switch (id) {
+      case "purchase":
+        setActiveTab("compras");
+        break;
+      case "recommend":
+        setActiveTab("recomendaciones");
+        break;
+      case "appointment":
+        setActiveTab("citas");
+        break;
+      case "note":
+        setActiveTab("notas");
+        break;
+      case "message":
+        // Communications tab will return in a later sprint via this surface.
+        // For now no-op; the message sheet is built in Sprint 8.
+        break;
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      {/* Back link */}
-      <Link
-        href="/clientes"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 py-6">
+      <CustomerProfileHeader
+        customer={customer}
+        onOpenActions={
+          can(role, "customer.delete") ? () => setShowArco(true) : undefined
+        }
+      />
+
+      <CustomerKpiCards
+        customerId={customerId}
+        onOpenAppointments={() => setActiveTab("citas")}
+      />
+
+      <CustomerQuickActions onAction={handleQuickAction} />
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          {TABS.map((t) => (
+            <TabsTrigger key={t.key} value={t.key}>
+              {t.label}
+            </TabsTrigger>
+          ))}
+          <TabsIndicator />
+        </TabsList>
+
+        <TabsContent value="overview">
+          <EmptyState
+            illustration={<TimelineIllustration />}
+            title="Resumen disponible próximamente"
+            description="Aquí verás un timeline cronológico con compras, recomendaciones, citas y mensajes."
+          />
+        </TabsContent>
+
+        <TabsContent value="belleza">
+          <BeautySection customerId={customerId} role={role} />
+        </TabsContent>
+
+        <TabsContent value="compras">
+          <PurchasesSection customerId={customerId} />
+        </TabsContent>
+
+        <TabsContent value="recomendaciones">
+          <RecommendationsSection customerId={customerId} />
+        </TabsContent>
+
+        <TabsContent value="citas">
+          <AppointmentsSection customerId={customerId} />
+        </TabsContent>
+
+        <TabsContent value="notas">
+          <EmptyState
+            illustration={<NotesIllustration />}
+            title="Notas disponibles próximamente"
+            description="Captura observaciones rápidas sobre la clienta y vincúlalas a productos cuando aplique."
+          />
+        </TabsContent>
+      </Tabs>
+
+      <Dialog
+        open={showArco}
+        onOpenChange={(open) => !open && setShowArco(false)}
       >
-        <ArrowLeftIcon className="size-3.5" />
-        Clientes
-      </Link>
-
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              {customer.firstName} {customer.lastName}
-            </h1>
-            <Badge variant={SEGMENT_VARIANT[seg] ?? "secondary"} size="sm">
-              {SEGMENT_LABEL[seg] ?? seg}
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Clienta desde{" "}
-            {new Date(customer.customerSince).toLocaleDateString("es-MX", {
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-
-        {can(role, "customer.delete") && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setShowArco(true)}
-          >
-            Derecho ARCO
-          </Button>
-        )}
-      </div>
-
-      {/* Tabs — Zen: subtle active indicator, generous spacing */}
-      <div className="flex gap-1 border-b border-border/50">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={cn(
-              "relative px-3 py-2.5 text-sm font-medium transition-all duration-200",
-              activeTab === tab.key
-                ? "text-foreground"
-                : "text-muted-foreground/60 hover:text-foreground",
-            )}
-          >
-            {tab.label}
-            {activeTab === tab.key && (
-              <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-primary" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {activeTab === "perfil" && (
-        <ProfileSection customer={customer} role={role} />
-      )}
-      {activeTab === "belleza" && (
-        <BeautySection customerId={customerId} role={role} />
-      )}
-      {activeTab === "compras" && (
-        <PurchasesSection customerId={customerId} />
-      )}
-      {activeTab === "recomendaciones" && (
-        <RecommendationsSection customerId={customerId} />
-      )}
-      {activeTab === "citas" && (
-        <AppointmentsSection customerId={customerId} />
-      )}
-      {activeTab === "seguimiento" && (
-        <CommunicationsSection customerId={customerId} />
-      )}
-      {activeTab === "consentimientos" && (
-        <ConsentsSection customerId={customerId} role={role} />
-      )}
-
-      {/* ARCO Dialog */}
-      <Dialog open={showArco} onOpenChange={(open) => !open && setShowArco(false)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Derecho al olvido (ARCO)</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <p className="mb-4 text-sm text-muted-foreground">
-              Esta acción eliminará permanentemente todos los datos personales de{" "}
+              Esta acción eliminará permanentemente todos los datos personales
+              de{" "}
               <strong>
                 {customer.firstName} {customer.lastName}
               </strong>
               . Las métricas agregadas se preservarán de forma anónima. Esta
               acción no se puede deshacer.
             </p>
-            <form id="arco-form" onSubmit={handleArcoDelete} className="space-y-4">
+            <form
+              id="arco-form"
+              onSubmit={handleArcoDelete}
+              className="space-y-4"
+            >
               <div className="space-y-2">
                 <Label htmlFor="requestFolio">Folio de solicitud</Label>
                 <Input
@@ -251,18 +272,28 @@ export function CustomerDetailPage({
   );
 }
 
-function ArrowLeftIcon({ className }: { className?: string }) {
+function ProfileSkeleton() {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M10 3L5 8l5 5" />
-    </svg>
+    <div className="mx-auto max-w-[1100px] space-y-6 py-6">
+      <div className="space-y-3">
+        <div className="h-7 w-20 animate-pulse rounded-md bg-muted" />
+        <div className="flex items-center gap-4">
+          <div className="size-12 animate-pulse rounded-full bg-muted" />
+          <div className="space-y-2">
+            <div className="h-6 w-48 animate-pulse rounded-md bg-muted" />
+            <div className="h-4 w-64 animate-pulse rounded-md bg-muted" />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-24 animate-pulse rounded-xl border border-border bg-muted/30"
+          />
+        ))}
+      </div>
+      <div className="h-10 animate-pulse rounded-md bg-muted" />
+    </div>
   );
 }

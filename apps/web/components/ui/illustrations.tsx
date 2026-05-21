@@ -86,3 +86,70 @@ export function TeamIllustration({ className }: { className?: string }) {
     </svg>
   )
 }
+
+export function TimelineIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 240 180" fill="none" className={className} role="img" aria-label="Actividad">
+      <path d="M60 28v124" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="60" cy="46" r="6" stroke="currentColor" strokeWidth="1.5" fill="currentColor" fillOpacity="0.15" />
+      <circle cx="60" cy="90" r="6" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="60" cy="134" r="6" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="80" y="36" width="120" height="22" rx="4" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="80" y="80" width="100" height="22" rx="4" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="80" y="124" width="80" height="22" rx="4" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M90 47h60M90 91h44M90 135h36" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function NotesIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 240 180" fill="none" className={className} role="img" aria-label="Notas">
+      <path d="M58 32h96l28 28v92a4 4 0 0 1-4 4H58a4 4 0 0 1-4-4V36a4 4 0 0 1 4-4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M154 32v28h28" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M70 82h100M70 100h100M70 118h64" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M150 142l8 8 18-20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function BeautyIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 240 180" fill="none" className={className} role="img" aria-label="Belleza">
+      <path d="M100 30h40v22l16 18v66a4 4 0 0 1-4 4h-64a4 4 0 0 1-4-4V70l16-18V30Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M84 70h72" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="120" cy="108" r="14" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="120" cy="108" r="6" fill="currentColor" opacity="0.2" />
+      <path d="M40 140l16-6M200 140l-16-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+      <path d="M44 96l8 4M196 96l-8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+    </svg>
+  )
+}
+
+export function PurchasesIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 240 180" fill="none" className={className} role="img" aria-label="Compras">
+      <path d="M52 60h136l-10 88a4 4 0 0 1-4 4H66a4 4 0 0 1-4-4l-10-88Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M92 60V44a28 28 0 0 1 56 0v16" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M88 92h64M88 110h44" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+    </svg>
+  )
+}
+
+export function RecommendationsIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 240 180" fill="none" className={className} role="img" aria-label="Recomendaciones">
+      <path d="M120 30l11 28 30 3-22 20 6 30-25-15-25 15 6-30-22-20 30-3 11-28Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M170 116l4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10ZM60 130l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" opacity="0.7" />
+    </svg>
+  )
+}
+
+export function MessageIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 240 180" fill="none" className={className} role="img" aria-label="Mensaje">
+      <path d="M40 50h160a6 6 0 0 1 6 6v68a6 6 0 0 1-6 6h-86l-30 24v-24H40a6 6 0 0 1-6-6V56a6 6 0 0 1 6-6Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M62 80h116M62 100h84" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+    </svg>
+  )
+}
