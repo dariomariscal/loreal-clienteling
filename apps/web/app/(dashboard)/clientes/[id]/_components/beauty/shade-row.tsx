@@ -1,19 +1,12 @@
 "use client";
 
-import type { Product } from "@/lib/hooks";
 import type { Shade } from "@/lib/hooks/use-customer-detail";
 import { cn } from "@/lib/utils";
-import { SHADE_CATEGORY_LABELS, extractHex } from "./constants";
+import { SHADE_CATEGORY_LABELS } from "./constants";
 
-export function ShadeRow({
-  shade,
-  product,
-}: {
-  shade: Shade;
-  product: Product | undefined;
-}) {
+export function ShadeRow({ shade }: { shade: Shade }) {
   const captured = new Date(shade.capturedAt);
-  const swatchHex = extractHex(product?.shadeOptions, shade.shadeCode);
+  const swatchHex = shade.swatchHex;
 
   return (
     <li className="flex items-center gap-3 rounded-xl border border-border/40 bg-background p-3">
@@ -30,11 +23,11 @@ export function ShadeRow({
           {SHADE_CATEGORY_LABELS[shade.category] ?? shade.category}
         </p>
         <p className="truncate font-heading text-[13px] text-foreground">
-          {product?.name ?? shade.shadeCode}
+          {shade.productName ?? shade.shadeCode}
         </p>
         <p className="truncate text-[11px] text-muted-foreground">
           {shade.shadeCode}
-          {product?.brand?.displayName ? ` · ${product.brand.displayName}` : ""}
+          {shade.brandName ? ` · ${shade.brandName}` : ""}
         </p>
       </div>
       <time className="shrink-0 text-[10px] text-muted-foreground/70">

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useBeautyProfile, useProducts } from "@/lib/hooks";
+import { useBeautyProfile } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BeautyIllustration } from "@/components/ui/illustrations";
@@ -34,17 +34,6 @@ interface BeautySectionProps {
 export function BeautySection({ customerId, customerName, role }: BeautySectionProps) {
   const canEdit = can(role, "beauty.edit");
   const { data: profile, isLoading } = useBeautyProfile(customerId);
-  // Look up product/brand for each shade so we render names, not UUIDs.
-  // Skip the 100-row fetch when there are no shades to look up.
-  const hasShades = (profile?.shades?.length ?? 0) > 0;
-  const { data: products = [] } = useProducts(
-    hasShades ? { limit: "100" } : undefined,
-    { enabled: hasShades },
-  );
-  const productMap = React.useMemo(
-    () => new Map(products.map((p) => [p.id, p])),
-    [products],
-  );
 
   const [wizardOpen, setWizardOpen] = React.useState(false);
   const [shadeOpen, setShadeOpen] = React.useState(false);
@@ -234,13 +223,7 @@ export function BeautySection({ customerId, customerName, role }: BeautySectionP
                   new Date(b.capturedAt).getTime() -
                   new Date(a.capturedAt).getTime(),
               )
-              .map((s) => (
-                <ShadeRow
-                  key={s.id}
-                  shade={s}
-                  product={productMap.get(s.productId)}
-                />
-              ))}
+              .map((s) => <ShadeRow key={s.id} shade={s} />)}
           </ul>
         )}
       </section>

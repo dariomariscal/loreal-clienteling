@@ -114,22 +114,3 @@ export function composeHeadline(profile: {
   if (type) return `Piel ${type.toLowerCase()}`;
   return "Perfil de belleza";
 }
-
-// Pull a hex from product.shadeOptions. Same contract as the shade picker:
-// `{ shades: [{ code, hex }] }`. Anything else returns undefined.
-export function extractHex(
-  raw: unknown,
-  shadeCode: string,
-): string | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const shades = (raw as Record<string, unknown>).shades;
-  if (!Array.isArray(shades)) return undefined;
-  for (const s of shades) {
-    if (s && typeof s === "object") {
-      const code = (s as Record<string, unknown>).code;
-      const hex = (s as Record<string, unknown>).hex;
-      if (code === shadeCode && typeof hex === "string") return hex;
-    }
-  }
-  return undefined;
-}

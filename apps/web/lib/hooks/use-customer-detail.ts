@@ -30,6 +30,9 @@ export interface Shade {
   shadeCode: string;
   capturedAt: string;
   capturedByUserId: string;
+  productName: string | null;
+  brandName: string | null;
+  swatchHex: string | null;
 }
 
 export interface Purchase {

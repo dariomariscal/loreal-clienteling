@@ -1,11 +1,32 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { eq, and, type SQL } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { beautyProfiles, beautyProfileShades, products } from "@loreal/database";
+import {
+  beautyProfiles,
+  beautyProfileShades,
+  brands,
+  products,
+} from "@loreal/database";
 import { findMatchingShades } from "@loreal/domain";
 import type { UpsertBeautyProfileDto, CreateShadeDto } from "../../dtos/beauty.dto";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
+
+// Pull a hex from product.shadeOptions. Same contract as the shade picker:
+// `{ shades: [{ code, hex }] }`. Anything else returns undefined.
+function extractShadeHex(raw: unknown, shadeCode: string): string | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const shades = (raw as Record<string, unknown>).shades;
+  if (!Array.isArray(shades)) return undefined;
+  for (const s of shades) {
+    if (s && typeof s === "object") {
+      const code = (s as Record<string, unknown>).code;
+      const hex = (s as Record<string, unknown>).hex;
+      if (code === shadeCode && typeof hex === "string") return hex;
+    }
+  }
+  return undefined;
+}
 
 @Injectable()
 export class BeautyService {
@@ -16,6 +37,7 @@ export class BeautyService {
 
   async findProfile(customerId: string, user?: SessionUser) {
     if (user) await this.scopeService.assertCustomerAccess(customerId, user);
+
     const [profile] = await this.db
       .select()
       .from(beautyProfiles)
@@ -23,10 +45,25 @@ export class BeautyService {
 
     if (!profile) return null;
 
-    const shades = await this.db
-      .select()
+    const shadeRows = await this.db
+      .select({
+        shade: beautyProfileShades,
+        productName: products.name,
+        productShadeOptions: products.shadeOptions,
+        brandName: brands.displayName,
+      })
       .from(beautyProfileShades)
+      .leftJoin(products, eq(beautyProfileShades.productId, products.id))
+      .leftJoin(brands, eq(beautyProfileShades.brandId, brands.id))
       .where(eq(beautyProfileShades.beautyProfileId, profile.id));
+
+    const shades = shadeRows.map((row) => ({
+      ...row.shade,
+      productName: row.productName,
+      brandName: row.brandName,
+      swatchHex:
+        extractShadeHex(row.productShadeOptions, row.shade.shadeCode) ?? null,
+    }));
 
     return { ...profile, shades };
   }
