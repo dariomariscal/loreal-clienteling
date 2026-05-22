@@ -80,6 +80,10 @@ export function AppointmentSheet({
     useAppointmentEventTypes();
   const createAppointment = useCreateAppointment();
 
+  // Reset the form whenever the sheet opens. We intentionally exclude the
+  // picked customer's segment from the dep array — when the BA picks a
+  // client, that would re-fire this effect and clear the selection. The
+  // VIP default is recomputed in a separate effect below.
   React.useEffect(() => {
     if (!open) return;
     setPickedCustomer(null);
@@ -92,18 +96,21 @@ export function AppointmentSheet({
     setIsVirtual(false);
     setComments("");
     createAppointment.reset();
-
-    if (eventTypes.length > 0) {
-      const vipFirst =
-        customerSegment === "vip"
-          ? eventTypes.find((t) => t.code === "vip_cabin")
-          : undefined;
-      setEventTypeId(vipFirst?.id ?? null);
-    } else {
-      setEventTypeId(null);
-    }
+    setEventTypeId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, customerSegment, eventTypes.length, defaultStartsAt]);
+  }, [open, defaultStartsAt]);
+
+  // Default to VIP cabin once we know the customer is VIP and the event
+  // types have loaded. Runs separately so picking a client doesn't reset
+  // the rest of the form.
+  React.useEffect(() => {
+    if (!open || eventTypes.length === 0) return;
+    if (eventTypeId !== null) return;
+    if (customerSegment !== "vip") return;
+    const vipFirst = eventTypes.find((t) => t.code === "vip_cabin");
+    if (vipFirst) setEventTypeId(vipFirst.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, customerSegment, eventTypes.length]);
 
   const selectedType = React.useMemo(
     () => eventTypes.find((t) => t.id === eventTypeId) ?? null,
@@ -208,7 +215,10 @@ export function AppointmentSheet({
                   onChange={() => setPickedCustomer(null)}
                 />
               ) : (
-                <CustomerPicker onPick={setPickedCustomer} />
+                <CustomerPicker
+                  baUserId={baUserId}
+                  onPick={setPickedCustomer}
+                />
               )}
             </Step>
           )}
