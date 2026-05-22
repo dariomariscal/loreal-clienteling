@@ -10,18 +10,23 @@ import type {
 @Injectable()
 export class DeepgramProvider implements TranscriptionProvider {
   private readonly logger = new Logger(DeepgramProvider.name);
-  private readonly client: DeepgramClient;
+  private clientInstance: DeepgramClient | null = null;
   private readonly defaultModel: string;
   private readonly defaultLanguage: string;
 
   constructor(private readonly config: ConfigService) {
-    const apiKey = config.get<string>("DEEPGRAM_API_KEY");
+    this.defaultModel = config.get<string>("DEEPGRAM_MODEL") ?? "nova-3";
+    this.defaultLanguage = config.get<string>("DEEPGRAM_LANGUAGE") ?? "es";
+  }
+
+  private get client(): DeepgramClient {
+    if (this.clientInstance) return this.clientInstance;
+    const apiKey = this.config.get<string>("DEEPGRAM_API_KEY");
     if (!apiKey) {
       throw new Error("DEEPGRAM_API_KEY is not configured");
     }
-    this.client = createClient(apiKey);
-    this.defaultModel = config.get<string>("DEEPGRAM_MODEL") ?? "nova-3";
-    this.defaultLanguage = config.get<string>("DEEPGRAM_LANGUAGE") ?? "es";
+    this.clientInstance = createClient(apiKey);
+    return this.clientInstance;
   }
 
   async transcribe(options: TranscriptionOptions): Promise<TranscriptionResult> {

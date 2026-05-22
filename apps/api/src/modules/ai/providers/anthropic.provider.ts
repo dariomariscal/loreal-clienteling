@@ -11,17 +11,22 @@ import type {
 @Injectable()
 export class AnthropicProvider implements LlmProvider {
   private readonly logger = new Logger(AnthropicProvider.name);
-  private readonly client: Anthropic;
+  private clientInstance: Anthropic | null = null;
   private readonly defaultModel: string;
 
   constructor(private readonly config: ConfigService) {
-    const apiKey = config.get<string>("ANTHROPIC_API_KEY");
-    if (!apiKey) {
-      throw new Error("ANTHROPIC_API_KEY is not configured");
-    }
-    this.client = new Anthropic({ apiKey });
     this.defaultModel =
       config.get<string>("ANTHROPIC_SUMMARY_MODEL") ?? "claude-sonnet-4-5-20250929";
+  }
+
+  private get client(): Anthropic {
+    if (this.clientInstance) return this.clientInstance;
+    const apiKey = this.config.get<string>("ANTHROPIC_API_KEY");
+    if (!apiKey || apiKey === "sk-ant-your-key-here") {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
+    }
+    this.clientInstance = new Anthropic({ apiKey });
+    return this.clientInstance;
   }
 
   async generate(options: LlmGenerateOptions): Promise<LlmGenerateResult> {

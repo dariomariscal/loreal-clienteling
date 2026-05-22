@@ -17,18 +17,23 @@ const TEXT_EMBEDDING_3_SMALL_DIMENSIONS = 1536;
 @Injectable()
 export class OpenAiEmbeddingsProvider implements EmbeddingsProvider {
   private readonly logger = new Logger(OpenAiEmbeddingsProvider.name);
-  private readonly client: OpenAI;
+  private clientInstance: OpenAI | null = null;
   private readonly model: string;
   readonly dimensions: number = TEXT_EMBEDDING_3_SMALL_DIMENSIONS;
 
   constructor(private readonly config: ConfigService) {
-    const apiKey = config.get<string>("OPENAI_API_KEY");
+    this.model =
+      config.get<string>("OPENAI_EMBEDDING_MODEL") ?? "text-embedding-3-small";
+  }
+
+  private get client(): OpenAI {
+    if (this.clientInstance) return this.clientInstance;
+    const apiKey = this.config.get<string>("OPENAI_API_KEY");
     if (!apiKey) {
       throw new Error("OPENAI_API_KEY is not configured");
     }
-    this.client = new OpenAI({ apiKey });
-    this.model =
-      config.get<string>("OPENAI_EMBEDDING_MODEL") ?? "text-embedding-3-small";
+    this.clientInstance = new OpenAI({ apiKey });
+    return this.clientInstance;
   }
 
   async embed(options: EmbedOptions): Promise<EmbedResult> {
