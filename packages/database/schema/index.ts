@@ -22,3 +22,14 @@ export { consents } from "./consents";
 export { privacyNotices } from "./privacy-notices";
 export { auditLogs } from "./audit-logs";
 export { customerNotes } from "./customer-notes";
+
+// AI tables — vector embeddings, cached summaries, daily opportunity queue,
+// voice transcription audit log and cross-cutting AI usage telemetry. Kept at
+// the bottom to avoid circular imports with the entities they reference.
+export { customerEmbeddings } from "./customer-embeddings";
+export { customerNoteEmbeddings } from "./customer-note-embeddings";
+export { productEmbeddings } from "./product-embeddings";
+export { customerAiSummaries } from "./customer-ai-summaries";
+export { customerOpportunities } from "./customer-opportunities";
+export { voiceTranscriptions } from "./voice-transcriptions";
+export { aiUsageLogs } from "./ai-usage-logs";

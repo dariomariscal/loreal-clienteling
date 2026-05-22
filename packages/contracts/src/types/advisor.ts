@@ -43,7 +43,8 @@ export interface TodayPendingFollowup {
   id: string;
   customerId: string;
   customerName: string;
-  followupType: string;
+  /** Null for inbound messages — they're not campaign follow-ups. */
+  followupType: string | null;
   body: string;
   channel: string;
   sentAt: string;

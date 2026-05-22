@@ -48,36 +48,47 @@ export class CommunicationsService {
   }
 
   async create(data: CreateCommunicationDto, user: SessionUser) {
-    // Verify consent before sending
-    const hasConsent = await this.consentsService.hasActiveConsent(
-      data.customerId,
-      data.channel,
-    );
-    if (!hasConsent) {
-      throw new ForbiddenException(
-        `Customer has not consented to ${data.channel} communications`,
+    const direction = data.direction ?? "outbound";
+    const isOutbound = direction === "outbound";
+
+    // Outbound messages must respect marketing consent. Inbound messages are
+    // always logged (the customer reached out — they're already engaging).
+    if (isOutbound) {
+      const hasConsent = await this.consentsService.hasActiveConsent(
+        data.customerId,
+        data.channel,
       );
+      if (!hasConsent) {
+        throw new ForbiddenException(
+          `Customer has not consented to ${data.channel} communications`,
+        );
+      }
     }
 
     const [comm] = await this.db
       .insert(communications)
       .values({
         customerId: data.customerId,
-        sentByUserId: user.id,
+        sentByUserId: isOutbound ? user.id : null,
+        direction,
         channel: data.channel,
+        status: data.status ?? (isOutbound ? "sent" : "received"),
+        fromAddress: data.fromAddress,
+        toAddress: data.toAddress,
+        externalId: data.externalId,
         templateId: data.templateId,
         subject: data.subject,
         body: data.body,
-        followupType: data.followupType,
+        followupType: isOutbound ? data.followupType : undefined,
       })
       .returning();
 
     await this.auditService.log(
       user,
-      "communication_sent",
+      isOutbound ? "communication_sent" : "communication_received",
       "communication",
       comm.id,
-      { channel: data.channel, customerId: data.customerId },
+      { channel: data.channel, customerId: data.customerId, direction },
     );
 
     return comm;

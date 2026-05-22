@@ -47,6 +47,13 @@ async function main() {
   const db = drizzle(pool);
 
   try {
+    // Extensions used by the schema. Enabled before drizzle migrations so any
+    // table that depends on `vector(...)` columns can be created in the same
+    // transaction batch. postgis is enabled here as well for the same reason —
+    // municipalities/stores use geometry columns.
+    await pool.query("CREATE EXTENSION IF NOT EXISTS postgis");
+    await pool.query("CREATE EXTENSION IF NOT EXISTS vector");
+
     await migrate(db, { migrationsFolder: path.resolve(__dirname, "migrations") });
     console.log("✓ Migrations applied");
   } finally {

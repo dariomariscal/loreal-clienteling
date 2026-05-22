@@ -37,3 +37,39 @@ export {
   type SearchRankingInput,
   type RankedSearchResult,
 } from "./search/rank-customer-search-results";
+
+// AI — pure prompt builders, parsers and selectors. Framework-free so they
+// can be unit-tested without an LLM, a network or a database.
+export {
+  buildCustomerSummaryPrompt,
+  CUSTOMER_SUMMARY_PROMPT_VERSION,
+  type CustomerSummaryPrompt,
+} from "./ai-prompts/build-customer-summary-prompt";
+
+export {
+  buildNoteExtractionPrompt,
+  NOTE_EXTRACTION_PROMPT_VERSION,
+  type NoteExtractionPrompt,
+} from "./ai-prompts/build-note-extraction-prompt";
+
+export {
+  buildMessageSuggestionPrompt,
+  MESSAGE_SUGGESTION_PROMPT_VERSION,
+  type MessageSuggestionPrompt,
+} from "./ai-prompts/build-message-suggestion-prompt";
+
+export {
+  parseExtractedNote,
+  type ParseExtractedNoteResult,
+} from "./ai-extraction/parse-extracted-note";
+
+export {
+  selectDailyOpportunities,
+  type SelectedOpportunity,
+  type SelectDailyOpportunitiesInput,
+} from "./daily-opportunities/select-daily-opportunities";
+
+export {
+  rankSemanticSearchResults,
+  type RankSemanticSearchInput,
+} from "./semantic-search/rank-semantic-search-results";

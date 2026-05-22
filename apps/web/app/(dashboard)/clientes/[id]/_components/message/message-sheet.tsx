@@ -9,6 +9,7 @@ import {
   type MessageTemplate,
   type Product,
 } from "@/lib/hooks";
+import type { FollowupType } from "@loreal/contracts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,7 +55,7 @@ export function MessageSheet({
   const [channel, setChannel] = React.useState<ChannelValue>("whatsapp");
   const [body, setBody] = React.useState("");
   const [subject, setSubject] = React.useState("");
-  const [followupType, setFollowupType] = React.useState<string>("custom");
+  const [followupType, setFollowupType] = React.useState<FollowupType>("custom");
   const [attachments, setAttachments] = React.useState<Product[]>([]);
   const [pickerOpen, setPickerOpen] = React.useState(false);
 
@@ -123,7 +124,7 @@ export function MessageSheet({
 
   function applyTemplate(t: MessageTemplate) {
     setBody(t.body);
-    setFollowupType(t.followupType);
+    setFollowupType(t.followupType as FollowupType);
   }
 
   function handleSend() {

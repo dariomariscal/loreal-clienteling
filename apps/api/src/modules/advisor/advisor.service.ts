@@ -9,67 +9,34 @@ import {
 } from "@loreal/database";
 import { ScopeService } from "../../common/services/scope.service";
 import type { SessionUser } from "../../common/types/session";
+import type {
+  TodayAppointment,
+  TodayCustomerRef,
+  TodayBirthday,
+  TodayAtRiskCustomer,
+  TodayNewCustomer,
+  TodayPendingFollowup,
+  AdvisorToday,
+} from "@loreal/contracts";
 
 const BIRTHDAY_WINDOW_DAYS = 7;
 const AT_RISK_LIMIT = 10;
 const NEW_CUSTOMERS_LIMIT = 10;
 const PENDING_FOLLOWUPS_LIMIT = 20;
 
-export interface TodayAppointment {
-  id: string;
-  scheduledAt: string;
-  durationMinutes: number;
-  status: string;
-  isVirtual: boolean;
-  eventTypeId: string;
-  eventTypeName: string | null;
-  eventTypeColor: string | null;
-  customerId: string;
-  customerName: string;
-  customerPhone: string | null;
-  customerSegment: string | null;
-}
+// Re-export so the controller (and any future consumer in this app) can keep
+// importing from the service file. The single source of truth lives in
+// @loreal/contracts; we just surface the names locally.
+export type {
+  TodayAppointment,
+  TodayCustomerRef,
+  TodayBirthday,
+  TodayAtRiskCustomer,
+  TodayNewCustomer,
+  TodayPendingFollowup,
+};
 
-export interface TodayCustomerRef {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phone: string | null;
-  email: string | null;
-  lifecycleSegment: string;
-}
-
-export interface TodayBirthday extends TodayCustomerRef {
-  birthDate: string;
-  daysUntil: number;
-}
-
-export interface TodayAtRiskCustomer extends TodayCustomerRef {
-  lastTransactionAt: string | null;
-  daysSinceLastPurchase: number | null;
-}
-
-export interface TodayNewCustomer extends TodayCustomerRef {
-  customerSince: string;
-}
-
-export interface TodayPendingFollowup {
-  id: string;
-  customerId: string;
-  customerName: string;
-  followupType: string;
-  body: string;
-  channel: string;
-  sentAt: string;
-}
-
-export interface TodayPayload {
-  appointmentsToday: TodayAppointment[];
-  upcomingBirthdays: TodayBirthday[];
-  atRiskCustomers: TodayAtRiskCustomer[];
-  newCustomersThisWeek: TodayNewCustomer[];
-  pendingFollowups: TodayPendingFollowup[];
-}
+export type TodayPayload = AdvisorToday;
 
 @Injectable()
 export class AdvisorService {

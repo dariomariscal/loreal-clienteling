@@ -455,7 +455,7 @@ function formatDaysUntil(days: number): string {
   return `En ${days} días`;
 }
 
-function followupGlyph(type: string): GlyphComponent {
+function followupGlyph(type: string | null): GlyphComponent {
   switch (type) {
     case "birthday":
       return FollowupBirthdayGlyph;

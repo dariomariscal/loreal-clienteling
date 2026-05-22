@@ -31,3 +31,31 @@ export const multiPolygon = customType<{
     return "geometry(MultiPolygon, 4326)";
   },
 });
+
+/**
+ * pgvector column. Stores high-dimensional embeddings produced by an embedding
+ * model (e.g. OpenAI text-embedding-3-small → 1536 dims). The extension itself
+ * must be enabled at the database level: `CREATE EXTENSION IF NOT EXISTS vector`.
+ *
+ * Driver representation is the string form `[0.123,0.456,...]` that pgvector
+ * accepts on the wire; the app layer always works with `number[]`.
+ */
+export const vector = customType<{
+  data: number[];
+  driverData: string;
+  config: { dimensions: number };
+  configRequired: true;
+}>({
+  dataType(config) {
+    return `vector(${config.dimensions})`;
+  },
+  toDriver(value) {
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value) {
+    if (typeof value === "string") {
+      return JSON.parse(value) as number[];
+    }
+    return value as number[];
+  },
+});

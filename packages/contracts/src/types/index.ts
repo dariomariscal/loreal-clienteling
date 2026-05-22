@@ -17,3 +17,8 @@ export * from "./consents";
 export * from "./samples";
 export * from "./users";
 export * from "./advisor";
+export * from "./customer-ai-summary";
+export * from "./customer-opportunity";
+export * from "./note-extraction";
+export * from "./semantic-search";
+export * from "./message-suggestion";

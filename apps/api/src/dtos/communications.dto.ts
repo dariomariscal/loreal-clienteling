@@ -9,7 +9,12 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-import { COMMUNICATION_CHANNELS, FOLLOWUP_TYPES } from "@loreal/contracts";
+import {
+  COMMUNICATION_CHANNELS,
+  FOLLOWUP_TYPES,
+  MESSAGE_DIRECTIONS,
+  MESSAGE_STATUSES,
+} from "@loreal/contracts";
 
 export class CreateCommunicationDto {
   @ApiProperty({ type: String, format: "uuid" })
@@ -19,6 +24,44 @@ export class CreateCommunicationDto {
   @ApiProperty({ type: String, enum: COMMUNICATION_CHANNELS, example: "whatsapp" })
   @IsIn(COMMUNICATION_CHANNELS)
   channel: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    enum: MESSAGE_DIRECTIONS,
+    default: "outbound",
+    description:
+      "outbound = sent by the BA (default); inbound = received from the customer via provider webhook.",
+  })
+  @IsOptional()
+  @IsIn(MESSAGE_DIRECTIONS)
+  direction?: string;
+
+  @ApiPropertyOptional({ type: String, enum: MESSAGE_STATUSES })
+  @IsOptional()
+  @IsIn(MESSAGE_STATUSES)
+  status?: string;
+
+  @ApiPropertyOptional({ type: String, maxLength: 320 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
+  fromAddress?: string;
+
+  @ApiPropertyOptional({ type: String, maxLength: 320 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
+  toAddress?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    maxLength: 128,
+    description: "Provider message id (Twilio SID, WhatsApp wamid). Used for idempotency.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  externalId?: string;
 
   @ApiPropertyOptional({ type: String, format: "uuid" })
   @IsOptional()
@@ -37,9 +80,15 @@ export class CreateCommunicationDto {
   @MaxLength(5000)
   body: string;
 
-  @ApiProperty({ type: String, enum: FOLLOWUP_TYPES, example: "3_months" })
+  @ApiPropertyOptional({
+    type: String,
+    enum: FOLLOWUP_TYPES,
+    example: "3_months",
+    description: "Required for outbound campaign messages; omitted for inbound.",
+  })
+  @IsOptional()
   @IsIn(FOLLOWUP_TYPES)
-  followupType: string;
+  followupType?: string;
 }
 
 export class CreateTemplateDto {

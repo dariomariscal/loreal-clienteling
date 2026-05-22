@@ -27,6 +27,7 @@ import { SchedulerModule } from "./modules/scheduler/scheduler.module";
 import { AdvisorModule } from "./modules/advisor/advisor.module";
 import { UsersModule } from "./modules/users/users.module";
 import { UploadsModule } from "./modules/uploads/uploads.module";
+import { AiModule } from "./modules/ai/ai.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -62,6 +63,7 @@ import { HealthController } from "./health.controller";
     AdvisorModule,
     UsersModule,
     UploadsModule,
+    AiModule,
   ],
   controllers: [HealthController],
 })
