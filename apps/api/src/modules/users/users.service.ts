@@ -306,11 +306,17 @@ export class UsersService {
       .set({ fullName })
       .where(eq(users.id, user.id));
 
+    // CRITICAL: `clerk.users.updateUser({ publicMetadata })` REPLACES the
+    // whole metadata object, it does not merge. Without spreading the
+    // existing values we'd wipe out role/storeId/zoneId/brandId — which
+    // would then propagate back through the user.updated webhook and
+    // strand the user with no scope. Read-modify-write here.
     const [firstName, ...rest] = fullName.split(/\s+/);
+    const existing = await this.clerk.users.getUser(user.id);
     await this.clerk.users.updateUser(user.id, {
       firstName,
       lastName: rest.join(" ") || undefined,
-      publicMetadata: { fullName },
+      publicMetadata: { ...existing.publicMetadata, fullName },
     });
 
     await this.auditService.log(user, "user_self_updated", "user", user.id, {
@@ -348,21 +354,36 @@ export class UsersService {
     await this.db.update(users).set(updateValues).where(eq(users.id, id));
 
     // Mirror business fields onto Clerk so the JWT carries the latest values.
+    // `updateUser({ publicMetadata })` REPLACES the metadata object — we have
+    // to spread the existing one in or any field not in `metadataPatch` (e.g.
+    // invitationStatus, invitedByUserId) gets wiped, then propagated back
+    // through the user.updated webhook as nulls.
     const metadataPatch: Record<string, unknown> = {};
     for (const key of ["role", "storeId", "zoneId", "brandId", "active", "fullName"] as const) {
       if (data[key] !== undefined) metadataPatch[key] = data[key];
     }
-    if (Object.keys(metadataPatch).length > 0) {
-      await this.clerk.users.updateUser(id, {
-        publicMetadata: { ...metadataPatch },
-      });
-    }
-    if (data.fullName !== undefined) {
-      const [firstName, ...rest] = data.fullName.split(" ");
-      await this.clerk.users.updateUser(id, {
-        firstName,
-        lastName: rest.join(" ") || undefined,
-      });
+    const needsMetadataPatch = Object.keys(metadataPatch).length > 0;
+    const needsNameUpdate = data.fullName !== undefined;
+
+    if (needsMetadataPatch || needsNameUpdate) {
+      const existing = await this.clerk.users.getUser(id);
+      const updatePayload: {
+        firstName?: string;
+        lastName?: string;
+        publicMetadata?: Record<string, unknown>;
+      } = {};
+      if (needsMetadataPatch) {
+        updatePayload.publicMetadata = {
+          ...existing.publicMetadata,
+          ...metadataPatch,
+        };
+      }
+      if (needsNameUpdate) {
+        const [firstName, ...rest] = (data.fullName ?? "").split(" ");
+        updatePayload.firstName = firstName;
+        updatePayload.lastName = rest.join(" ") || undefined;
+      }
+      await this.clerk.users.updateUser(id, updatePayload);
     }
 
     await this.auditService.log(updatedBy, "user_updated", "user", id, updateValues);

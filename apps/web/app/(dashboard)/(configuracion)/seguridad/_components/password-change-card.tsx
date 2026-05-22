@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useUser } from "@clerk/nextjs";
-import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
+import { useRef, useState } from "react";
+import { useReverification, useSession, useUser } from "@clerk/nextjs";
+import {
+  isClerkAPIResponseError,
+  isReverificationCancelledError,
+} from "@clerk/nextjs/errors";
+import type { SessionVerificationLevel } from "@clerk/types";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +37,13 @@ import {
   getFieldError,
   getGlobalError,
 } from "@/lib/auth/clerk-errors";
+import { ReverificationDialog } from "./reverification-dialog";
+
+type ReverificationState = {
+  level: SessionVerificationLevel | undefined;
+  complete: () => void;
+  cancel: () => void;
+};
 
 const schema = z
   .object({
@@ -56,8 +67,54 @@ type Values = z.infer<typeof schema>;
 
 export function PasswordChangeCard() {
   const { isLoaded, user } = useUser();
+  const { session } = useSession();
   const [success, setSuccess] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [reverification, setReverification] =
+    useState<ReverificationState | null>(null);
+
+  // Captured at submit-time so the reverification callback can verify the
+  // user silently using the password they just typed in the form. Cleared
+  // when the flow ends (success, error, or cancel) so it never lingers.
+  const currentPasswordRef = useRef<string | null>(null);
+
+  // Wrap `user.updatePassword` with Clerk's reverification hook. When Clerk
+  // sends back `session_reverification_required` we first try to verify
+  // silently using the password the user already entered above — if that
+  // works, `complete()` retries the mutation and the dialog never appears.
+  // If silent reverify fails (wrong password, level we don't support, …),
+  // we fall back to opening the custom dialog with the cancel/complete
+  // handles still wired up.
+  const updatePasswordReverified = useReverification(
+    (params: Parameters<NonNullable<typeof user>["updatePassword"]>[0]) =>
+      user?.updatePassword(params),
+    {
+      onNeedsReverification: async ({ complete, cancel, level }) => {
+        const password = currentPasswordRef.current;
+
+        if (session && password && (level === "first_factor" || !level)) {
+          try {
+            await session.startVerification({ level: "first_factor" });
+            const result = await session.attemptFirstFactorVerification({
+              strategy: "password",
+              password,
+            });
+            if (result.status === "complete") {
+              complete();
+              return;
+            }
+          } catch {
+            // Fall through to the dialog. Don't surface the error yet —
+            // the dialog will let the user retry with a fresh entry.
+          }
+        }
+
+        // Silent path didn't apply or failed — open the dialog so the user
+        // can confirm their password manually.
+        setReverification({ complete, cancel, level });
+      },
+    },
+  );
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -92,9 +149,10 @@ export function PasswordChangeCard() {
     if (!user) return;
     setGlobalError(null);
     setSuccess(false);
+    currentPasswordRef.current = values.currentPassword;
 
     try {
-      await user.updatePassword({
+      await updatePasswordReverified({
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
         signOutOfOtherSessions: values.signOutOfOtherSessions,
@@ -107,6 +165,10 @@ export function PasswordChangeCard() {
       });
       setSuccess(true);
     } catch (err) {
+      // The user closed the reverification dialog — no need to flash an
+      // error, they explicitly cancelled.
+      if (isReverificationCancelledError(err)) return;
+
       if (isClerkAPIResponseError(err)) {
         const currentErr = getFieldError(err.errors, "current_password");
         const newErr = getFieldError(err.errors, "new_password") ??
@@ -123,12 +185,15 @@ export function PasswordChangeCard() {
       } else {
         setGlobalError("No se pudo cambiar la contraseña. Intenta de nuevo.");
       }
+    } finally {
+      currentPasswordRef.current = null;
     }
   }
 
   const { isSubmitting } = form.formState;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Contraseña</CardTitle>
@@ -243,6 +308,11 @@ export function PasswordChangeCard() {
         </form>
       </Form>
     </Card>
+    <ReverificationDialog
+      state={reverification}
+      onClose={() => setReverification(null)}
+    />
+    </>
   );
 }
 
