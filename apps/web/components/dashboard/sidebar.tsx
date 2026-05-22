@@ -32,6 +32,7 @@ interface SidebarProps {
     fullName?: string | null;
     role?: string | null;
     brandId?: string | null;
+    imageUrl?: string | null;
   };
 }
 
@@ -231,18 +232,61 @@ function SidebarContent({ user }: SidebarProps) {
       <div className="border-t border-sidebar-border/50 px-3 py-3">
         <div className={cn(
           "flex items-center rounded-xl",
-          collapsed ? "justify-center py-1.5" : "gap-2.5 px-2.5 py-2"
+          collapsed ? "justify-center py-1.5" : "gap-2.5 px-1 py-1"
         )}>
-          <Avatar name={user.fullName ?? "?"} size="sm" />
-          {!collapsed && (
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              <span className="truncate text-xs font-medium text-sidebar-foreground">
-                {user.fullName}
-              </span>
-              <span className="truncate text-[10px] text-sidebar-foreground/40">
-                {ROLE_LABELS[role] ?? role}
-              </span>
-            </div>
+          {/* Avatar + name → "Mi perfil". The whole identity strip is the
+              affordance because that matches how Linear/Notion/Vercel handle
+              it: the user chip in the footer IS the profile entry point. */}
+          {collapsed ? (
+            <Tooltip.Provider>
+              <Tooltip.Root>
+                <Tooltip.Trigger
+                  render={
+                    <Link
+                      href="/perfil"
+                      aria-label="Mi perfil"
+                      className="flex items-center justify-center rounded-lg p-1.5 transition-colors duration-200 hover:bg-sidebar-accent"
+                    >
+                      <Avatar
+                        name={user.fullName ?? "?"}
+                        src={user.imageUrl ?? undefined}
+                        size="sm"
+                      />
+                    </Link>
+                  }
+                />
+                <Tooltip.Portal>
+                  <Tooltip.Positioner side="right" sideOffset={10}>
+                    <Tooltip.Popup className="rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-background shadow-lg">
+                      Mi perfil
+                    </Tooltip.Popup>
+                  </Tooltip.Positioner>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          ) : (
+            <Link
+              href="/perfil"
+              aria-label="Mi perfil"
+              className={cn(
+                "group flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-colors duration-200 hover:bg-sidebar-accent/60",
+                pathname.startsWith("/perfil") && "bg-sidebar-accent",
+              )}
+            >
+              <Avatar
+                name={user.fullName ?? "?"}
+                src={user.imageUrl ?? undefined}
+                size="sm"
+              />
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                <span className="truncate text-xs font-medium text-sidebar-foreground">
+                  {user.fullName}
+                </span>
+                <span className="truncate text-[10px] text-sidebar-foreground/40">
+                  {ROLE_LABELS[role] ?? role}
+                </span>
+              </div>
+            </Link>
           )}
           {!collapsed && (
             <button

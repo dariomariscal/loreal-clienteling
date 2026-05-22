@@ -5,6 +5,7 @@ export interface SessionUser {
   id: string;
   email: string;
   fullName: string;
+  imageUrl: string | null;
   role: UserRole;
   storeId: string | null;
   zoneId: string | null;
@@ -40,6 +41,7 @@ export async function getSession(): Promise<Session | null> {
       id: userId,
       email,
       fullName,
+      imageUrl: user.imageUrl ?? null,
       role: meta.role ?? "ba",
       storeId: meta.storeId ?? null,
       zoneId: meta.zoneId ?? null,

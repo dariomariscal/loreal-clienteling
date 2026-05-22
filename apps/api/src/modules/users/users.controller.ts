@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../auth/decorators/current-user.decorator";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import type { SessionUser } from "../../common/types/session";
-import { CreateUserDto } from "../../dtos/users.dto";
+import { CreateUserDto, UpdateMeDto } from "../../dtos/users.dto";
 import { UsersService } from "./users.service";
 
 @ApiTags("Users")
@@ -56,6 +56,22 @@ export class UsersController {
       page: page ? parseInt(page) : undefined,
       limit: limit ? parseInt(limit) : undefined,
     });
+  }
+
+  /**
+   * Self-profile endpoints. Any authenticated user can read and partially
+   * update their own profile. Declared above `:id` so the static "me" path
+   * is matched before the wildcard.
+   */
+  @Get("me")
+  getMe(@CurrentUser() user: SessionUser) {
+    return this.usersService.findOne(user.id);
+  }
+
+  @Patch("me")
+  @ApiBody({ type: UpdateMeDto })
+  updateMe(@Body() body: UpdateMeDto, @CurrentUser() user: SessionUser) {
+    return this.usersService.updateSelf(user, body);
   }
 
   @Get(":id")

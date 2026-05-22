@@ -50,6 +50,20 @@ export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ["email"] as const),
 ) {}
 
+/**
+ * Self-service payload — the only field a user is allowed to change about
+ * themselves through the API. Avatar and password are mutated via Clerk
+ * directly from the client SDK (their changes flow back through webhooks).
+ */
+export class UpdateMeDto {
+  @ApiPropertyOptional({ type: String, example: "María López", minLength: 1, maxLength: 200 })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  fullName?: string;
+}
+
 export class LoginDto {
   @ApiProperty({ type: String, example: "user@loreal.com" })
   @IsEmail()

@@ -121,6 +121,7 @@ export class UsersService {
         id: users.id,
         email: users.email,
         fullName: users.fullName,
+        imageUrl: users.imageUrl,
         role: users.role,
         storeId: users.storeId,
         storeName: stores.displayName,
@@ -152,6 +153,7 @@ export class UsersService {
         id: users.id,
         email: users.email,
         fullName: users.fullName,
+        imageUrl: users.imageUrl,
         role: users.role,
         storeId: users.storeId,
         storeName: stores.displayName,
@@ -285,6 +287,37 @@ export class UsersService {
       role: data.role,
       password,
     };
+  }
+
+  /**
+   * Self-service profile update. The caller can only edit their own
+   * `fullName` — role/scope/active are admin-only and email is immutable.
+   * Avatar and password go through Clerk's client SDK directly (the
+   * `user.updated` webhook propagates the new imageUrl back to this mirror).
+   */
+  async updateSelf(user: SessionUser, data: { fullName?: string }) {
+    if (!data.fullName) return this.findOne(user.id);
+
+    const fullName = data.fullName.trim();
+    if (!fullName) throw new ConflictException("El nombre no puede estar vacío");
+
+    await this.db
+      .update(users)
+      .set({ fullName })
+      .where(eq(users.id, user.id));
+
+    const [firstName, ...rest] = fullName.split(/\s+/);
+    await this.clerk.users.updateUser(user.id, {
+      firstName,
+      lastName: rest.join(" ") || undefined,
+      publicMetadata: { fullName },
+    });
+
+    await this.auditService.log(user, "user_self_updated", "user", user.id, {
+      fullName,
+    });
+
+    return this.findOne(user.id);
   }
 
   async update(id: string, data: UpdateUserData, updatedBy: SessionUser) {
