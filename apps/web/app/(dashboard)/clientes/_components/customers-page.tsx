@@ -177,7 +177,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
           always show it; BAs see "Mi cartera" by default, managers see
           "Tienda". The toggle is suppressed while a search is active
           since search hits the global index already. */}
-      {!showEmptyState && !isSearching && (
+      {role === "ba" && !showEmptyState && !isSearching && (
         <CartViewToggle
           value={view}
           onChange={(v) => {

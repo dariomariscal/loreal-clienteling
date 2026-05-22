@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 interface NotesSectionProps {
   customerId: string;
-  onNewNote: () => void;
+  onNewNote?: () => void;
 }
 
 export function NotesSection({ customerId, onNewNote }: NotesSectionProps) {
@@ -40,10 +40,12 @@ export function NotesSection({ customerId, onNewNote }: NotesSectionProps) {
         title="Sin notas aún"
         description="Captura observaciones rápidas sobre la clienta — preferencias, alergias, eventos."
         action={
-          <Button onClick={onNewNote}>
-            <PlusIcon className="size-3.5" />
-            Nueva nota
-          </Button>
+          onNewNote ? (
+            <Button onClick={onNewNote}>
+              <PlusIcon className="size-3.5" />
+              Nueva nota
+            </Button>
+          ) : undefined
         }
       />
     );
@@ -55,10 +57,12 @@ export function NotesSection({ customerId, onNewNote }: NotesSectionProps) {
         <p className="text-sm text-muted-foreground">
           {notes.length} {notes.length === 1 ? "nota" : "notas"}
         </p>
-        <Button size="sm" onClick={onNewNote}>
-          <PlusIcon className="size-3.5" />
-          Nueva
-        </Button>
+        {onNewNote && (
+          <Button size="sm" onClick={onNewNote}>
+            <PlusIcon className="size-3.5" />
+            Nueva
+          </Button>
+        )}
       </div>
 
       <ul className="space-y-2.5">

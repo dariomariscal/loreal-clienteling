@@ -29,16 +29,16 @@ import {
   CustomerQuickActions,
   type QuickActionId,
 } from "./customer-quick-actions";
-import { BeautySection } from "./beauty-section";
+import { BeautySection } from "./beauty/beauty-section";
 import { PurchasesSection } from "./purchases-section";
 import { RecommendationsSection } from "./recommendations-section";
 import { AppointmentsSection } from "./appointments-section";
 import { NotesSection } from "./notes-section";
 import { NoteSheet } from "./note-sheet";
-import { PurchaseSheet } from "./purchase-sheet";
-import { AppointmentSheet } from "./appointment-sheet";
-import { RecommendationSheet } from "./recommendation-sheet";
-import { MessageSheet } from "./message-sheet";
+import { PurchaseSheet } from "./purchase/purchase-sheet";
+import { AppointmentSheet } from "./appointment/appointment-sheet";
+import { RecommendationSheet } from "./recommendation/recommendation-sheet";
+import { MessageSheet } from "./message/message-sheet";
 import { ActivityTimeline } from "./activity-timeline";
 
 // ── Tab keys ───────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ export function CustomerDetailPage({
         onOpenAppointments={() => setActiveTab("citas")}
       />
 
-      <CustomerQuickActions onAction={handleQuickAction} />
+      <CustomerQuickActions role={role} onAction={handleQuickAction} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
@@ -177,28 +177,44 @@ export function CustomerDetailPage({
         <TabsContent value="compras">
           <PurchasesSection
             customerId={customerId}
-            onNewPurchase={() => setOpenSheet("purchase")}
+            onNewPurchase={
+              can(role, "purchase.create")
+                ? () => setOpenSheet("purchase")
+                : undefined
+            }
           />
         </TabsContent>
 
         <TabsContent value="recomendaciones">
           <RecommendationsSection
             customerId={customerId}
-            onNewRecommendation={() => setOpenSheet("recommend")}
+            onNewRecommendation={
+              can(role, "recommendation.create")
+                ? () => setOpenSheet("recommend")
+                : undefined
+            }
           />
         </TabsContent>
 
         <TabsContent value="citas">
           <AppointmentsSection
             customerId={customerId}
-            onNewAppointment={() => setOpenSheet("appointment")}
+            onNewAppointment={
+              can(role, "appointment.create")
+                ? () => setOpenSheet("appointment")
+                : undefined
+            }
           />
         </TabsContent>
 
         <TabsContent value="notas">
           <NotesSection
             customerId={customerId}
-            onNewNote={() => setOpenSheet("note")}
+            onNewNote={
+              can(role, "note.create")
+                ? () => setOpenSheet("note")
+                : undefined
+            }
           />
         </TabsContent>
       </Tabs>

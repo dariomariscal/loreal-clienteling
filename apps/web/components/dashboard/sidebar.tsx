@@ -42,7 +42,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { label: "Inicio", href: "/", icon: HomeIcon, roles: ["ba", "manager", "supervisor", "admin"] },
       { label: "Clientes", href: "/clientes", icon: UsersIcon, roles: ["ba", "manager", "supervisor", "admin"] },
-      { label: "Agenda", href: "/agenda", icon: CalendarIcon, roles: ["ba", "manager", "supervisor", "admin"] },
+      { label: "Agenda", href: "/agenda", icon: CalendarIcon, roles: ["ba"] },
     ],
   },
   {

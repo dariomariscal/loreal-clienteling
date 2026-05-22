@@ -27,7 +27,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { AppointmentSheet } from "@/app/(dashboard)/clientes/[id]/_components/appointment-sheet";
+import { AppointmentSheet } from "@/app/(dashboard)/clientes/[id]/_components/appointment/appointment-sheet";
 import {
   TimeGridCalendar,
   type CalendarView,

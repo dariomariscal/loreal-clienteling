@@ -31,12 +31,19 @@ const PERMISSIONS = {
   "customer.edit": ["ba", "manager"],
   "customer.delete": ["admin"], // ARCO right to be forgotten
 
-  // Appointments
-  "appointment.create": ["ba", "manager"],
-  "appointment.edit": ["ba", "manager", "admin"],
+  // Appointments — agenda is BA-only
+  "appointment.create": ["ba"],
+  "appointment.edit": ["ba"],
+
+  // Customer interactions — only the BA records what they did with the client.
+  // Admin/manager/supervisor can view the history, not create entries.
+  "purchase.create": ["ba"],
+  "recommendation.create": ["ba"],
+  "note.create": ["ba"],
+  "beauty.edit": ["ba"],
 
   // Communications
-  "communication.create": ["ba", "manager"],
+  "communication.create": ["ba"],
   "template.manage": ["admin", "manager"],
 
   // Analytics
