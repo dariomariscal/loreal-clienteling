@@ -5,13 +5,12 @@ import { SKIN_CONCERNS } from "../constants";
 import type { Draft } from "../use-beauty-draft";
 import { Heading } from "../ui";
 
-export function ConcernsStep({
-  draft,
-  onToggle,
-}: {
+type Props = {
   draft: Draft;
   onToggle: (v: string) => void;
-}) {
+};
+
+export function ConcernsStep({ draft, onToggle }: Props) {
   return (
     <div className="space-y-4">
       <Heading

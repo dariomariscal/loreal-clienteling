@@ -10,6 +10,17 @@ import {
 import type { Draft } from "../use-beauty-draft";
 import { ChipToggle, Heading, IngredientPicker, SubSection } from "../ui";
 
+type Props = {
+  draft: Draft;
+  onRoutine: (v: string) => void;
+  onToggleInterest: (v: string) => void;
+  onToggleFragrance: (v: string) => void;
+  onTogglePreferred: (v: string) => void;
+  onToggleAvoided: (v: string) => void;
+  onSetPreferred: (arr: string[]) => void;
+  onSetAvoided: (arr: string[]) => void;
+};
+
 export function PreferencesStep({
   draft,
   onRoutine,
@@ -19,16 +30,7 @@ export function PreferencesStep({
   onToggleAvoided,
   onSetPreferred,
   onSetAvoided,
-}: {
-  draft: Draft;
-  onRoutine: (v: string) => void;
-  onToggleInterest: (v: string) => void;
-  onToggleFragrance: (v: string) => void;
-  onTogglePreferred: (v: string) => void;
-  onToggleAvoided: (v: string) => void;
-  onSetPreferred: (arr: string[]) => void;
-  onSetAvoided: (arr: string[]) => void;
-}) {
+}: Props) {
   return (
     <div className="space-y-6">
       <Heading

@@ -4,13 +4,12 @@ import { SKIN_TYPES } from "../constants";
 import type { Draft } from "../use-beauty-draft";
 import { Heading, SelectableCard } from "../ui";
 
-export function SkinTypeStep({
-  draft,
-  onSelect,
-}: {
+type Props = {
   draft: Draft;
   onSelect: (v: string) => void;
-}) {
+};
+
+export function SkinTypeStep({ draft, onSelect }: Props) {
   return (
     <div className="space-y-4">
       <Heading

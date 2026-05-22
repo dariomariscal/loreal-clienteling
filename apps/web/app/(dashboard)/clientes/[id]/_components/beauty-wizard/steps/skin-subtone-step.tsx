@@ -5,13 +5,12 @@ import { SKIN_SUBTONES } from "../constants";
 import type { Draft } from "../use-beauty-draft";
 import { Heading } from "../ui";
 
-export function SkinSubtoneStep({
-  draft,
-  onSelect,
-}: {
+type Props = {
   draft: Draft;
   onSelect: (v: string) => void;
-}) {
+};
+
+export function SkinSubtoneStep({ draft, onSelect }: Props) {
   return (
     <div className="space-y-4">
       <Heading
