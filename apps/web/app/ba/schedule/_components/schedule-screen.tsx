@@ -5,6 +5,7 @@ import { ViewHeader } from "../../_components/view-header";
 import {
   AppointmentRow,
   DayGroupHeader,
+  NewAppointmentSheet,
   type AppointmentRowEmphasis,
   type AppointmentRowStatus,
 } from "@/components/ba";
@@ -42,6 +43,8 @@ export function ScheduleScreen({ user }: ScheduleScreenProps) {
 
   const flagged = React.useMemo(() => flagCurrentAndNext(grouped), [grouped]);
 
+  const [isNewApptOpen, setIsNewApptOpen] = React.useState(false);
+
   return (
     <>
       <ViewHeader
@@ -51,16 +54,18 @@ export function ScheduleScreen({ user }: ScheduleScreenProps) {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => {
-              // Hook up NewAppointmentSheet once it lands. For the demo
-              // the affordance exists; the sheet is a follow-up.
-              window.alert("Próximamente: nueva cita desde la agenda.");
-            }}
+            onClick={() => setIsNewApptOpen(true)}
           >
             <CalendarPlusGlyph className="size-3.5" />
             Nueva cita
           </Button>
         }
+      />
+
+      <NewAppointmentSheet
+        open={isNewApptOpen}
+        onOpenChange={setIsNewApptOpen}
+        baUserId={user.id}
       />
 
       <div className="px-8 pt-8 pb-20">

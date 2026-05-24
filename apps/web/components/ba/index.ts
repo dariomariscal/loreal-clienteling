@@ -24,3 +24,4 @@ export type {
   AppointmentRowStatus,
   AppointmentRowEmphasis,
 } from "./appointment-row";
+export { NewAppointmentSheet } from "./new-appointment-sheet";

@@ -9,6 +9,7 @@ import { NotesSection } from "./notes-section";
 import {
   AIContextBlock,
   ActivityTimeline,
+  NewAppointmentSheet,
   NextStepCard,
   PurchaseRow,
   type ActivityItem,
@@ -72,6 +73,8 @@ export function CustomerProfileScreen({
 
   const activityItems = mergeActivityEvents(activity.data?.pages ?? []);
 
+  const [isNewApptOpen, setIsNewApptOpen] = React.useState(false);
+
   return (
     <>
       <ViewHeader
@@ -106,6 +109,13 @@ export function CustomerProfileScreen({
             </Button>
           </>
         }
+      />
+
+      <NewAppointmentSheet
+        open={isNewApptOpen}
+        onOpenChange={setIsNewApptOpen}
+        baUserId={user.id}
+        customerId={customerId}
       />
 
       <div className="px-8 pt-8 pb-20">
@@ -175,12 +185,13 @@ export function CustomerProfileScreen({
           <Section
             label="Próximas"
             action={
-              <Link
-                href={`/agenda?customerId=${customerId}`}
+              <button
+                type="button"
+                onClick={() => setIsNewApptOpen(true)}
                 className="text-[12px] text-muted-foreground transition-colors hover:text-foreground"
               >
                 + Agendar
-              </Link>
+              </button>
             }
           >
             {upcoming.isLoading ? (
