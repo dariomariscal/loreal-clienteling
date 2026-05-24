@@ -969,6 +969,37 @@ export function EyeOffGlyph(props: GlyphProps) {
   );
 }
 
+// ── Channel glyphs (overlay on avatars in /ba/messages) ─────────────
+// Each one is a single-color monoline mark sized for a 14px overlay
+// circle. Color is applied via `text-*` from the caller — these stay
+// monochrome to avoid the platform-logo-zoo effect.
+
+export function EmailDotGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <rect x="3.5" y="6" width="17" height="12" rx="1.5" />
+      <path d="m4 8 8 5 8-5" />
+    </Glyph>
+  );
+}
+
+export function SmsDotGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M4 5h16v11H10l-4 3v-3H4V5Z" />
+    </Glyph>
+  );
+}
+
+export function WhatsappDotGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M5 20l1.4-4.2a8 8 0 1 1 2.8 2.8L5 20Z" />
+      <path d="M9.5 10c.5 2.5 2 4 4.5 4.5l1-1.5 2 .8a4 4 0 0 1-5.3 1A6 6 0 0 1 8 9.5l.8 2 1.5-1Z" />
+    </Glyph>
+  );
+}
+
 // ── Timeline event glyphs (12–16px) ──────────────────────────────────
 // Tiny variants for use inside the timeline dot. Same style but more
 // compact; rendered without the "more details" elements.

@@ -14,3 +14,13 @@ export type { ActivityItem, ActivityKind } from "./activity-timeline";
 export { MessageBubble } from "./message-bubble";
 export { AISuggestionChip } from "./ai-suggestion-chip";
 export { VoiceNoteRecorder } from "./voice-note-recorder";
+export { TimePill } from "./time-pill";
+export { DayGroupHeader } from "./day-group-header";
+export { ChannelGlyphOverlay } from "./channel-glyph-overlay";
+export type { CommunicationChannel } from "./channel-glyph-overlay";
+export { ConversationRow } from "./conversation-row";
+export { AppointmentRow } from "./appointment-row";
+export type {
+  AppointmentRowStatus,
+  AppointmentRowEmphasis,
+} from "./appointment-row";

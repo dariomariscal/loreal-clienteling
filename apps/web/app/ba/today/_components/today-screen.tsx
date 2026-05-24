@@ -3,12 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { ViewHeader } from "../../_components/view-header";
-import { CustomerSummaryCard } from "@/components/ba";
+import { CustomerSummaryCard, TimePill } from "@/components/ba";
 import { useDailyOpportunities } from "@/lib/hooks/use-ai";
 import { useAppointmentCalendar } from "@/lib/hooks";
 import type { SessionUser } from "@/lib/auth";
 import { AppointmentGlyph } from "@/components/ui/glyphs";
-import { cn } from "@/lib/utils";
 
 interface TodayScreenProps {
   user: SessionUser;
@@ -141,24 +140,6 @@ function SectionHeader({
         </span>
       ) : null}
     </div>
-  );
-}
-
-// ── Time pill — appointment ─────────────────────────────────────────
-
-function TimePill({ iso, color }: { iso: string; color: string | null }) {
-  const d = new Date(iso);
-  return (
-    <span
-      className={cn(
-        "inline-flex w-16 shrink-0 flex-col items-start rounded-md border border-border/40 bg-muted/40 px-2 py-1.5 text-foreground",
-      )}
-      style={color ? { borderColor: `${color}33`, backgroundColor: `${color}10` } : undefined}
-    >
-      <span className="font-mono text-[13px] tabular-nums leading-none">
-        {d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
-      </span>
-    </span>
   );
 }
 
