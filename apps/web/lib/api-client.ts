@@ -25,6 +25,11 @@ export function setTokenResolver(resolver: TokenResolver | null): void {
   tokenResolver = resolver;
 }
 
+export async function getAuthToken(): Promise<string | null> {
+  if (!tokenResolver) return null;
+  return tokenResolver();
+}
+
 async function getAuthHeader(): Promise<Record<string, string>> {
   if (!tokenResolver) return {};
   const token = await tokenResolver();

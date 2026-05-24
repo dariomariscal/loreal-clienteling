@@ -84,6 +84,17 @@
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
 
+  /* BA shell semantic aliases */
+  --color-ba-surface: var(--ba-surface);
+  --color-ba-sidebar: var(--ba-sidebar);
+  --color-ba-sidebar-foreground: var(--ba-sidebar-foreground);
+  --color-ba-sidebar-muted: var(--ba-sidebar-muted);
+  --color-ba-sidebar-active: var(--ba-sidebar-active);
+  --color-ba-sidebar-border: var(--ba-sidebar-border);
+  --color-ba-accent: var(--ba-accent);
+  --color-ba-accent-foreground: var(--ba-accent-foreground);
+  --color-ba-accent-soft: var(--ba-accent-soft);
+
   /* Sidebar */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -219,6 +230,23 @@
   --shadow-xl: 0px 5px 15px 0px rgba(0, 0, 0, 0.08),
                0px 15px 35px 0px rgba(28, 22, 10, 0.06),
                0px 50px 100px 0px rgba(28, 22, 10, 0.06);
+
+  /* ──────────────────────────────────────────────────────────────────
+     BA shell tokens — Beauty Advisor surface (Linear refresh 2026)
+     Different from the admin dashboard's dark sidebar: the BA shell
+     uses a warm-gray dim sidebar so the main content (the customer)
+     takes precedence. The accent is muted L'Oréal terracotta — used
+     with severe restraint, never more than one accent per screen.
+     ────────────────────────────────────────────────────────────── */
+  --ba-surface: oklch(0.985 0.003 80);
+  --ba-sidebar: oklch(0.972 0.004 80);
+  --ba-sidebar-foreground: oklch(0.30 0.005 285);
+  --ba-sidebar-muted: oklch(0.55 0.008 285);
+  --ba-sidebar-active: oklch(0.93 0.005 80);
+  --ba-sidebar-border: oklch(0.92 0.003 80);
+  --ba-accent: oklch(0.58 0.13 38);
+  --ba-accent-foreground: oklch(0.99 0.005 60);
+  --ba-accent-soft: oklch(0.96 0.018 38);
 }
 
 /* ==========================================================================
@@ -284,6 +312,24 @@
   --shadow-xl: 0px 5px 15px 0px rgba(0, 0, 0, 0.24),
                0px 15px 35px 0px rgba(0, 0, 0, 0.16),
                0px 50px 100px 0px rgba(0, 0, 0, 0.16);
+
+  /* BA shell — dark mode (kept for parity; BA app is light-first per UX vision) */
+  --ba-surface: oklch(0.16 0.005 285);
+  --ba-sidebar: oklch(0.18 0.005 285);
+  --ba-sidebar-foreground: oklch(0.85 0.005 90);
+  --ba-sidebar-muted: oklch(0.60 0.01 285);
+  --ba-sidebar-active: oklch(0.22 0.005 285);
+  --ba-sidebar-border: oklch(1 0 0 / 8%);
+  --ba-accent: oklch(0.68 0.14 38);
+  --ba-accent-foreground: oklch(0.16 0.01 60);
+  --ba-accent-soft: oklch(0.28 0.04 38);
+}
+
+/* ==========================================================================
+   BA shell animations
+   ========================================================================== */
+@keyframes ba-blink {
+  to { opacity: 0; }
 }
 
 /* ==========================================================================

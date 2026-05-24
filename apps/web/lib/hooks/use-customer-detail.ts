@@ -84,20 +84,39 @@ export interface Sample {
   conversionPurchaseId: string | null;
 }
 
+/**
+ * Communication row as returned by the API. Mirrors the DB shape in
+ * @loreal/database, but timestamps land as ISO strings (JSON serialization),
+ * not Date objects — the contract type uses Date because it's the modeled
+ * shape, the wire shape is string.
+ */
 export interface Communication {
   id: string;
   customerId: string;
-  sentByUserId: string;
-  channel: string;
+  sentByUserId: string | null;
+  direction: "outbound" | "inbound";
+  channel: "whatsapp" | "sms" | "email";
+  status:
+    | "queued"
+    | "sending"
+    | "sent"
+    | "delivered"
+    | "read"
+    | "failed"
+    | "received";
+  fromAddress: string | null;
+  toAddress: string | null;
+  externalId: string | null;
   templateId: string | null;
   subject: string | null;
   body: string;
-  followupType: string;
+  followupType: string | null;
+  failureReason: string | null;
   sentAt: string;
   deliveredAt: string | null;
   readAt: string | null;
   respondedAt: string | null;
-  trackingLinkId: string | null;
+  createdAt: string;
 }
 
 export interface Consent {

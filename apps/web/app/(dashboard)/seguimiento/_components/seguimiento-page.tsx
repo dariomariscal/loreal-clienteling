@@ -216,8 +216,10 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Tipo</dt>
                   <dd>
-                    {FOLLOWUP_LABEL[dialog.comm.followupType] ??
-                      dialog.comm.followupType}
+                    {dialog.comm.followupType
+                      ? (FOLLOWUP_LABEL[dialog.comm.followupType] ??
+                        dialog.comm.followupType)
+                      : "—"}
                   </dd>
                 </div>
                 <div className="flex justify-between">
