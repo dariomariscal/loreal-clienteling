@@ -19,3 +19,17 @@ export interface SemanticSearchResult {
   lastContactAt?: Date | null;
   lifecycleSegment?: string;
 }
+
+export interface ProductSemanticSearchResult {
+  productId: string;
+  sku: string;
+  name: string;
+  brandId: string;
+  brandName: string | null;
+  category: string;
+  subcategory: string | null;
+  price: string;
+  matchedOn: "sku" | "name" | "semantic";
+  /** Cosine similarity 0..1 when matchedOn === "semantic"; otherwise null. */
+  similarity: number | null;
+}

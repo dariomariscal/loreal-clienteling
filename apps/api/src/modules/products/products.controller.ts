@@ -3,20 +3,28 @@ import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiOperation } from "@nestjs
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
 import { ProductsService } from "./products.service";
+import { ProductSemanticSearchService } from "../ai/services/product-semantic-search.service";
 import {
   BulkCreateProductsDto,
   CreateProductDto,
   UpdateProductDto,
   UpdateAvailabilityDto,
   ProductFiltersDto,
+  ProductSemanticSearchDto,
 } from "../../dtos/products.dto";
 import type { UserSession } from "../../common/types/session";
+
+const BA_ROLES = ["ba", "manager", "supervisor", "admin"] as const;
 
 @ApiTags("Products")
 @ApiBearerAuth()
 @Controller("products")
 export class ProductsController {
-  constructor(@Inject(ProductsService) private productsService: ProductsService) {}
+  constructor(
+    @Inject(ProductsService) private productsService: ProductsService,
+    @Inject(ProductSemanticSearchService)
+    private semanticSearch: ProductSemanticSearchService,
+  ) {}
 
   @Get()
   findAll(
@@ -24,6 +32,22 @@ export class ProductsController {
     @Session() session: UserSession,
   ) {
     return this.productsService.findAll(session.user, filters);
+  }
+
+  // Declared before the :id route so the literal path doesn't collide with the
+  // UUID param matcher.
+  @Get("semantic-search")
+  @Roles([...BA_ROLES])
+  @ApiOperation({
+    summary: "Semantic + lexical product search",
+    description:
+      "Combines ILIKE matches on sku/name with HNSW cosine search over product_embeddings. Falls back to lexical-only if embeddings haven't been generated for a product yet.",
+  })
+  semanticSearchProducts(
+    @Query() query: ProductSemanticSearchDto,
+    @Session() session: UserSession,
+  ) {
+    return this.semanticSearch.search(query.q, session.user, query.limit);
   }
 
   @Get(":id")

@@ -5,11 +5,20 @@ import { useRouter } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
-import { SearchGlyph, SparkleDotGlyph, UserPlusGlyph } from "@/components/ui/glyphs";
+import {
+  PackageGlyph,
+  SearchGlyph,
+  SparkleDotGlyph,
+  UserPlusGlyph,
+} from "@/components/ui/glyphs";
 import { useCustomerSearch } from "@/lib/hooks";
 import { useSemanticSearch } from "@/lib/hooks/use-ai";
+import { useProductSemanticSearch } from "@/lib/hooks/use-products";
 import type { Customer } from "@/lib/hooks/use-customers";
-import type { SemanticSearchResult } from "@loreal/contracts";
+import type {
+  ProductSemanticSearchResult,
+  SemanticSearchResult,
+} from "@loreal/contracts";
 
 interface CommandSearchProps {
   open: boolean;
@@ -40,9 +49,18 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
 
   const lexical = useCustomerSearch(trimmed, "name");
   const semantic = useSemanticSearch(isPhraseLike ? trimmed : "", 5);
+  // Product semantic search runs on phrase-like queries too — same heuristic
+  // as customer semantic so the BA gets both worlds when describing intent
+  // ("fragancia floral dulce", "algo para arrugas finas").
+  const productSemantic = useProductSemanticSearch(
+    isPhraseLike ? trimmed : "",
+    5,
+    { enabled: isPhraseLike },
+  );
 
   const lexicalResults = lexical.data ?? [];
   const semanticResults = semantic.data ?? [];
+  const productResults = productSemantic.data ?? [];
 
   const goToCustomer = React.useCallback(
     (customerId: string) => {
@@ -51,6 +69,13 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
     },
     [onOpenChange, router],
   );
+
+  // No BA-side product detail route exists yet — selecting a product just
+  // closes the palette so the BA can use the result as visual reference
+  // during the consultation. Wire to `/ba/products/:id` when that page lands.
+  const dismissAfterProduct = React.useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -117,6 +142,26 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
                         key={result.customerId}
                         result={result}
                         onSelect={() => goToCustomer(result.customerId)}
+                      />
+                    ))}
+                  </ResultGroup>
+                ) : null}
+
+                {isPhraseLike ? (
+                  <ResultGroup
+                    label="Productos · por descripción"
+                    badge="IA"
+                    isLoading={productSemantic.isFetching}
+                    isEmpty={
+                      productResults.length === 0 && !productSemantic.isFetching
+                    }
+                    emptyText="No encontré productos para esa descripción."
+                  >
+                    {productResults.map((result) => (
+                      <ProductSemanticResultRow
+                        key={result.productId}
+                        result={result}
+                        onSelect={dismissAfterProduct}
                       />
                     ))}
                   </ResultGroup>
@@ -238,6 +283,42 @@ function SemanticResultRow({
             <p className="truncate text-[11px] text-muted-foreground">{result.rationale}</p>
           ) : null}
         </div>
+      </button>
+    </li>
+  );
+}
+
+function ProductSemanticResultRow({
+  result,
+  onSelect,
+}: {
+  result: ProductSemanticSearchResult;
+  onSelect: () => void;
+}) {
+  const price = Number(result.price);
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted"
+      >
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-muted-foreground">
+          <PackageGlyph className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] text-foreground">{result.name}</p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {[result.brandName, result.subcategory ?? result.category]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+          {price > 0
+            ? `$${price.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`
+            : "—"}
+        </span>
       </button>
     </li>
   );

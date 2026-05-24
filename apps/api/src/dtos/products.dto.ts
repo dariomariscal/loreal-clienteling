@@ -13,6 +13,8 @@ import {
   ArrayMaxSize,
   ValidateNested,
   IsUrl,
+  Min,
+  Max,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
@@ -87,6 +89,22 @@ export class ProductFiltersDto extends PaginationDto {
   @IsOptional()
   @IsString()
   search?: string;
+}
+
+export class ProductSemanticSearchDto {
+  @ApiProperty({ type: String, minLength: 1, maxLength: 200 })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  q: string;
+
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 50, default: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  @Type(() => Number)
+  limit?: number;
 }
 
 export class UpdateAvailabilityDto {

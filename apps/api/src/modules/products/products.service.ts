@@ -4,6 +4,7 @@ import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { products, productAvailability, brands } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
+import { ProductEmbeddingService } from "../ai/services/product-embedding.service";
 import type {
   BulkCreateProductsDto,
   CreateProductDto,
@@ -30,6 +31,7 @@ export class ProductsService {
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
+    private readonly productEmbeddings: ProductEmbeddingService,
   ) {}
 
   async findAll(user: SessionUser, filters: ProductFiltersDto) {
@@ -81,6 +83,7 @@ export class ProductsService {
         price: String(data.price),
       })
       .returning();
+    this.productEmbeddings.embedProductInBackground(product.id);
     return product;
   }
 
@@ -217,6 +220,7 @@ export class ProductsService {
             status: "inserted",
             productId: id,
           };
+          if (id) this.productEmbeddings.embedProductInBackground(id);
         }
       });
     } catch (err) {
@@ -255,6 +259,16 @@ export class ProductsService {
       .where(eq(products.id, id))
       .returning();
     if (!product) throw new NotFoundException("Product not found");
+    // Regenerate the embedding only when content that feeds it changed.
+    const embeddingFields: (keyof UpdateProductDto)[] = [
+      "name",
+      "description",
+      "category",
+      "subcategory",
+    ];
+    if (embeddingFields.some((f) => f in data)) {
+      this.productEmbeddings.embedProductInBackground(product.id);
+    }
     return product;
   }
 

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useProducts, type Product } from "@/lib/hooks";
+import { useProductSemanticSearch } from "@/lib/hooks/use-products";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ export function ProductPicker({
 }: ProductPickerProps) {
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState<string>("");
+  const [semanticMode, setSemanticMode] = React.useState(false);
   // Debounce the search so we don't hammer the API on every keystroke; the
   // grid feels live below ~200ms but saves ~10 requests per query.
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
@@ -49,47 +51,109 @@ export function ProductPicker({
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: products = [], isLoading } = useProducts({
-    limit: String(limit),
-    ...(category ? { category } : {}),
-    ...(debouncedSearch ? { search: debouncedSearch } : {}),
-  });
+  const lexicalQuery = useProducts(
+    {
+      limit: String(limit),
+      ...(category ? { category } : {}),
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    },
+    { enabled: !semanticMode || !debouncedSearch },
+  );
+
+  // Semantic search ignores the category chips — embeddings already encode
+  // category, and forcing it would defeat the purpose of phrase queries like
+  // "algo para arrugas finas".
+  const semanticQuery = useProductSemanticSearch(
+    debouncedSearch,
+    limit,
+    { enabled: semanticMode && debouncedSearch.length >= 2 },
+  );
+
+  const products: Product[] = semanticMode
+    ? (semanticQuery.data ?? []).map((r) => ({
+        id: r.productId,
+        sku: r.sku,
+        brandId: r.brandId,
+        name: r.name,
+        category: r.category,
+        subcategory: r.subcategory,
+        description: null,
+        price: r.price,
+        images: null,
+        ingredients: null,
+        shadeOptions: null,
+        estimatedDurationDays: null,
+        technicalSheetUrl: null,
+        tutorialUrl: null,
+        salesArgument: null,
+        active: true,
+        createdAt: "",
+        updatedAt: "",
+        brand: r.brandName
+          ? { id: r.brandId, displayName: r.brandName, code: "" }
+          : undefined,
+      }))
+    : lexicalQuery.data ?? [];
+  const isLoading = semanticMode ? semanticQuery.isFetching : lexicalQuery.isLoading;
 
   return (
     <div className="flex h-full flex-col gap-4">
       {/* Search */}
-      <div className="relative">
-        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nombre, SKU o referencia"
-          className="pl-9"
-          autoFocus
-        />
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={
+              semanticMode
+                ? "Describe lo que buscas (ej. \"algo para arrugas finas\")"
+                : "Buscar por nombre, SKU o referencia"
+            }
+            className="pl-9"
+            autoFocus
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setSemanticMode((v) => !v)}
+          aria-pressed={semanticMode}
+          title="Búsqueda inteligente por descripción"
+          className={cn(
+            "shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition-all duration-150",
+            semanticMode
+              ? "border-foreground bg-foreground text-background"
+              : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+          )}
+        >
+          IA
+        </button>
       </div>
 
-      {/* Category chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {QUICK_CATEGORIES.map((c) => {
-          const active = category === c.key;
-          return (
-            <button
-              key={c.key || "all"}
-              type="button"
-              onClick={() => setCategory(c.key)}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-150",
-                active
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-              )}
-            >
-              {c.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Category chips — hidden in semantic mode because embeddings already
+          encode category, and forcing a chip would over-constrain the query. */}
+      {semanticMode ? null : (
+        <div className="flex flex-wrap gap-1.5">
+          {QUICK_CATEGORIES.map((c) => {
+            const active = category === c.key;
+            return (
+              <button
+                key={c.key || "all"}
+                type="button"
+                onClick={() => setCategory(c.key)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-150",
+                  active
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                )}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Grid */}
       <div

@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { BulkCreateProducts, BulkImportResult } from "@loreal/contracts";
+import type {
+  BulkCreateProducts,
+  BulkImportResult,
+  ProductSemanticSearchResult,
+} from "@loreal/contracts";
+
+export type { ProductSemanticSearchResult };
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -40,6 +46,8 @@ const productKeys = {
   all: (params?: Record<string, string>) => ["products", params ?? {}] as const,
   detail: (id: string) => ["products", id] as const,
   availability: (id: string) => ["products", id, "availability"] as const,
+  semantic: (q: string, limit: number) =>
+    ["products", "semantic", q, limit] as const,
 };
 
 // ── Queries ────────────────────────────────────────────────────────
@@ -66,6 +74,28 @@ export function useProduct(id: string) {
     queryKey: productKeys.detail(id),
     queryFn: () => api.get<Product>(`/products/${id}`),
     enabled: !!id,
+  });
+}
+
+/**
+ * Semantic + lexical product search. Gate behind `enabled` (e.g. only fire
+ * for phrase-like queries) so the customer-list search doesn't burn OpenAI
+ * tokens on every keystroke.
+ */
+export function useProductSemanticSearch(
+  query: string,
+  limit = 10,
+  options?: { enabled?: boolean },
+) {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: productKeys.semantic(trimmed, limit),
+    queryFn: () =>
+      api.get<ProductSemanticSearchResult[]>("/products/semantic-search", {
+        q: trimmed,
+        limit: String(limit),
+      }),
+    enabled: (options?.enabled ?? true) && trimmed.length >= 2,
   });
 }
 

@@ -73,3 +73,8 @@ export {
   rankSemanticSearchResults,
   type RankSemanticSearchInput,
 } from "./semantic-search/rank-semantic-search-results";
+
+export {
+  rankProductSearchResults,
+  type RankProductSearchInput,
+} from "./semantic-search/rank-product-search-results";

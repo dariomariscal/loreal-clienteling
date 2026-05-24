@@ -13,6 +13,7 @@ import { OpenAiEmbeddingsProvider } from "./providers/openai-embeddings.provider
 import { CustomerAiSummariesRepository } from "./repositories/customer-ai-summaries.repository";
 import { CustomerEmbeddingsRepository } from "./repositories/customer-embeddings.repository";
 import { CustomerOpportunitiesRepository } from "./repositories/customer-opportunities.repository";
+import { ProductEmbeddingsRepository } from "./repositories/product-embeddings.repository";
 import { AiUsageLogsRepository } from "./repositories/ai-usage-logs.repository";
 
 // Services
@@ -21,6 +22,8 @@ import { NoteExtractionService } from "./services/note-extraction.service";
 import { MessageSuggestionService } from "./services/message-suggestion.service";
 import { SemanticSearchService } from "./services/semantic-search.service";
 import { DailyOpportunitiesService } from "./services/daily-opportunities.service";
+import { ProductEmbeddingService } from "./services/product-embedding.service";
+import { ProductSemanticSearchService } from "./services/product-semantic-search.service";
 
 /**
  * The AI module is the "AI Gateway" — the rest of the API talks only to the
@@ -41,6 +44,7 @@ import { DailyOpportunitiesService } from "./services/daily-opportunities.servic
     CustomerAiSummariesRepository,
     CustomerEmbeddingsRepository,
     CustomerOpportunitiesRepository,
+    ProductEmbeddingsRepository,
     AiUsageLogsRepository,
 
     CustomerSummaryService,
@@ -48,6 +52,8 @@ import { DailyOpportunitiesService } from "./services/daily-opportunities.servic
     MessageSuggestionService,
     SemanticSearchService,
     DailyOpportunitiesService,
+    ProductEmbeddingService,
+    ProductSemanticSearchService,
   ],
   exports: [
     CustomerSummaryService,
@@ -55,6 +61,8 @@ import { DailyOpportunitiesService } from "./services/daily-opportunities.servic
     MessageSuggestionService,
     SemanticSearchService,
     DailyOpportunitiesService,
+    ProductEmbeddingService,
+    ProductSemanticSearchService,
   ],
 })
 export class AiModule {}
