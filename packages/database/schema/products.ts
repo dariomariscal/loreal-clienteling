@@ -9,7 +9,6 @@ import {
   jsonb,
   timestamp,
   index,
-  vector,
 } from "drizzle-orm/pg-core";
 import { brands } from "./brands";
 import { stores } from "./stores";
@@ -34,7 +33,6 @@ export const products = pgTable(
     technicalSheetUrl: varchar("technical_sheet_url", { length: 500 }),
     tutorialUrl: varchar("tutorial_url", { length: 500 }),
     salesArgument: text("sales_argument"),
-    embedding: vector("embedding", { dimensions: 1536 }),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
