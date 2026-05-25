@@ -2,17 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useClerk } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
+import { useBrand } from "@/lib/hooks/use-brands";
 import { useTaskCounts } from "@/lib/hooks/use-tasks";
+import { AdvisorBrandLogo } from "@/components/advisor/advisor-brand-logo";
+import { CustomerAvatar } from "@/components/advisor/customer-avatar";
+import { useBrandAdvisorStyle } from "@/components/advisor/use-brand-advisor-style";
 import {
   AppointmentGlyph,
   CheckGlyph,
   MessageGlyph,
   PackageGlyph,
   RoutineMorningGlyph,
+  SignOutGlyph,
   UserGlyph,
 } from "@/components/ui/glyphs";
+import type { SessionUser } from "@/lib/auth";
 
 type GlyphComponent = typeof UserGlyph;
 
@@ -35,47 +41,69 @@ const SECONDARY_NAV: NavItem[] = [
   { href: "/advisor/catalog", label: "Catalog", icon: PackageGlyph },
 ];
 
-export function AdvisorSidebar() {
+interface Props {
+  user: SessionUser;
+}
+
+export function AdvisorSidebar({ user }: Props) {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { signOut } = useClerk();
+  const { data: brand } = useBrand(user.brandId ?? "");
   const { data: taskCounts } = useTaskCounts();
+  const brandStyle = useBrandAdvisorStyle(user.brandId);
 
   const badges: Record<string, number | undefined> = {
     tasks: taskCounts?.pending,
   };
 
+  function handleSignOut() {
+    signOut({ redirectUrl: "/sign-in" });
+  }
+
   return (
     <nav
       aria-label="Beauty Advisor navigation"
+      style={brandStyle}
       className="hidden md:flex h-dvh w-[240px] flex-col border-r border-[color:var(--ba-sidebar-border)] bg-[color:var(--ba-sidebar)] text-[color:var(--ba-sidebar-foreground)]"
     >
-      <div className="px-6 pt-7 pb-5">
-        <p className="font-[var(--font-heading)] text-base tracking-[0.18em] uppercase text-foreground">
-          L&apos;Oréal
-        </p>
-        <p className="mt-1 text-xs text-[color:var(--ba-sidebar-muted)]">
-          Clienteling
-        </p>
-      </div>
-
-      <div className="mx-3 mb-5 flex items-center gap-3 rounded-lg px-3 py-2">
-        <UserButton
-          appearance={{ elements: { avatarBox: "h-9 w-9" } }}
-          afterSignOutUrl="/sign-in"
+      <div className="flex h-20 items-center px-6">
+        <AdvisorBrandLogo
+          role={user.role}
+          brandCode={brand?.code}
+          width={brand?.code?.toUpperCase() === "LANCOME" ? 140 : 110}
+          className="text-[color:var(--ba-sidebar-foreground)]"
         />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">
-            {user?.fullName ?? user?.firstName ?? "Beauty Advisor"}
-          </p>
-          <p className="truncate text-xs text-[color:var(--ba-sidebar-muted)]">
-            {user?.primaryEmailAddress?.emailAddress ?? ""}
-          </p>
-        </div>
       </div>
 
       <SidebarSection items={PRIMARY_NAV} pathname={pathname} badges={badges} />
       <div className="mx-3 my-3 border-t border-[color:var(--ba-sidebar-border)]" />
       <SidebarSection items={SECONDARY_NAV} pathname={pathname} badges={badges} />
+
+      <div className="mt-auto border-t border-[color:var(--ba-sidebar-border)] px-3 py-3">
+        <div className="flex items-center gap-3 px-2 py-2">
+          <CustomerAvatar
+            firstName={user.fullName || "Beauty Advisor"}
+            avatarUrl={user.imageUrl}
+            size="sm"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-[color:var(--ba-sidebar-foreground)]">
+              {user.fullName || "Beauty Advisor"}
+            </p>
+            <p className="truncate text-xs text-[color:var(--ba-sidebar-muted)]">
+              {user.email}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-[color:var(--ba-sidebar-foreground)] transition-colors hover:bg-[color:var(--ba-sidebar-active)]"
+        >
+          <SignOutGlyph className="size-4 opacity-80" aria-hidden />
+          Sign out
+        </button>
+      </div>
     </nav>
   );
 }
@@ -104,8 +132,8 @@ function SidebarSection({
               className={cn(
                 "group flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors",
                 active
-                  ? "bg-[color:var(--ba-sidebar-active)] text-foreground"
-                  : "text-[color:var(--ba-sidebar-foreground)] hover:bg-[color:var(--ba-sidebar-active)]/60 hover:text-foreground",
+                  ? "bg-[color:var(--ba-sidebar-active)] text-[color:var(--ba-sidebar-foreground)]"
+                  : "text-[color:var(--ba-sidebar-foreground)]/80 hover:bg-[color:var(--ba-sidebar-active)]/60 hover:text-[color:var(--ba-sidebar-foreground)]",
               )}
             >
               <Icon className="size-4 opacity-80" aria-hidden />
