@@ -101,6 +101,14 @@ export function BackGlyph(props: GlyphProps) {
   );
 }
 
+export function MenuGlyph(props: GlyphProps) {
+  return (
+    <Glyph label="Menú" {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Glyph>
+  );
+}
+
 export function MoreGlyph(props: GlyphProps) {
   return (
     <Glyph label="Acciones" {...props}>

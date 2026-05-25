@@ -9,15 +9,14 @@ import { useCustomerMetrics } from "@/lib/hooks";
 
 interface Props {
   customerId: string;
-  /** Called when the next-appointment KPI is tapped. */
   onOpenAppointments?: () => void;
 }
 
 /**
- * 4-card KPI strip for the advisor profile. Reads `/customers/:id/metrics`
- * and degrades to a skeleton on first load. Labels are written in
- * Beauty-Advisor voice — "Lo que ha gastado", not "LTV"; "Le toca volver",
- * not "Next appointment".
+ * KPI strip for the customer 360 — lives inside the Resumen tab. Container
+ * query (`@3xl:grid-cols-4`) reacts to the right pane's width, so on iPad
+ * landscape with the identity panel taking 340px the cards still go to a
+ * 4-up row.
  */
 export function CustomerKpiCards({ customerId, onOpenAppointments }: Props) {
   const { data, isLoading } = useCustomerMetrics(customerId);
@@ -30,7 +29,7 @@ export function CustomerKpiCards({ customerId, onOpenAppointments }: Props) {
   }, [data]);
 
   return (
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
       <KpiCard
         label="Lo que ha gastado"
         loading={isLoading}
