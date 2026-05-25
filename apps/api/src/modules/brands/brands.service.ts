@@ -19,7 +19,7 @@ export class BrandsService {
         code: brands.code,
         displayName: brands.displayName,
         tier: brands.tier,
-        active: brands.active,
+        active: brands.isActive,
         createdAt: brands.createdAt,
         updatedAt: brands.updatedAt,
         logoUrl: brandConfigs.logoUrl,

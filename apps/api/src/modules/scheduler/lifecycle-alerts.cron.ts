@@ -3,10 +3,10 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   customers,
-  purchases,
-  purchaseItems,
+  orders,
+  lineItems,
   products,
-  communications,
+  messages,
 } from "@loreal/database";
 import {
   generateLifeEventAlerts,
@@ -35,17 +35,18 @@ export class LifecycleAlertsCron {
     const allCustomers = await this.db
       .select({
         id: customers.id,
-        birthDate: customers.birthDate,
-        customerSince: customers.customerSince,
-        lastBaUserId: customers.lastBaUserId,
-        registeredByUserId: customers.registeredByUserId,
+        birthday: customers.birthday,
+        enrolledAt: customers.enrolledAt,
+        assignedToUserId: customers.assignedToUserId,
+        createdByUserId: customers.createdByUserId,
       })
       .from(customers);
 
     let totalAlerts = 0;
 
     for (const customer of allCustomers) {
-      const baUserId = customer.lastBaUserId ?? customer.registeredByUserId;
+      const assignedToUserId =
+        customer.assignedToUserId ?? customer.createdByUserId;
 
       // Calculate replenishment alerts for this customer
       const replenishmentAlerts = await this.getReplenishmentAlerts(
@@ -56,38 +57,38 @@ export class LifecycleAlertsCron {
       const alerts = generateLifeEventAlerts(
         {
           customerId: customer.id,
-          birthDate: customer.birthDate ? new Date(customer.birthDate) : null,
-          customerSince: customer.customerSince,
-          baUserId,
+          birthday: customer.birthday ? new Date(customer.birthday) : null,
+          enrolledAt: customer.enrolledAt,
+          assignedToUserId,
         },
         replenishmentAlerts,
         now,
       );
 
-      // Persist alerts as communications (so they show up in the BA's workflow)
+      // Persist alerts as messages (so they show up in the BA's workflow)
       for (const alert of alerts) {
         // Check if a similar alert was already sent recently (avoid duplicates)
         const [existing] = await this.db
-          .select({ id: communications.id })
-          .from(communications)
+          .select({ id: messages.id })
+          .from(messages)
           .where(
             and(
-              eq(communications.customerId, alert.customerId),
-              eq(communications.followupType, alert.type),
-              eq(communications.channel, "email"),
-              sql`${communications.sentAt} > now() - interval '7 days'`,
+              eq(messages.customerId, alert.customerId),
+              eq(messages.campaignType, alert.type),
+              eq(messages.channel, "email"),
+              sql`${messages.sentAt} > now() - interval '7 days'`,
             ),
           )
           .limit(1);
 
         if (existing) continue;
 
-        await this.db.insert(communications).values({
+        await this.db.insert(messages).values({
           customerId: alert.customerId,
-          sentByUserId: alert.baUserId,
+          sentByUserId: alert.assignedToUserId,
           channel: "email",
           body: alert.label,
-          followupType: alert.type,
+          campaignType: alert.type,
           sentAt: now,
         });
 
@@ -102,36 +103,36 @@ export class LifecycleAlertsCron {
     customerId: string,
     now: Date,
   ): Promise<ReplenishmentResult[]> {
-    // Get all purchased products for this customer with their duration info
-    const customerPurchases = await this.db
+    // Get all ordered products for this customer with their duration info
+    const customerOrders = await this.db
       .select({
-        purchasedAt: purchases.purchasedAt,
-        productId: purchaseItems.productId,
-        estimatedDurationDays: products.estimatedDurationDays,
+        processedAt: orders.processedAt,
+        productId: lineItems.productId,
+        replenishmentDays: products.replenishmentDays,
       })
-      .from(purchases)
-      .innerJoin(purchaseItems, eq(purchaseItems.purchaseId, purchases.id))
-      .innerJoin(products, eq(products.id, purchaseItems.productId))
+      .from(orders)
+      .innerJoin(lineItems, eq(lineItems.orderId, orders.id))
+      .innerJoin(products, eq(products.id, lineItems.productId))
       .where(
         and(
-          eq(purchases.customerId, customerId),
-          isNotNull(products.estimatedDurationDays),
+          eq(orders.customerId, customerId),
+          isNotNull(products.replenishmentDays),
         ),
       );
 
-    if (customerPurchases.length === 0) return [];
+    if (customerOrders.length === 0) return [];
 
     // Group by product and calculate replenishment for each
     const byProduct = new Map<
       string,
-      { purchasedAt: Date; estimatedDurationDays: number }[]
+      { processedAt: Date; replenishmentDays: number }[]
     >();
 
-    for (const row of customerPurchases) {
+    for (const row of customerOrders) {
       const list = byProduct.get(row.productId) ?? [];
       list.push({
-        purchasedAt: row.purchasedAt,
-        estimatedDurationDays: row.estimatedDurationDays!,
+        processedAt: row.processedAt,
+        replenishmentDays: row.replenishmentDays!,
       });
       byProduct.set(row.productId, list);
     }
@@ -141,9 +142,9 @@ export class LifecycleAlertsCron {
     for (const [productId, rows] of byProduct) {
       const result = calculateNextPurchase({
         productId,
-        estimatedDurationDays: rows[0].estimatedDurationDays,
-        purchaseHistory: rows.map((r) => ({
-          purchasedAt: r.purchasedAt,
+        replenishmentDays: rows[0].replenishmentDays,
+        orderHistory: rows.map((r) => ({
+          processedAt: r.processedAt,
           productId,
         })),
         now,

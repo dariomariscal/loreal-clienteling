@@ -25,11 +25,11 @@ import { CustomerSummaryService } from "./services/customer-summary.service";
 import { NoteExtractionService } from "./services/note-extraction.service";
 import { MessageSuggestionService } from "./services/message-suggestion.service";
 import { SemanticSearchService } from "./services/semantic-search.service";
-import { DailyOpportunitiesService } from "./services/daily-opportunities.service";
+import { DailySuggestedActionsService } from "./services/daily-suggested-actions.service";
 import {
   ExtractNoteFromTextDto,
   SemanticSearchDto,
-  DailyOpportunitiesQueryDto,
+  SuggestedActionsQueryDto,
 } from "../../dtos/ai.dto";
 
 const BA_ROLES = ["ba", "manager", "supervisor", "admin"] as const;
@@ -47,8 +47,8 @@ export class AiController {
     private readonly messageSuggestionService: MessageSuggestionService,
     @Inject(SemanticSearchService)
     private readonly semanticSearchService: SemanticSearchService,
-    @Inject(DailyOpportunitiesService)
-    private readonly dailyOpportunitiesService: DailyOpportunitiesService,
+    @Inject(DailySuggestedActionsService)
+    private readonly dailySuggestedActionsService: DailySuggestedActionsService,
   ) {}
 
   // ── Customer AI summary ────────────────────────────────────────────────
@@ -75,7 +75,7 @@ export class AiController {
 
   // ── Note extraction (text + audio) ─────────────────────────────────────
 
-  @Post("customer-notes/extract")
+  @Post("notes/extract")
   @Roles([...BA_ROLES])
   @ApiBody({ type: ExtractNoteFromTextDto })
   extractFromText(
@@ -90,7 +90,7 @@ export class AiController {
     });
   }
 
-  @Post("customer-notes/extract/audio")
+  @Post("notes/extract/audio")
   @Roles([...BA_ROLES])
   @ApiConsumes("multipart/form-data")
   @UseInterceptors(FileInterceptor("audio"))
@@ -139,33 +139,33 @@ export class AiController {
     );
   }
 
-  // ── Daily opportunities ────────────────────────────────────────────────
+  // ── Daily suggested actions ────────────────────────────────────────────
 
-  @Get("opportunities/daily")
+  @Get("suggested-actions/daily")
   @Roles([...BA_ROLES])
-  dailyOpportunities(
-    @Query() query: DailyOpportunitiesQueryDto,
+  dailySuggestedActions(
+    @Query() query: SuggestedActionsQueryDto,
     @Session() session: UserSession,
   ) {
-    const forDate = query.forDate ?? new Date().toISOString().slice(0, 10);
-    return this.dailyOpportunitiesService.listForBa(
+    const dueDate = query.dueDate ?? new Date().toISOString().slice(0, 10);
+    return this.dailySuggestedActionsService.listForBa(
       session.user.id,
-      forDate,
+      dueDate,
       query.limit ?? 5,
     );
   }
 
-  @Post("opportunities/:id/dismiss")
+  @Post("suggested-actions/:id/dismiss")
   @Roles([...BA_ROLES])
   @ApiParam({ name: "id", type: String })
-  dismissOpportunity(@Param("id") id: string) {
-    return this.dailyOpportunitiesService.dismiss(id);
+  dismissSuggestedAction(@Param("id") id: string) {
+    return this.dailySuggestedActionsService.dismiss(id);
   }
 
-  @Post("opportunities/:id/mark-acted")
+  @Post("suggested-actions/:id/complete")
   @Roles([...BA_ROLES])
   @ApiParam({ name: "id", type: String })
-  markOpportunityActed(@Param("id") id: string) {
-    return this.dailyOpportunitiesService.markActed(id);
+  completeSuggestedAction(@Param("id") id: string) {
+    return this.dailySuggestedActionsService.markCompleted(id);
   }
 }

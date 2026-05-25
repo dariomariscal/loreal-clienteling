@@ -12,12 +12,14 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   SKIN_TYPES,
   SKIN_TONES,
-  SKIN_SUBTONES,
+  UNDERTONES,
+  FITZPATRICK_SCALES,
   SKIN_CONCERNS,
-  FRAGRANCE_PREFERENCES,
-  ROUTINE_TYPES,
+  FRAGRANCE_FAMILIES,
   BEAUTY_INTERESTS,
   SHADE_CATEGORIES,
+  HAIR_TYPES,
+  HAIR_TEXTURES,
 } from "@loreal/contracts";
 
 export class UpsertBeautyProfileDto {
@@ -38,10 +40,15 @@ export class UpsertBeautyProfileDto {
   @IsIn(SKIN_TONES)
   skinTone?: string;
 
-  @ApiPropertyOptional({ type: String, enum: SKIN_SUBTONES })
+  @ApiPropertyOptional({ type: String, enum: FITZPATRICK_SCALES })
   @IsOptional()
-  @IsIn(SKIN_SUBTONES)
-  skinSubtone?: string;
+  @IsIn(FITZPATRICK_SCALES)
+  fitzpatrickScale?: string;
+
+  @ApiPropertyOptional({ type: String, enum: UNDERTONES })
+  @IsOptional()
+  @IsIn(UNDERTONES)
+  undertone?: string;
 
   @ApiPropertyOptional({ type: [String], enum: SKIN_CONCERNS })
   @IsOptional()
@@ -61,21 +68,32 @@ export class UpsertBeautyProfileDto {
   @IsString({ each: true })
   avoidedIngredients?: string[];
 
-  @ApiPropertyOptional({ type: [String], enum: FRAGRANCE_PREFERENCES })
+  @ApiPropertyOptional({ type: String, enum: HAIR_TYPES })
+  @IsOptional()
+  @IsIn(HAIR_TYPES)
+  hairType?: string;
+
+  @ApiPropertyOptional({ type: String, enum: HAIR_TEXTURES })
+  @IsOptional()
+  @IsIn(HAIR_TEXTURES)
+  hairTexture?: string;
+
+  @ApiPropertyOptional({ type: String, example: "Castaño oscuro", maxLength: 50 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  hairColorCurrent?: string;
+
+  @ApiPropertyOptional({ type: [String], enum: FRAGRANCE_FAMILIES })
   @IsOptional()
   @IsArray()
-  @IsIn(FRAGRANCE_PREFERENCES, { each: true })
-  fragrancePreferences?: string[];
+  @IsIn(FRAGRANCE_FAMILIES, { each: true })
+  fragranceFamilies?: string[];
 
   @ApiPropertyOptional({ type: Object })
   @IsOptional()
   @IsObject()
   makeupPreferences?: Record<string, unknown>;
-
-  @ApiPropertyOptional({ type: String, enum: ROUTINE_TYPES })
-  @IsOptional()
-  @IsIn(ROUTINE_TYPES)
-  routineType?: string;
 
   @ApiPropertyOptional({ type: [String], enum: BEAUTY_INTERESTS })
   @IsOptional()
@@ -84,7 +102,7 @@ export class UpsertBeautyProfileDto {
   interests?: string[];
 }
 
-export class CreateShadeDto {
+export class CreateShadeMatchDto {
   @ApiProperty({ type: String, enum: SHADE_CATEGORIES, example: "foundation" })
   @IsIn(SHADE_CATEGORIES)
   category: string;

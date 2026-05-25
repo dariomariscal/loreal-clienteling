@@ -1,7 +1,7 @@
 import { IsString, MinLength, MaxLength, IsOptional, IsBoolean } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 
-export class CreateAppointmentEventTypeDto {
+export class CreateServiceTypeDto {
   @ApiProperty({ type: String, example: "cabin_service", minLength: 1, maxLength: 30 })
   @IsString()
   @MinLength(1)
@@ -15,9 +15,9 @@ export class CreateAppointmentEventTypeDto {
   displayName: string;
 }
 
-export class UpdateAppointmentEventTypeDto extends PartialType(CreateAppointmentEventTypeDto) {
+export class UpdateServiceTypeDto extends PartialType(CreateServiceTypeDto) {
   @ApiPropertyOptional({ type: Boolean })
   @IsOptional()
   @IsBoolean()
-  active?: boolean;
+  isActive?: boolean;
 }

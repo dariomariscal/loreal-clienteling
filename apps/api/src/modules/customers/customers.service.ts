@@ -4,17 +4,17 @@ import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   customers,
   beautyProfiles,
-  beautyProfileShades,
+  shadeMatches,
   consents,
-  purchases,
-  purchaseItems,
+  orders,
+  lineItems,
   products,
   recommendations,
   samples,
   appointments,
-  appointmentEventTypes,
-  communications,
-  customerNotes,
+  serviceTypes,
+  messages,
+  notes,
   users,
   stores,
 } from "@loreal/database";
@@ -52,26 +52,26 @@ export class CustomersService {
   ) {
     const scope = await this.scopeService.scopeByStore(
       user,
-      customers.registeredAtStoreId,
+      customers.signupStoreId,
     );
 
     const conditions: any[] = [
-      eq(customers.inactive, false),
+      eq(customers.isActive, true),
       ...(scope ? [scope] : []),
-      ...(filters?.segment
-        ? [eq(customers.lifecycleSegment, filters.segment)]
+      ...(filters?.stage
+        ? [eq(customers.lifecycleStage, filters.stage)]
         : []),
       ...(filters?.storeId
-        ? [eq(customers.registeredAtStoreId, filters.storeId)]
+        ? [eq(customers.signupStoreId, filters.storeId)]
         : []),
-      ...(filters?.baUserId
-        ? [eq(customers.lastBaUserId, filters.baUserId)]
+      ...(filters?.assignedToUserId
+        ? [eq(customers.assignedToUserId, filters.assignedToUserId)]
         : []),
       ...(filters?.dateFrom
-        ? [gte(customers.customerSince, filters.dateFrom)]
+        ? [gte(customers.enrolledAt, filters.dateFrom)]
         : []),
       ...(filters?.dateTo
-        ? [lte(customers.customerSince, filters.dateTo)]
+        ? [lte(customers.enrolledAt, filters.dateTo)]
         : []),
       ...(filters?.birthdayWithinDays
         ? [birthdayWithinDaysCondition(filters.birthdayWithinDays)]
@@ -86,24 +86,24 @@ export class CustomersService {
       .from(customers)
       .where(where);
 
-    // Data with LTV and BA name
+    // Data with LTV and assigned-advisor name
     const ltvSubquery = this.db
       .select({
-        customerId: purchases.customerId,
-        ltv: sum(purchases.totalAmount).as("ltv"),
-        purchaseCount: count().as("purchase_count"),
+        customerId: orders.customerId,
+        ltv: sum(orders.totalPrice).as("ltv"),
+        orderCount: count().as("order_count"),
       })
-      .from(purchases)
-      .groupBy(purchases.customerId)
+      .from(orders)
+      .groupBy(orders.customerId)
       .as("ltv_sq");
 
     // Determine sort
     let orderByClause;
     const sortDir = filters?.sortOrder === "asc" ? asc : desc;
     switch (filters?.sortBy) {
-      case "customerSince": orderByClause = sortDir(customers.customerSince); break;
-      case "lastContactAt": orderByClause = sortDir(customers.lastContactAt); break;
-      case "lastTransactionAt": orderByClause = sortDir(customers.lastTransactionAt); break;
+      case "enrolledAt": orderByClause = sortDir(customers.enrolledAt); break;
+      case "lastInteractionAt": orderByClause = sortDir(customers.lastInteractionAt); break;
+      case "lastOrderAt": orderByClause = sortDir(customers.lastOrderAt); break;
       case "ltv": orderByClause = sortDir(ltvSubquery.ltv); break;
       default: orderByClause = asc(customers.firstName); break;
     }
@@ -116,19 +116,19 @@ export class CustomersService {
         email: customers.email,
         phone: customers.phone,
         gender: customers.gender,
-        birthDate: customers.birthDate,
-        lifecycleSegment: customers.lifecycleSegment,
-        customerSince: customers.customerSince,
-        lastContactAt: customers.lastContactAt,
-        lastTransactionAt: customers.lastTransactionAt,
-        registeredAtStoreId: customers.registeredAtStoreId,
-        lastBaUserId: customers.lastBaUserId,
-        baName: users.fullName,
+        birthday: customers.birthday,
+        lifecycleStage: customers.lifecycleStage,
+        enrolledAt: customers.enrolledAt,
+        lastInteractionAt: customers.lastInteractionAt,
+        lastOrderAt: customers.lastOrderAt,
+        signupStoreId: customers.signupStoreId,
+        assignedToUserId: customers.assignedToUserId,
+        assignedToName: users.fullName,
         ltv: ltvSubquery.ltv,
-        purchaseCount: ltvSubquery.purchaseCount,
+        orderCount: ltvSubquery.orderCount,
       })
       .from(customers)
-      .leftJoin(users, eq(customers.lastBaUserId, users.id))
+      .leftJoin(users, eq(customers.assignedToUserId, users.id))
       .leftJoin(ltvSubquery, eq(customers.id, ltvSubquery.customerId))
       .where(where)
       .orderBy(orderByClause)
@@ -163,11 +163,11 @@ export class CustomersService {
   /**
    * Aggregated metrics for the profile header (LTV, deltas, counts, next/last
    * visit). One SQL roundtrip rather than 4 — the profile header is the most
-   * frequent read in the app, and the BA has 90 seconds.
+   * frequent read in the app, and the advisor has 90 seconds.
    *
-   * `ltvChangePct` compares the last 30 days of purchases against the prior 30.
-   * Null when the prior window has no purchases (avoids divide-by-zero and
-   * spurious "+∞%" deltas for brand-new clients).
+   * `ltvChangePct` compares the last 30 days of orders against the prior 30.
+   * Null when the prior window has no orders (avoids divide-by-zero and
+   * spurious "+∞%" deltas for brand-new customers).
    */
   async getMetrics(customerId: string, user: SessionUser) {
     await this.scopeService.assertCustomerAccess(customerId, user);
@@ -176,29 +176,29 @@ export class CustomersService {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    const [purchaseAgg] = await this.db
+    const [orderAgg] = await this.db
       .select({
-        ltv: sql<string | null>`coalesce(sum(${purchases.totalAmount}), 0)`,
-        purchaseCount: count(),
-        ltvLast30: sql<string | null>`coalesce(sum(${purchases.totalAmount}) filter (where ${purchases.purchasedAt} >= ${thirtyDaysAgo}), 0)`,
-        ltvPrior30: sql<string | null>`coalesce(sum(${purchases.totalAmount}) filter (where ${purchases.purchasedAt} >= ${sixtyDaysAgo} and ${purchases.purchasedAt} < ${thirtyDaysAgo}), 0)`,
-        lastPurchaseAt: sql<Date | null>`max(${purchases.purchasedAt})`,
+        ltv: sql<string | null>`coalesce(sum(${orders.totalPrice}), 0)`,
+        ordersCount: count(),
+        ltvLast30: sql<string | null>`coalesce(sum(${orders.totalPrice}) filter (where ${orders.processedAt} >= ${thirtyDaysAgo}), 0)`,
+        ltvPrior30: sql<string | null>`coalesce(sum(${orders.totalPrice}) filter (where ${orders.processedAt} >= ${sixtyDaysAgo} and ${orders.processedAt} < ${thirtyDaysAgo}), 0)`,
+        lastOrderAt: sql<Date | null>`max(${orders.processedAt})`,
       })
-      .from(purchases)
-      .where(eq(purchases.customerId, customerId));
+      .from(orders)
+      .where(eq(orders.customerId, customerId));
 
     const [appointmentAgg] = await this.db
       .select({
         appointmentCount: count(),
-        nextAppointmentAt: sql<Date | null>`min(${appointments.scheduledAt}) filter (where ${appointments.scheduledAt} >= now() and ${appointments.status} in ('scheduled', 'confirmed'))`,
-        lastAppointmentAt: sql<Date | null>`max(${appointments.scheduledAt}) filter (where ${appointments.scheduledAt} < now() and ${appointments.status} in ('completed', 'confirmed'))`,
+        nextAppointmentAt: sql<Date | null>`min(${appointments.startTime}) filter (where ${appointments.startTime} >= now() and ${appointments.status} in ('scheduled', 'confirmed'))`,
+        lastAppointmentAt: sql<Date | null>`max(${appointments.startTime}) filter (where ${appointments.startTime} < now() and ${appointments.status} in ('completed', 'confirmed'))`,
       })
       .from(appointments)
       .where(eq(appointments.customerId, customerId));
 
-    const ltv = Number(purchaseAgg?.ltv ?? 0);
-    const ltvLast30 = Number(purchaseAgg?.ltvLast30 ?? 0);
-    const ltvPrior30 = Number(purchaseAgg?.ltvPrior30 ?? 0);
+    const ltv = Number(orderAgg?.ltv ?? 0);
+    const ltvLast30 = Number(orderAgg?.ltvLast30 ?? 0);
+    const ltvPrior30 = Number(orderAgg?.ltvPrior30 ?? 0);
 
     let ltvChangePct: number | null = null;
     if (ltvPrior30 > 0) {
@@ -206,7 +206,7 @@ export class CustomersService {
     }
 
     const lastVisitCandidates = [
-      purchaseAgg?.lastPurchaseAt ? new Date(purchaseAgg.lastPurchaseAt) : null,
+      orderAgg?.lastOrderAt ? new Date(orderAgg.lastOrderAt) : null,
       appointmentAgg?.lastAppointmentAt
         ? new Date(appointmentAgg.lastAppointmentAt)
         : null,
@@ -220,7 +220,7 @@ export class CustomersService {
     return {
       ltv,
       ltvChangePct,
-      purchaseCount: purchaseAgg?.purchaseCount ?? 0,
+      ordersCount: orderAgg?.ordersCount ?? 0,
       appointmentCount: appointmentAgg?.appointmentCount ?? 0,
       nextAppointmentAt: appointmentAgg?.nextAppointmentAt
         ? new Date(appointmentAgg.nextAppointmentAt).toISOString()
@@ -231,8 +231,8 @@ export class CustomersService {
 
   /**
    * Unified, cursor-paginated activity timeline. Merges five event streams
-   * (synthetic registration + purchases + recommendations + appointments +
-   * communications) into a single chronological feed.
+   * (synthetic registration + orders + recommendations + appointments +
+   * messages + notes) into a single chronological feed.
    *
    * We over-fetch by `limit + 1` from each source so that after the global
    * merge we always have enough rows to fill the requested page and detect
@@ -251,8 +251,8 @@ export class CustomersService {
         id: customers.id,
         firstName: customers.firstName,
         lastName: customers.lastName,
-        customerSince: customers.customerSince,
-        registeredByUserId: customers.registeredByUserId,
+        enrolledAt: customers.enrolledAt,
+        createdByUserId: customers.createdByUserId,
       })
       .from(customers)
       .where(eq(customers.id, customerId));
@@ -263,32 +263,32 @@ export class CustomersService {
       ? (col: any) => lte(col, opts.before!)
       : null;
 
-    // Purchases — include first 3 product names as a preview line
-    const purchaseRows = await this.db
+    // Orders — include first 3 product titles as a preview line
+    const orderRows = await this.db
       .select({
-        id: purchases.id,
-        purchasedAt: purchases.purchasedAt,
-        totalAmount: purchases.totalAmount,
-        attributedBaUserId: purchases.attributedBaUserId,
-        baName: users.fullName,
-        productNames: sql<string[]>`coalesce(
-          array_agg(${products.name} order by ${purchaseItems.unitPrice} desc)
-            filter (where ${products.name} is not null),
+        id: orders.id,
+        processedAt: orders.processedAt,
+        totalPrice: orders.totalPrice,
+        attributedUserId: orders.attributedUserId,
+        attributedName: users.fullName,
+        productTitles: sql<string[]>`coalesce(
+          array_agg(${products.title} order by ${lineItems.price} desc)
+            filter (where ${products.title} is not null),
           '{}'
         )`,
       })
-      .from(purchases)
-      .leftJoin(users, eq(purchases.attributedBaUserId, users.id))
-      .leftJoin(purchaseItems, eq(purchaseItems.purchaseId, purchases.id))
-      .leftJoin(products, eq(products.id, purchaseItems.productId))
+      .from(orders)
+      .leftJoin(users, eq(orders.attributedUserId, users.id))
+      .leftJoin(lineItems, eq(lineItems.orderId, orders.id))
+      .leftJoin(products, eq(products.id, lineItems.productId))
       .where(
         and(
-          eq(purchases.customerId, customerId),
-          ...(beforeCondition ? [beforeCondition(purchases.purchasedAt)] : []),
+          eq(orders.customerId, customerId),
+          ...(beforeCondition ? [beforeCondition(orders.processedAt)] : []),
         ),
       )
-      .groupBy(purchases.id, users.fullName)
-      .orderBy(desc(purchases.purchasedAt))
+      .groupBy(orders.id, users.fullName)
+      .orderBy(desc(orders.processedAt))
       .limit(fetchSize);
 
     // Recommendations — single product per row in this schema
@@ -296,13 +296,13 @@ export class CustomersService {
       .select({
         id: recommendations.id,
         recommendedAt: recommendations.recommendedAt,
-        baUserId: recommendations.baUserId,
-        baName: users.fullName,
-        productName: products.name,
+        recommendedByUserId: recommendations.recommendedByUserId,
+        recommendedByName: users.fullName,
+        productTitle: products.title,
         notes: recommendations.notes,
       })
       .from(recommendations)
-      .leftJoin(users, eq(recommendations.baUserId, users.id))
+      .leftJoin(users, eq(recommendations.recommendedByUserId, users.id))
       .leftJoin(products, eq(products.id, recommendations.productId))
       .where(
         and(
@@ -319,51 +319,51 @@ export class CustomersService {
     const appointmentRows = await this.db
       .select({
         id: appointments.id,
-        scheduledAt: appointments.scheduledAt,
+        startTime: appointments.startTime,
         durationMinutes: appointments.durationMinutes,
         status: appointments.status,
-        baUserId: appointments.baUserId,
-        baName: users.fullName,
-        eventTypeName: appointmentEventTypes.displayName,
+        staffUserId: appointments.staffUserId,
+        staffName: users.fullName,
+        serviceTypeName: serviceTypes.displayName,
       })
       .from(appointments)
-      .leftJoin(users, eq(appointments.baUserId, users.id))
+      .leftJoin(users, eq(appointments.staffUserId, users.id))
       .leftJoin(
-        appointmentEventTypes,
-        eq(appointmentEventTypes.id, appointments.eventTypeId),
+        serviceTypes,
+        eq(serviceTypes.id, appointments.serviceTypeId),
       )
       .where(
         and(
           eq(appointments.customerId, customerId),
           ...(beforeCondition
-            ? [beforeCondition(appointments.scheduledAt)]
+            ? [beforeCondition(appointments.startTime)]
             : []),
         ),
       )
-      .orderBy(desc(appointments.scheduledAt))
+      .orderBy(desc(appointments.startTime))
       .limit(fetchSize);
 
-    // Communications
-    const communicationRows = await this.db
+    // Messages
+    const messageRows = await this.db
       .select({
-        id: communications.id,
-        sentAt: communications.sentAt,
-        channel: communications.channel,
-        subject: communications.subject,
-        body: communications.body,
-        followupType: communications.followupType,
-        sentByUserId: communications.sentByUserId,
-        baName: users.fullName,
+        id: messages.id,
+        sentAt: messages.sentAt,
+        channel: messages.channel,
+        subject: messages.subject,
+        body: messages.body,
+        campaignType: messages.campaignType,
+        sentByUserId: messages.sentByUserId,
+        sentByName: users.fullName,
       })
-      .from(communications)
-      .leftJoin(users, eq(communications.sentByUserId, users.id))
+      .from(messages)
+      .leftJoin(users, eq(messages.sentByUserId, users.id))
       .where(
         and(
-          eq(communications.customerId, customerId),
-          ...(beforeCondition ? [beforeCondition(communications.sentAt)] : []),
+          eq(messages.customerId, customerId),
+          ...(beforeCondition ? [beforeCondition(messages.sentAt)] : []),
         ),
       )
-      .orderBy(desc(communications.sentAt))
+      .orderBy(desc(messages.sentAt))
       .limit(fetchSize);
 
     // Notes — private notes are only visible to their author or admins.
@@ -371,43 +371,43 @@ export class CustomersService {
     // notes tab enforces the same rule server-side already.
     const noteRows = await this.db
       .select({
-        id: customerNotes.id,
-        createdAt: customerNotes.createdAt,
-        body: customerNotes.body,
-        productId: customerNotes.productId,
-        productName: products.name,
-        private: customerNotes.private,
-        authorUserId: customerNotes.authorUserId,
-        authorName: users.fullName,
+        id: notes.id,
+        createdAt: notes.createdAt,
+        body: notes.body,
+        productId: notes.productId,
+        productTitle: products.title,
+        isPrivate: notes.isPrivate,
+        createdByUserId: notes.createdByUserId,
+        createdByName: users.fullName,
       })
-      .from(customerNotes)
-      .leftJoin(users, eq(customerNotes.authorUserId, users.id))
-      .leftJoin(products, eq(products.id, customerNotes.productId))
+      .from(notes)
+      .leftJoin(users, eq(notes.createdByUserId, users.id))
+      .leftJoin(products, eq(products.id, notes.productId))
       .where(
         and(
-          eq(customerNotes.customerId, customerId),
+          eq(notes.customerId, customerId),
           ...(beforeCondition
-            ? [beforeCondition(customerNotes.createdAt)]
+            ? [beforeCondition(notes.createdAt)]
             : []),
           user.role === "admin"
             ? sql`true`
             : or(
-                eq(customerNotes.private, false),
-                eq(customerNotes.authorUserId, user.id),
+                eq(notes.isPrivate, false),
+                eq(notes.createdByUserId, user.id),
               )!,
         ),
       )
-      .orderBy(desc(customerNotes.createdAt))
+      .orderBy(desc(notes.createdAt))
       .limit(fetchSize);
 
     type RawEvent = {
       id: string;
       type:
         | "customer_registered"
-        | "purchase"
+        | "order"
         | "recommendation"
         | "appointment"
-        | "communication"
+        | "message"
         | "note";
       occurredAt: Date;
       actor: { id: string | null; name: string | null };
@@ -419,19 +419,19 @@ export class CustomersService {
 
     const events: RawEvent[] = [];
 
-    for (const row of purchaseRows) {
-      const total = Number(row.totalAmount);
-      const productNames = row.productNames ?? [];
-      const preview = productNames.slice(0, 3).join(" · ");
+    for (const row of orderRows) {
+      const total = Number(row.totalPrice);
+      const productTitles = row.productTitles ?? [];
+      const preview = productTitles.slice(0, 3).join(" · ");
       events.push({
-        id: `purchase:${row.id}`,
-        type: "purchase",
-        occurredAt: new Date(row.purchasedAt),
-        actor: { id: row.attributedBaUserId, name: row.baName },
+        id: `order:${row.id}`,
+        type: "order",
+        occurredAt: new Date(row.processedAt),
+        actor: { id: row.attributedUserId, name: row.attributedName },
         title: `Compra de $${total.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         body: preview || null,
         amount: total,
-        metadata: { itemCount: productNames.length },
+        metadata: { itemCount: productTitles.length },
       });
     }
 
@@ -440,9 +440,9 @@ export class CustomersService {
         id: `recommendation:${row.id}`,
         type: "recommendation",
         occurredAt: new Date(row.recommendedAt),
-        actor: { id: row.baUserId, name: row.baName },
-        title: row.productName
-          ? `Recomendación: ${row.productName}`
+        actor: { id: row.recommendedByUserId, name: row.recommendedByName },
+        title: row.productTitle
+          ? `Recomendación: ${row.productTitle}`
           : "Recomendación",
         body: row.notes,
         amount: null,
@@ -451,14 +451,14 @@ export class CustomersService {
     }
 
     for (const row of appointmentRows) {
-      const isPast = new Date(row.scheduledAt).getTime() < Date.now();
+      const isPast = new Date(row.startTime).getTime() < Date.now();
       events.push({
         id: `appointment:${row.id}`,
         type: "appointment",
-        occurredAt: new Date(row.scheduledAt),
-        actor: { id: row.baUserId, name: row.baName },
-        title: row.eventTypeName
-          ? `${row.eventTypeName} (${row.durationMinutes} min)`
+        occurredAt: new Date(row.startTime),
+        actor: { id: row.staffUserId, name: row.staffName },
+        title: row.serviceTypeName
+          ? `${row.serviceTypeName} (${row.durationMinutes} min)`
           : `Cita (${row.durationMinutes} min)`,
         body: null,
         amount: null,
@@ -466,16 +466,16 @@ export class CustomersService {
       });
     }
 
-    for (const row of communicationRows) {
+    for (const row of messageRows) {
       events.push({
-        id: `communication:${row.id}`,
-        type: "communication",
+        id: `message:${row.id}`,
+        type: "message",
         occurredAt: new Date(row.sentAt),
-        actor: { id: row.sentByUserId, name: row.baName },
+        actor: { id: row.sentByUserId, name: row.sentByName },
         title: `Mensaje por ${row.channel}`,
         body: row.subject ?? row.body.slice(0, 140),
         amount: null,
-        metadata: { channel: row.channel, followupType: row.followupType },
+        metadata: { channel: row.channel, campaignType: row.campaignType },
       });
     }
 
@@ -484,14 +484,14 @@ export class CustomersService {
         id: `note:${row.id}`,
         type: "note",
         occurredAt: new Date(row.createdAt),
-        actor: { id: row.authorUserId, name: row.authorName },
-        title: row.productName
-          ? `Nota · ${row.productName}`
+        actor: { id: row.createdByUserId, name: row.createdByName },
+        title: row.productTitle
+          ? `Nota · ${row.productTitle}`
           : "Nota",
         body: row.body,
         amount: null,
         metadata: {
-          private: row.private,
+          isPrivate: row.isPrivate,
           productId: row.productId,
         },
       });
@@ -499,19 +499,19 @@ export class CustomersService {
 
     // Synthetic registration event — only emit on the oldest page so it shows
     // up at the bottom of the timeline (as designed in the spec mockup).
-    const customerSince = new Date(customer.customerSince);
-    if (!opts.before || customerSince <= opts.before) {
-      const [registeredBy] = customer.registeredByUserId
+    const enrolledAt = new Date(customer.enrolledAt);
+    if (!opts.before || enrolledAt <= opts.before) {
+      const [registeredBy] = customer.createdByUserId
         ? await this.db
             .select({ id: users.id, fullName: users.fullName })
             .from(users)
-            .where(eq(users.id, customer.registeredByUserId))
+            .where(eq(users.id, customer.createdByUserId))
         : [];
 
       events.push({
         id: `registration:${customer.id}`,
         type: "customer_registered",
-        occurredAt: customerSince,
+        occurredAt: enrolledAt,
         actor: {
           id: registeredBy?.id ?? null,
           name: registeredBy?.fullName ?? null,
@@ -548,12 +548,12 @@ export class CustomersService {
       .insert(customers)
       .values({
         ...data,
-        birthDate: data.birthDate
-          ? data.birthDate.toISOString().split("T")[0]
+        birthday: data.birthday
+          ? data.birthday.toISOString().split("T")[0]
           : undefined,
-        registeredAtStoreId: storeId,
-        registeredByUserId: user.id,
-        lastBaUserId: user.id,
+        signupStoreId: storeId,
+        createdByUserId: user.id,
+        assignedToUserId: user.id,
       })
       .returning();
 
@@ -585,12 +585,12 @@ export class CustomersService {
         .insert(customers)
         .values({
           ...data.customer,
-          birthDate: data.customer.birthDate
-            ? data.customer.birthDate.toISOString().split("T")[0]
+          birthday: data.customer.birthday
+            ? data.customer.birthday.toISOString().split("T")[0]
             : undefined,
-          registeredAtStoreId: storeId,
-          registeredByUserId: user.id,
-          lastBaUserId: user.id,
+          signupStoreId: storeId,
+          createdByUserId: user.id,
+          assignedToUserId: user.id,
         })
         .returning();
 
@@ -646,9 +646,9 @@ export class CustomersService {
 
   /**
    * Cross-store duplicate check for the wizard's "search before create" step.
-   * Returns minimal metadata only — never leaks PII from stores the BA can't
-   * access. The `inUserScope` flag tells the UI whether the BA can open the
-   * existing profile or needs to call support to claim it.
+   * Returns minimal metadata only — never leaks PII from stores the advisor
+   * can't access. The `inUserScope` flag tells the UI whether the advisor
+   * can open the existing profile or needs to call support to claim it.
    */
   async checkDuplicate(params: CheckDuplicateDto, user: SessionUser) {
     if (!params.email && !params.phone) {
@@ -667,11 +667,11 @@ export class CustomersService {
         lastName: customers.lastName,
         email: customers.email,
         phone: customers.phone,
-        storeId: customers.registeredAtStoreId,
+        storeId: customers.signupStoreId,
         storeName: stores.displayName,
       })
       .from(customers)
-      .leftJoin(stores, eq(customers.registeredAtStoreId, stores.id))
+      .leftJoin(stores, eq(customers.signupStoreId, stores.id))
       .where(or(...conditions));
 
     const accessibleStoreIds =
@@ -708,8 +708,8 @@ export class CustomersService {
       .update(customers)
       .set({
         ...data,
-        birthDate: data.birthDate
-          ? data.birthDate.toISOString().split("T")[0]
+        birthday: data.birthday
+          ? data.birthday.toISOString().split("T")[0]
           : undefined,
         updatedAt: new Date(),
       })
@@ -740,7 +740,7 @@ export class CustomersService {
   async search(query: string, type: string, user: SessionUser) {
     const scope = await this.scopeService.scopeByStore(
       user,
-      customers.registeredAtStoreId,
+      customers.signupStoreId,
     );
 
     if (type === "exact") {
@@ -770,20 +770,19 @@ export class CustomersService {
 
     // Rank under the hood for ordering, but return full Customer rows so
     // every UI consumer (global search, agenda picker, registration
-    // wizard, follow-ups form) gets a familiar shape with id, phone,
-    // email and segment.
+    // wizard, follow-ups form) gets a familiar shape.
     const ranked = rankCustomerSearchResults({
       results: rows.map((r) => ({
         customerId: r.id,
         firstName: r.firstName,
         lastName: r.lastName,
-        lastContactAt: r.lastContactAt,
-        lastTransactionAt: r.lastTransactionAt,
-        lastBaUserId: r.lastBaUserId,
-        lifecycleSegment: r.lifecycleSegment as any,
+        lastInteractionAt: r.lastInteractionAt,
+        lastOrderAt: r.lastOrderAt,
+        assignedToUserId: r.assignedToUserId,
+        lifecycleStage: r.lifecycleStage as any,
         textMatchScore: 50, // base score for ilike matches
       })),
-      searchingBaUserId: user.id,
+      searchingUserId: user.id,
     });
 
     const orderById = new Map(
@@ -812,7 +811,7 @@ export class CustomersService {
     const anonymized = `ARCO-${requestFolio}`;
 
     await this.db.transaction(async (tx) => {
-      // 1. Delete beauty profile shades (via beauty profile)
+      // 1. Delete shade matches (via beauty profile)
       const [profile] = await tx
         .select({ id: beautyProfiles.id })
         .from(beautyProfiles)
@@ -820,8 +819,8 @@ export class CustomersService {
 
       if (profile) {
         await tx
-          .delete(beautyProfileShades)
-          .where(eq(beautyProfileShades.beautyProfileId, profile.id));
+          .delete(shadeMatches)
+          .where(eq(shadeMatches.beautyProfileId, profile.id));
         await tx
           .delete(beautyProfiles)
           .where(eq(beautyProfiles.customerId, customerId));
@@ -830,11 +829,11 @@ export class CustomersService {
       // 2. Delete consents
       await tx.delete(consents).where(eq(consents.customerId, customerId));
 
-      // 3. Anonymize purchases
+      // 3. Anonymize orders
       await tx
-        .update(purchases)
+        .update(orders)
         .set({ customerId: sql`null` } as any)
-        .where(eq(purchases.customerId, customerId));
+        .where(eq(orders.customerId, customerId));
 
       // 4. Anonymize recommendations
       await tx
@@ -854,11 +853,11 @@ export class CustomersService {
         .set({ customerId: sql`null` } as any)
         .where(eq(appointments.customerId, customerId));
 
-      // 7. Anonymize communications
+      // 7. Anonymize messages
       await tx
-        .update(communications)
+        .update(messages)
         .set({ customerId: sql`null` } as any)
-        .where(eq(communications.customerId, customerId));
+        .where(eq(messages.customerId, customerId));
 
       // 8. Hard delete customer
       await tx.delete(customers).where(eq(customers.id, customerId));
@@ -886,18 +885,18 @@ export class CustomersService {
  * Build a SQL predicate that matches customers whose birthday (month + day)
  * falls within the next N days from today, wrapping around the year end.
  *
- * The DB stores `birthDate` as a `date` column. We pull `month` and `day`
+ * The DB stores `birthday` as a `date` column. We pull `month` and `day`
  * out and compare via day-of-year math so a December birthday still matches
  * when "today" is late December and the window extends into January.
  */
 function birthdayWithinDaysCondition(days: number) {
   return sql`
-    ${customers.birthDate} IS NOT NULL AND (
+    ${customers.birthday} IS NOT NULL AND (
       (
         make_date(
           extract(year from current_date)::int,
-          extract(month from ${customers.birthDate})::int,
-          extract(day from ${customers.birthDate})::int
+          extract(month from ${customers.birthday})::int,
+          extract(day from ${customers.birthday})::int
         ) BETWEEN current_date AND current_date + (${days} || ' days')::interval
       )
       OR
@@ -906,8 +905,8 @@ function birthdayWithinDaysCondition(days: number) {
         -- that fall in the early days of next year.
         make_date(
           extract(year from current_date)::int + 1,
-          extract(month from ${customers.birthDate})::int,
-          extract(day from ${customers.birthDate})::int
+          extract(month from ${customers.birthday})::int,
+          extract(day from ${customers.birthday})::int
         ) BETWEEN current_date AND current_date + (${days} || ' days')::interval
       )
     )

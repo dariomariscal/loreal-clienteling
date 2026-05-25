@@ -62,16 +62,23 @@ export class ClerkWebhooksService {
     const fullName = [data.first_name, data.last_name].filter(Boolean).join(" ").trim() || email;
     const meta = data.public_metadata ?? {};
 
+    const isActiveFromMeta =
+      meta.isActive !== undefined
+        ? Boolean(meta.isActive)
+        : meta.active !== undefined
+          ? Boolean(meta.active)
+          : true;
+
     const values = {
       id: data.id,
       email,
       fullName,
-      imageUrl: data.image_url ?? null,
+      avatarUrl: data.image_url ?? null,
       role: (meta.role as string) ?? "ba",
       storeId: (meta.storeId as string) ?? null,
       zoneId: (meta.zoneId as string) ?? null,
       brandId: (meta.brandId as string) ?? null,
-      active: meta.active === undefined ? true : Boolean(meta.active),
+      isActive: isActiveFromMeta,
       invitationStatus: (meta.invitationStatus as string) ?? "accepted",
       invitedByUserId: (meta.invitedByUserId as string) ?? null,
     };
@@ -92,12 +99,12 @@ export class ClerkWebhooksService {
         set: {
           email: values.email,
           fullName: values.fullName,
-          imageUrl: values.imageUrl,
+          avatarUrl: values.avatarUrl,
           role: values.role,
           storeId: values.storeId,
           zoneId: values.zoneId,
           brandId: values.brandId,
-          active: values.active,
+          isActive: values.isActive,
           invitationStatus: values.invitationStatus,
         },
       });
@@ -105,13 +112,13 @@ export class ClerkWebhooksService {
 
   private async deactivateUser(id: string): Promise<void> {
     // Soft delete: domain rows reference users.id (customers, audit logs).
-    await this.db.update(users).set({ active: false }).where(eq(users.id, id));
+    await this.db.update(users).set({ isActive: false }).where(eq(users.id, id));
   }
 
   private async markLoggedIn(userId: string): Promise<void> {
     await this.db
       .update(users)
-      .set({ lastLoginAt: new Date() })
+      .set({ lastSignInAt: new Date() })
       .where(eq(users.id, userId));
   }
 }

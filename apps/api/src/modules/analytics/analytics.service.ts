@@ -3,12 +3,12 @@ import { eq, and, gte, lte, sql, count, sum } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   customers,
-  purchases,
-  purchaseItems,
+  orders,
+  lineItems,
   recommendations,
   appointments,
-  appointmentEventTypes,
-  communications,
+  serviceTypes,
+  messages,
   samples,
   products,
   users,
@@ -49,7 +49,7 @@ export class AnalyticsService {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";
     const { from, to } = this.getDefaultDateRange(range);
-    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, customers.registeredAtStoreId);
+    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, customers.signupStoreId);
 
     // Total customers
     const customerConditions = storeFilter ? [storeFilter] : [];
@@ -59,17 +59,17 @@ export class AnalyticsService {
       .where(customerConditions.length > 0 ? and(...customerConditions) : undefined);
 
     // Sales in period
-    const purchaseConditions = [gte(purchases.purchasedAt, from), lte(purchases.purchasedAt, to)];
-    const purchaseStoreFilter = this.buildStoreFilter(isAdmin, storeIds, purchases.storeId);
-    if (purchaseStoreFilter) purchaseConditions.push(purchaseStoreFilter as any);
+    const orderConditions = [gte(orders.processedAt, from), lte(orders.processedAt, to)];
+    const orderStoreFilter = this.buildStoreFilter(isAdmin, storeIds, orders.storeId);
+    if (orderStoreFilter) orderConditions.push(orderStoreFilter as any);
 
     const [salesData] = await this.db
-      .select({ total: sum(purchases.totalAmount), count: count() })
-      .from(purchases)
-      .where(and(...purchaseConditions));
+      .select({ total: sum(orders.totalPrice), count: count() })
+      .from(orders)
+      .where(and(...orderConditions));
 
     // Appointments in period
-    const apptConditions = [gte(appointments.scheduledAt, from), lte(appointments.scheduledAt, to)];
+    const apptConditions = [gte(appointments.startTime, from), lte(appointments.startTime, to)];
     const apptStoreFilter = this.buildStoreFilter(isAdmin, storeIds, appointments.storeId);
     if (apptStoreFilter) apptConditions.push(apptStoreFilter as any);
 
@@ -79,7 +79,7 @@ export class AnalyticsService {
       .where(and(...apptConditions));
 
     // New customers in period
-    const newConditions = [gte(customers.customerSince, from), lte(customers.customerSince, to)];
+    const newConditions = [gte(customers.enrolledAt, from), lte(customers.enrolledAt, to)];
     if (storeFilter) newConditions.push(storeFilter as any);
 
     const [newCustomers] = await this.db
@@ -87,25 +87,25 @@ export class AnalyticsService {
       .from(customers)
       .where(and(...newConditions));
 
-    // Communications in period
-    const commConditions = [gte(communications.sentAt, from), lte(communications.sentAt, to)];
-    const commUserFilter = isAdmin ? undefined : eq(communications.sentByUserId, user.id);
-    if (commUserFilter) commConditions.push(commUserFilter as any);
+    // Messages in period
+    const msgConditions = [gte(messages.sentAt, from), lte(messages.sentAt, to)];
+    const msgUserFilter = isAdmin ? undefined : eq(messages.sentByUserId, user.id);
+    if (msgUserFilter) msgConditions.push(msgUserFilter as any);
 
-    const [commCount] = await this.db
+    const [msgCount] = await this.db
       .select({ count: count() })
-      .from(communications)
-      .where(and(...commConditions));
+      .from(messages)
+      .where(and(...msgConditions));
 
     return {
       totalCustomers: customerCount?.count ?? 0,
       sales: {
         totalAmount: salesData?.total ?? "0",
-        transactionCount: salesData?.count ?? 0,
+        orderCount: salesData?.count ?? 0,
       },
       appointments: apptCount?.count ?? 0,
       newCustomers: newCustomers?.count ?? 0,
-      communicationsSent: commCount?.count ?? 0,
+      messagesSent: msgCount?.count ?? 0,
       period: { from, to },
     };
   }
@@ -115,7 +115,7 @@ export class AnalyticsService {
     const isAdmin = user.role === "admin";
     const { from, to } = this.getDefaultDateRange(range);
 
-    const baseConditions = [gte(appointments.scheduledAt, from), lte(appointments.scheduledAt, to)];
+    const baseConditions = [gte(appointments.startTime, from), lte(appointments.startTime, to)];
     const storeFilter = this.buildStoreFilter(isAdmin, storeIds, appointments.storeId);
     if (storeFilter) baseConditions.push(storeFilter as any);
 
@@ -151,7 +151,7 @@ export class AnalyticsService {
     const { from, to } = this.getDefaultDateRange(range);
 
     // Get BAs accessible to this user
-    const baConditions = [eq(users.role, "ba"), eq(users.active, true)];
+    const baConditions = [eq(users.role, "ba"), eq(users.isActive, true)];
     if (!isAdmin && storeIds.length > 0) {
       baConditions.push(
         sql`${users.storeId} IN (${sql.join(storeIds.map((id) => sql`${id}`), sql`, `)})` as any,
@@ -170,74 +170,74 @@ export class AnalyticsService {
     // Sales per BA
     const salesRows = await this.db
       .select({
-        baId: purchases.attributedBaUserId,
-        totalAmount: sum(purchases.totalAmount),
-        transactionCount: count(),
+        baId: orders.attributedUserId,
+        totalAmount: sum(orders.totalPrice),
+        orderCount: count(),
       })
-      .from(purchases)
+      .from(orders)
       .where(
         and(
-          sql`${purchases.attributedBaUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
-          gte(purchases.purchasedAt, from),
-          lte(purchases.purchasedAt, to),
+          sql`${orders.attributedUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
+          gte(orders.processedAt, from),
+          lte(orders.processedAt, to),
         ),
       )
-      .groupBy(purchases.attributedBaUserId);
+      .groupBy(orders.attributedUserId);
 
     const salesMap = new Map(salesRows.map((r) => [r.baId, r]));
 
     // Registrations per BA
     const regRows = await this.db
       .select({
-        baId: customers.registeredByUserId,
+        baId: customers.createdByUserId,
         count: count(),
       })
       .from(customers)
       .where(
         and(
-          sql`${customers.registeredByUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
-          gte(customers.customerSince, from),
-          lte(customers.customerSince, to),
+          sql`${customers.createdByUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
+          gte(customers.enrolledAt, from),
+          lte(customers.enrolledAt, to),
         ),
       )
-      .groupBy(customers.registeredByUserId);
+      .groupBy(customers.createdByUserId);
 
     const regMap = new Map(regRows.map((r) => [r.baId, r.count]));
 
-    // Communications per BA
-    const commRows = await this.db
+    // Messages per BA
+    const msgRows = await this.db
       .select({
-        baId: communications.sentByUserId,
+        baId: messages.sentByUserId,
         count: count(),
       })
-      .from(communications)
+      .from(messages)
       .where(
         and(
-          sql`${communications.sentByUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
-          gte(communications.sentAt, from),
-          lte(communications.sentAt, to),
+          sql`${messages.sentByUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
+          gte(messages.sentAt, from),
+          lte(messages.sentAt, to),
         ),
       )
-      .groupBy(communications.sentByUserId);
+      .groupBy(messages.sentByUserId);
 
-    const commMap = new Map(commRows.map((r) => [r.baId, r.count]));
+    const msgMap = new Map(msgRows.map((r) => [r.baId, r.count]));
 
     // Recommendations per BA (total and converted)
     const recRows = await this.db
       .select({
-        baId: recommendations.baUserId,
+        baId: recommendations.recommendedByUserId,
         total: count(),
-        converted: sql<number>`COUNT(*) FILTER (WHERE ${recommendations.convertedToPurchase} = true)`,
+        converted: sql<number>`COUNT(*) FILTER (WHERE ${recommendations.isConverted} = true)`,
       })
       .from(recommendations)
       .where(
         and(
-          sql`${recommendations.baUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
+          sql`${recommendations.recommendedByUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
           gte(recommendations.recommendedAt, from),
           lte(recommendations.recommendedAt, to),
         ),
       )
-      .groupBy(recommendations.baUserId);
+      .groupBy(recommendations.recommendedByUserId);
 
     const recMap = new Map(recRows.map((r) => [r.baId, r]));
 
@@ -253,10 +253,10 @@ export class AnalyticsService {
         storeId: ba.storeId,
         sales: {
           totalAmount: sales?.totalAmount ?? "0",
-          transactionCount: sales?.transactionCount ?? 0,
+          orderCount: sales?.orderCount ?? 0,
         },
         registrations: regMap.get(ba.id) ?? 0,
-        communicationsSent: commMap.get(ba.id) ?? 0,
+        messagesSent: msgMap.get(ba.id) ?? 0,
         recommendations: {
           total: totalRecs,
           converted: convertedRecs,
@@ -284,19 +284,19 @@ export class AnalyticsService {
       return d;
     })();
 
-    const conditions = [gte(purchases.purchasedAt, from), lte(purchases.purchasedAt, to)];
-    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, purchases.storeId);
+    const conditions = [gte(orders.processedAt, from), lte(orders.processedAt, to)];
+    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, orders.storeId);
     if (storeFilter) conditions.push(storeFilter as any);
 
-    const dateTrunc = sql`date_trunc(${sql.raw(`'${interval}'`)}, ${purchases.purchasedAt})`;
+    const dateTrunc = sql`date_trunc(${sql.raw(`'${interval}'`)}, ${orders.processedAt})`;
 
     const rows = await this.db
       .select({
         period: dateTrunc.as("period"),
-        totalAmount: sum(purchases.totalAmount),
-        transactionCount: count(),
+        totalAmount: sum(orders.totalPrice),
+        orderCount: count(),
       })
-      .from(purchases)
+      .from(orders)
       .where(and(...conditions))
       .groupBy(dateTrunc)
       .orderBy(dateTrunc);
@@ -306,7 +306,7 @@ export class AnalyticsService {
       data: rows.map((r) => ({
         date: r.period,
         totalAmount: r.totalAmount ?? "0",
-        transactionCount: r.transactionCount,
+        orderCount: r.orderCount,
       })),
       period: { from, to },
     };
@@ -321,20 +321,20 @@ export class AnalyticsService {
     const isAdmin = user.role === "admin";
     const { from, to } = this.getDefaultDateRange(range);
 
-    const conditions = [gte(purchases.purchasedAt, from), lte(purchases.purchasedAt, to)];
-    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, purchases.storeId);
+    const conditions = [gte(orders.processedAt, from), lte(orders.processedAt, to)];
+    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, orders.storeId);
     if (storeFilter) conditions.push(storeFilter as any);
 
     if (groupBy === "category") {
       const rows = await this.db
         .select({
           category: products.category,
-          totalAmount: sum(purchaseItems.unitPrice),
+          totalAmount: sum(lineItems.price),
           itemCount: count(),
         })
-        .from(purchaseItems)
-        .innerJoin(purchases, eq(purchaseItems.purchaseId, purchases.id))
-        .innerJoin(products, eq(purchaseItems.productId, products.id))
+        .from(lineItems)
+        .innerJoin(orders, eq(lineItems.orderId, orders.id))
+        .innerJoin(products, eq(lineItems.productId, products.id))
         .where(and(...conditions))
         .groupBy(products.category);
 
@@ -345,12 +345,12 @@ export class AnalyticsService {
     const rows = await this.db
       .select({
         brandId: products.brandId,
-        totalAmount: sum(purchaseItems.unitPrice),
+        totalAmount: sum(lineItems.price),
         itemCount: count(),
       })
-      .from(purchaseItems)
-      .innerJoin(purchases, eq(purchaseItems.purchaseId, purchases.id))
-      .innerJoin(products, eq(purchaseItems.productId, products.id))
+      .from(lineItems)
+      .innerJoin(orders, eq(lineItems.orderId, orders.id))
+      .innerJoin(products, eq(lineItems.productId, products.id))
       .where(and(...conditions))
       .groupBy(products.brandId);
 
@@ -362,7 +362,7 @@ export class AnalyticsService {
     const isAdmin = user.role === "admin";
     const { from, to } = this.getDefaultDateRange(range);
 
-    // Recommendation → purchase conversion
+    // Recommendation → order conversion
     const recConditions: any[] = [
       gte(recommendations.recommendedAt, from),
       lte(recommendations.recommendedAt, to),
@@ -378,9 +378,9 @@ export class AnalyticsService {
     const [recConverted] = await this.db
       .select({ count: count() })
       .from(recommendations)
-      .where(and(eq(recommendations.convertedToPurchase, true), ...recConditions));
+      .where(and(eq(recommendations.isConverted, true), ...recConditions));
 
-    // Sample → purchase conversion
+    // Sample → order conversion
     const sampleConditions: any[] = [
       gte(samples.deliveredAt, from),
       lte(samples.deliveredAt, to),
@@ -396,7 +396,7 @@ export class AnalyticsService {
     const [sampleConverted] = await this.db
       .select({ count: count() })
       .from(samples)
-      .where(and(eq(samples.convertedToPurchase, true), ...sampleConditions));
+      .where(and(eq(samples.isConverted, true), ...sampleConditions));
 
     const summary = {
       recommendationToSale: {
@@ -420,7 +420,7 @@ export class AnalyticsService {
       .select({
         period: dateTrunc.as("period"),
         total: count(),
-        converted: sql<number>`COUNT(*) FILTER (WHERE ${recommendations.convertedToPurchase} = true)`,
+        converted: sql<number>`COUNT(*) FILTER (WHERE ${recommendations.isConverted} = true)`,
       })
       .from(recommendations)
       .where(and(...recConditions))
@@ -441,18 +441,18 @@ export class AnalyticsService {
   async getCustomerSegments(user: SessionUser) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";
-    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, customers.registeredAtStoreId);
+    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, customers.signupStoreId);
 
     const conditions = storeFilter ? [storeFilter] : [];
 
     const result = await this.db
       .select({
-        segment: customers.lifecycleSegment,
+        stage: customers.lifecycleStage,
         count: count(),
       })
       .from(customers)
       .where(conditions.length > 0 ? and(...conditions as any) : undefined)
-      .groupBy(customers.lifecycleSegment);
+      .groupBy(customers.lifecycleStage);
 
     return result;
   }
@@ -460,7 +460,7 @@ export class AnalyticsService {
   async getAgendaReport(
     user: SessionUser,
     range?: DateRange,
-    filters?: { baUserId?: string; status?: string; page?: number; limit?: number },
+    filters?: { staffUserId?: string; status?: string; page?: number; limit?: number },
   ) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";
@@ -470,12 +470,13 @@ export class AnalyticsService {
     const offset = (page - 1) * limit;
 
     const conditions: any[] = [
-      gte(appointments.scheduledAt, from),
-      lte(appointments.scheduledAt, to),
+      gte(appointments.startTime, from),
+      lte(appointments.startTime, to),
     ];
     const storeFilter = this.buildStoreFilter(isAdmin, storeIds, appointments.storeId);
     if (storeFilter) conditions.push(storeFilter);
-    if (filters?.baUserId) conditions.push(eq(appointments.baUserId, filters.baUserId));
+    if (filters?.staffUserId)
+      conditions.push(eq(appointments.staffUserId, filters.staffUserId));
     if (filters?.status) conditions.push(eq(appointments.status, filters.status));
 
     const whereClause = and(...conditions);
@@ -488,28 +489,28 @@ export class AnalyticsService {
     const rows = await this.db
       .select({
         id: appointments.id,
-        scheduledAt: appointments.scheduledAt,
+        startTime: appointments.startTime,
         durationMinutes: appointments.durationMinutes,
-        eventTypeId: appointments.eventTypeId,
-        eventTypeName: appointmentEventTypes.displayName,
+        serviceTypeId: appointments.serviceTypeId,
+        serviceTypeName: serviceTypes.displayName,
         status: appointments.status,
-        comments: appointments.comments,
+        notes: appointments.notes,
         isVirtual: appointments.isVirtual,
         customerName: sql<string>`${customers.firstName} || ' ' || ${customers.lastName}`,
         customerPhone: customers.phone,
         customerId: appointments.customerId,
         baName: users.fullName,
-        baUserId: appointments.baUserId,
+        staffUserId: appointments.staffUserId,
         storeName: stores.displayName,
         storeId: appointments.storeId,
       })
       .from(appointments)
       .innerJoin(customers, eq(appointments.customerId, customers.id))
-      .innerJoin(users, eq(appointments.baUserId, users.id))
+      .innerJoin(users, eq(appointments.staffUserId, users.id))
       .innerJoin(stores, eq(appointments.storeId, stores.id))
-      .leftJoin(appointmentEventTypes, eq(appointments.eventTypeId, appointmentEventTypes.id))
+      .leftJoin(serviceTypes, eq(appointments.serviceTypeId, serviceTypes.id))
       .where(whereClause)
-      .orderBy(appointments.scheduledAt)
+      .orderBy(appointments.startTime)
       .limit(limit)
       .offset(offset);
 
@@ -528,15 +529,15 @@ export class AnalyticsService {
     const { from, to } = this.getDefaultDateRange(range);
 
     const conditions: any[] = [
-      gte(appointments.scheduledAt, from),
-      lte(appointments.scheduledAt, to),
+      gte(appointments.startTime, from),
+      lte(appointments.startTime, to),
     ];
     const storeFilter = this.buildStoreFilter(isAdmin, storeIds, appointments.storeId);
     if (storeFilter) conditions.push(storeFilter);
 
     const rows = await this.db
       .select({
-        baUserId: appointments.baUserId,
+        staffUserId: appointments.staffUserId,
         baName: users.fullName,
         total: count(),
         completed: sql<number>`COUNT(*) FILTER (WHERE ${appointments.status} = 'completed')`,
@@ -547,9 +548,9 @@ export class AnalyticsService {
         rescheduled: sql<number>`COUNT(*) FILTER (WHERE ${appointments.status} = 'rescheduled')`,
       })
       .from(appointments)
-      .innerJoin(users, eq(appointments.baUserId, users.id))
+      .innerJoin(users, eq(appointments.staffUserId, users.id))
       .where(and(...conditions))
-      .groupBy(appointments.baUserId, users.fullName);
+      .groupBy(appointments.staffUserId, users.fullName);
 
     return {
       data: rows.map((r) => ({
@@ -565,55 +566,52 @@ export class AnalyticsService {
   async getRetention(user: SessionUser) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";
-    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, customers.registeredAtStoreId);
+    const storeFilter = this.buildStoreFilter(isAdmin, storeIds, customers.signupStoreId);
     const conditions: any[] = storeFilter ? [storeFilter] : [];
 
     const now = new Date();
-    const threeMonthsAgo = new Date(now.getTime() - 90 * 86400000);
-    const sixMonthsAgo = new Date(now.getTime() - 180 * 86400000);
-    const oneMonthAgo = new Date(now.getTime() - 30 * 86400000);
 
     // Segment counts
-    const segments = await this.db
-      .select({ segment: customers.lifecycleSegment, count: count() })
+    const stages = await this.db
+      .select({ stage: customers.lifecycleStage, count: count() })
       .from(customers)
       .where(conditions.length > 0 ? and(...conditions as any) : undefined)
-      .groupBy(customers.lifecycleSegment);
+      .groupBy(customers.lifecycleStage);
 
-    const segmentMap: Record<string, number> = {};
-    for (const s of segments) segmentMap[s.segment] = s.count;
+    const stageMap: Record<string, number> = {};
+    for (const s of stages) stageMap[s.stage] = s.count;
 
-    const total = Object.values(segmentMap).reduce((a, b) => a + b, 0);
-    const atRiskCount = segmentMap["at_risk"] ?? 0;
+    const total = Object.values(stageMap).reduce((a, b) => a + b, 0);
+    const atRiskCount = stageMap["at_risk"] ?? 0;
 
     // At-risk customer list (top 20)
     const atRiskConditions = [
-      eq(customers.lifecycleSegment, "at_risk"),
+      eq(customers.lifecycleStage, "at_risk"),
       ...(storeFilter ? [storeFilter] : []),
     ];
     const atRiskCustomers = await this.db
       .select({
         id: customers.id,
         name: sql<string>`${customers.firstName} || ' ' || ${customers.lastName}`,
-        lastTransactionAt: customers.lastTransactionAt,
-        lastContactAt: customers.lastContactAt,
-        lastBaUserId: customers.lastBaUserId,
+        lastOrderAt: customers.lastOrderAt,
+        lastInteractionAt: customers.lastInteractionAt,
+        assignedToUserId: customers.assignedToUserId,
         baName: users.fullName,
       })
       .from(customers)
-      .leftJoin(users, eq(customers.lastBaUserId, users.id))
+      .leftJoin(users, eq(customers.assignedToUserId, users.id))
       .where(and(...atRiskConditions as any))
-      .orderBy(customers.lastTransactionAt)
+      .orderBy(customers.lastOrderAt)
       .limit(20);
 
     return {
-      segments: segmentMap,
+      stages: stageMap,
       total,
       churnRate: total > 0 ? atRiskCount / total : 0,
       atRiskCustomers: atRiskCustomers.map((c) => ({
         ...c,
-        daysSinceLastPurchase: c.lastTransactionAt
-          ? Math.floor((now.getTime() - new Date(c.lastTransactionAt).getTime()) / 86400000)
+        daysSinceLastOrder: c.lastOrderAt
+          ? Math.floor((now.getTime() - new Date(c.lastOrderAt).getTime()) / 86400000)
           : null,
       })),
     };
@@ -626,7 +624,7 @@ export class AnalyticsService {
 
     if (type === "customers") {
       const conditions: any[] = [];
-      const storeFilter = this.buildStoreFilter(isAdmin, storeIds, customers.registeredAtStoreId);
+      const storeFilter = this.buildStoreFilter(isAdmin, storeIds, customers.signupStoreId);
       if (storeFilter) conditions.push(storeFilter);
       return this.db
         .select()
@@ -635,17 +633,17 @@ export class AnalyticsService {
     }
 
     if (type === "sales") {
-      const conditions: any[] = [gte(purchases.purchasedAt, from), lte(purchases.purchasedAt, to)];
-      const storeFilter = this.buildStoreFilter(isAdmin, storeIds, purchases.storeId);
+      const conditions: any[] = [gte(orders.processedAt, from), lte(orders.processedAt, to)];
+      const storeFilter = this.buildStoreFilter(isAdmin, storeIds, orders.storeId);
       if (storeFilter) conditions.push(storeFilter);
       return this.db
         .select()
-        .from(purchases)
+        .from(orders)
         .where(and(...conditions));
     }
 
     if (type === "appointments") {
-      const conditions: any[] = [gte(appointments.scheduledAt, from), lte(appointments.scheduledAt, to)];
+      const conditions: any[] = [gte(appointments.startTime, from), lte(appointments.startTime, to)];
       const storeFilter = this.buildStoreFilter(isAdmin, storeIds, appointments.storeId);
       if (storeFilter) conditions.push(storeFilter);
       return this.db

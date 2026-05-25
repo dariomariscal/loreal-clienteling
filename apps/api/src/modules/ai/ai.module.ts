@@ -12,7 +12,7 @@ import { OpenAiEmbeddingsProvider } from "./providers/openai-embeddings.provider
 // Repositories
 import { CustomerAiSummariesRepository } from "./repositories/customer-ai-summaries.repository";
 import { CustomerEmbeddingsRepository } from "./repositories/customer-embeddings.repository";
-import { CustomerOpportunitiesRepository } from "./repositories/customer-opportunities.repository";
+import { SuggestedActionsRepository } from "./repositories/suggested-actions.repository";
 import { ProductEmbeddingsRepository } from "./repositories/product-embeddings.repository";
 import { AiUsageLogsRepository } from "./repositories/ai-usage-logs.repository";
 
@@ -21,7 +21,7 @@ import { CustomerSummaryService } from "./services/customer-summary.service";
 import { NoteExtractionService } from "./services/note-extraction.service";
 import { MessageSuggestionService } from "./services/message-suggestion.service";
 import { SemanticSearchService } from "./services/semantic-search.service";
-import { DailyOpportunitiesService } from "./services/daily-opportunities.service";
+import { DailySuggestedActionsService } from "./services/daily-suggested-actions.service";
 import { ProductEmbeddingService } from "./services/product-embedding.service";
 import { ProductSemanticSearchService } from "./services/product-semantic-search.service";
 
@@ -43,7 +43,7 @@ import { ProductSemanticSearchService } from "./services/product-semantic-search
 
     CustomerAiSummariesRepository,
     CustomerEmbeddingsRepository,
-    CustomerOpportunitiesRepository,
+    SuggestedActionsRepository,
     ProductEmbeddingsRepository,
     AiUsageLogsRepository,
 
@@ -51,7 +51,7 @@ import { ProductSemanticSearchService } from "./services/product-semantic-search
     NoteExtractionService,
     MessageSuggestionService,
     SemanticSearchService,
-    DailyOpportunitiesService,
+    DailySuggestedActionsService,
     ProductEmbeddingService,
     ProductSemanticSearchService,
   ],
@@ -60,7 +60,7 @@ import { ProductSemanticSearchService } from "./services/product-semantic-search
     NoteExtractionService,
     MessageSuggestionService,
     SemanticSearchService,
-    DailyOpportunitiesService,
+    DailySuggestedActionsService,
     ProductEmbeddingService,
     ProductSemanticSearchService,
   ],

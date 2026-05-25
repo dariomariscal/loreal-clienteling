@@ -3,7 +3,7 @@ import { sql, eq } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../../config/database.provider";
 import {
   customerEmbeddings,
-  customerNoteEmbeddings,
+  noteEmbeddings,
   customers,
 } from "@loreal/database";
 
@@ -44,14 +44,14 @@ export class CustomerEmbeddingsRepository {
 
   async upsertNote(input: UpsertEmbeddingInput): Promise<void> {
     await this.db
-      .insert(customerNoteEmbeddings)
+      .insert(noteEmbeddings)
       .values({
-        customerNoteId: input.id,
+        noteId: input.id,
         embedding: input.embedding,
         model: input.model,
       })
       .onConflictDoUpdate({
-        target: customerNoteEmbeddings.customerNoteId,
+        target: noteEmbeddings.noteId,
         set: {
           embedding: input.embedding,
           model: input.model,

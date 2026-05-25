@@ -1,32 +1,20 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
-import { eq, and, type SQL } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   beautyProfiles,
-  beautyProfileShades,
+  shadeMatches,
   brands,
   products,
+  productVariants,
 } from "@loreal/database";
-import { findMatchingShades } from "@loreal/domain";
-import type { UpsertBeautyProfileDto, CreateShadeDto } from "../../dtos/beauty.dto";
+import { findMatchingShades, type ShadeRecord } from "@loreal/domain";
+import type {
+  UpsertBeautyProfileDto,
+  CreateShadeMatchDto,
+} from "../../dtos/beauty.dto";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
-
-// Pull a hex from product.shadeOptions. Same contract as the shade picker:
-// `{ shades: [{ code, hex }] }`. Anything else returns undefined.
-function extractShadeHex(raw: unknown, shadeCode: string): string | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const shades = (raw as Record<string, unknown>).shades;
-  if (!Array.isArray(shades)) return undefined;
-  for (const s of shades) {
-    if (s && typeof s === "object") {
-      const code = (s as Record<string, unknown>).code;
-      const hex = (s as Record<string, unknown>).hex;
-      if (code === shadeCode && typeof hex === "string") return hex;
-    }
-  }
-  return undefined;
-}
 
 @Injectable()
 export class BeautyService {
@@ -47,22 +35,28 @@ export class BeautyService {
 
     const shadeRows = await this.db
       .select({
-        shade: beautyProfileShades,
-        productName: products.name,
-        productShadeOptions: products.shadeOptions,
+        shade: shadeMatches,
+        productName: products.title,
         brandName: brands.displayName,
+        swatchHex: productVariants.swatchHex,
       })
-      .from(beautyProfileShades)
-      .leftJoin(products, eq(beautyProfileShades.productId, products.id))
-      .leftJoin(brands, eq(beautyProfileShades.brandId, brands.id))
-      .where(eq(beautyProfileShades.beautyProfileId, profile.id));
+      .from(shadeMatches)
+      .leftJoin(products, eq(shadeMatches.productId, products.id))
+      .leftJoin(brands, eq(shadeMatches.brandId, brands.id))
+      .leftJoin(
+        productVariants,
+        and(
+          eq(productVariants.productId, shadeMatches.productId),
+          eq(productVariants.option1, shadeMatches.shadeCode),
+        ),
+      )
+      .where(eq(shadeMatches.beautyProfileId, profile.id));
 
     const shades = shadeRows.map((row) => ({
       ...row.shade,
       productName: row.productName,
       brandName: row.brandName,
-      swatchHex:
-        extractShadeHex(row.productShadeOptions, row.shade.shadeCode) ?? null,
+      swatchHex: row.swatchHex ?? null,
     }));
 
     return { ...profile, shades };
@@ -96,7 +90,11 @@ export class BeautyService {
     return created;
   }
 
-  async addShade(data: CreateShadeDto, customerId: string, user: SessionUser) {
+  async addShade(
+    data: CreateShadeMatchDto,
+    customerId: string,
+    user: SessionUser,
+  ) {
     await this.scopeService.assertCustomerAccess(customerId, user);
 
     // The shade lives under the customer's beauty profile. If the profile
@@ -115,7 +113,7 @@ export class BeautyService {
     }
 
     const [shade] = await this.db
-      .insert(beautyProfileShades)
+      .insert(shadeMatches)
       .values({
         beautyProfileId: profile.id,
         category: data.category,
@@ -140,44 +138,50 @@ export class BeautyService {
     const profile = await this.findProfile(customerId);
     if (!profile) throw new NotFoundException("Beauty profile not found");
 
-    const currentShades = (profile.shades ?? []).map((s) => ({
+    const currentShades: ShadeRecord[] = (profile.shades ?? []).map((s) => ({
       productId: s.productId,
       brandId: s.brandId,
       shadeCode: s.shadeCode,
-      category: s.category as any,
-      skinTone: profile.skinTone as any,
-      skinSubtone: profile.skinSubtone as any,
+      category: s.category as ShadeRecord["category"],
+      skinTone: profile.skinTone as ShadeRecord["skinTone"],
+      undertone: profile.undertone as ShadeRecord["undertone"],
     }));
 
-    // Get available shades from products (filtered by category and optionally brand)
+    // Get available shades from product variants (filtered by category and
+    // optionally brand). productVariants holds the per-shade rows; option1 is
+    // the shade name and swatchHex is the rendered hex.
     const productConditions = [
-      eq(products.active, true),
+      eq(products.status, "active"),
       eq(products.category, category),
     ];
     if (brandId) productConditions.push(eq(products.brandId, brandId));
 
-    const filteredProducts = await this.db
-      .select()
+    const variantRows = await this.db
+      .select({
+        productId: products.id,
+        brandId: products.brandId,
+        category: products.category,
+        shadeCode: productVariants.option1,
+      })
       .from(products)
+      .innerJoin(productVariants, eq(productVariants.productId, products.id))
       .where(and(...productConditions));
 
-    const availableShades = filteredProducts.flatMap((p) => {
-      const opts = p.shadeOptions as any[];
-      if (!Array.isArray(opts)) return [];
-      return opts.map((opt: any) => ({
-        productId: p.id,
-        brandId: p.brandId,
-        shadeCode: opt.shadeCode ?? opt.code,
-        category: p.category as any,
-        skinTone: opt.skinTone as any,
-        skinSubtone: opt.skinSubtone as any,
+    const availableShades: ShadeRecord[] = variantRows
+      .filter((v) => v.shadeCode !== null)
+      .map((v) => ({
+        productId: v.productId,
+        brandId: v.brandId,
+        shadeCode: v.shadeCode as string,
+        category: v.category as ShadeRecord["category"],
+        skinTone: profile.skinTone as ShadeRecord["skinTone"],
+        undertone: profile.undertone as ShadeRecord["undertone"],
       }));
-    });
 
     return findMatchingShades({
-      targetCategory: category as any,
-      customerSkinTone: profile.skinTone as any,
-      customerSkinSubtone: profile.skinSubtone as any,
+      targetCategory: category as ShadeRecord["category"],
+      customerSkinTone: profile.skinTone as ShadeRecord["skinTone"],
+      customerUndertone: profile.undertone as ShadeRecord["undertone"],
       currentShades,
       availableShades,
       targetBrandId: brandId,

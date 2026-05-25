@@ -11,12 +11,12 @@ import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import {
   COMMUNICATION_CHANNELS,
-  FOLLOWUP_TYPES,
+  CAMPAIGN_TYPES,
   MESSAGE_DIRECTIONS,
   MESSAGE_STATUSES,
 } from "@loreal/contracts";
 
-export class CreateCommunicationDto {
+export class CreateMessageDto {
   @ApiProperty({ type: String, format: "uuid" })
   @IsUUID()
   customerId: string;
@@ -30,7 +30,7 @@ export class CreateCommunicationDto {
     enum: MESSAGE_DIRECTIONS,
     default: "outbound",
     description:
-      "outbound = sent by the BA (default); inbound = received from the customer via provider webhook.",
+      "outbound = sent by the advisor (default); inbound = received from the customer via provider webhook.",
   })
   @IsOptional()
   @IsIn(MESSAGE_DIRECTIONS)
@@ -61,7 +61,7 @@ export class CreateCommunicationDto {
   @IsOptional()
   @IsString()
   @MaxLength(128)
-  externalId?: string;
+  providerMessageId?: string;
 
   @ApiPropertyOptional({ type: String, format: "uuid" })
   @IsOptional()
@@ -82,13 +82,13 @@ export class CreateCommunicationDto {
 
   @ApiPropertyOptional({
     type: String,
-    enum: FOLLOWUP_TYPES,
-    example: "3_months",
+    enum: CAMPAIGN_TYPES,
+    example: "replenishment",
     description: "Required for outbound campaign messages; omitted for inbound.",
   })
   @IsOptional()
-  @IsIn(FOLLOWUP_TYPES)
-  followupType?: string;
+  @IsIn(CAMPAIGN_TYPES)
+  campaignType?: string;
 }
 
 export class CreateTemplateDto {
@@ -107,9 +107,9 @@ export class CreateTemplateDto {
   @IsIn(COMMUNICATION_CHANNELS)
   channel: string;
 
-  @ApiProperty({ type: String, enum: FOLLOWUP_TYPES, example: "3_months" })
-  @IsIn(FOLLOWUP_TYPES)
-  followupType: string;
+  @ApiProperty({ type: String, enum: CAMPAIGN_TYPES, example: "replenishment" })
+  @IsIn(CAMPAIGN_TYPES)
+  campaignType: string;
 
   @ApiProperty({ type: String, minLength: 1, maxLength: 5000 })
   @IsString()

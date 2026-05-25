@@ -6,17 +6,14 @@ import {
 } from "@nestjs/common";
 import { eq, and, or, desc } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { customerNotes, users, products } from "@loreal/database";
+import { notes, users, products } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
-import type {
-  CreateCustomerNoteDto,
-  UpdateCustomerNoteDto,
-} from "../../dtos/customer-notes.dto";
+import type { CreateNoteDto, UpdateNoteDto } from "../../dtos/notes.dto";
 
 @Injectable()
-export class CustomerNotesService {
+export class NotesService {
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
@@ -24,16 +21,17 @@ export class CustomerNotesService {
   ) {}
 
   /**
-   * Privacy rule: a `private: true` note is visible only to its author. Public
-   * notes (the default) are visible to anyone with customer-scope access. The
-   * private filter happens here, not in the controller — keeps the rule in
-   * one place and prevents accidental leaks if a new caller is added later.
+   * Privacy rule: a `isPrivate: true` note is visible only to its author.
+   * Public notes (the default) are visible to anyone with customer-scope
+   * access. The private filter happens here, not in the controller — keeps
+   * the rule in one place and prevents accidental leaks if a new caller is
+   * added later.
    */
   private privacyCondition(user: SessionUser) {
     if (user.role === "admin") return undefined;
     return or(
-      eq(customerNotes.private, false),
-      eq(customerNotes.authorUserId, user.id),
+      eq(notes.isPrivate, false),
+      eq(notes.createdByUserId, user.id),
     );
   }
 
@@ -44,72 +42,72 @@ export class CustomerNotesService {
 
     return this.db
       .select({
-        id: customerNotes.id,
-        customerId: customerNotes.customerId,
-        body: customerNotes.body,
-        productId: customerNotes.productId,
-        private: customerNotes.private,
-        authorUserId: customerNotes.authorUserId,
-        authorName: users.fullName,
-        productName: products.name,
-        createdAt: customerNotes.createdAt,
-        updatedAt: customerNotes.updatedAt,
+        id: notes.id,
+        customerId: notes.customerId,
+        body: notes.body,
+        productId: notes.productId,
+        isPrivate: notes.isPrivate,
+        createdByUserId: notes.createdByUserId,
+        createdByName: users.fullName,
+        productName: products.title,
+        createdAt: notes.createdAt,
+        updatedAt: notes.updatedAt,
       })
-      .from(customerNotes)
-      .leftJoin(users, eq(users.id, customerNotes.authorUserId))
-      .leftJoin(products, eq(products.id, customerNotes.productId))
+      .from(notes)
+      .leftJoin(users, eq(users.id, notes.createdByUserId))
+      .leftJoin(products, eq(products.id, notes.productId))
       .where(
         privacy
-          ? and(eq(customerNotes.customerId, customerId), privacy)
-          : eq(customerNotes.customerId, customerId),
+          ? and(eq(notes.customerId, customerId), privacy)
+          : eq(notes.customerId, customerId),
       )
-      .orderBy(desc(customerNotes.createdAt));
+      .orderBy(desc(notes.createdAt));
   }
 
   async create(
     customerId: string,
-    data: CreateCustomerNoteDto,
+    data: CreateNoteDto,
     user: SessionUser,
   ) {
     await this.scopeService.assertCustomerAccess(customerId, user);
 
     const [note] = await this.db
-      .insert(customerNotes)
+      .insert(notes)
       .values({
         customerId,
         body: data.body,
         productId: data.productId,
-        private: data.private ?? false,
-        authorUserId: user.id,
+        isPrivate: data.isPrivate ?? false,
+        createdByUserId: user.id,
       })
       .returning();
 
     await this.auditService.log(
       user,
-      "customer_note_created",
-      "customer_note",
+      "note_created",
+      "note",
       note.id,
-      { customerId, private: note.private },
+      { customerId, isPrivate: note.isPrivate },
     );
 
     return note;
   }
 
-  async update(id: string, data: UpdateCustomerNoteDto, user: SessionUser) {
+  async update(id: string, data: UpdateNoteDto, user: SessionUser) {
     const [existing] = await this.db
       .select()
-      .from(customerNotes)
-      .where(eq(customerNotes.id, id));
+      .from(notes)
+      .where(eq(notes.id, id));
     if (!existing) throw new NotFoundException("Note not found");
 
-    if (existing.authorUserId !== user.id && user.role !== "admin") {
+    if (existing.createdByUserId !== user.id && user.role !== "admin") {
       throw new ForbiddenException("Only the author can edit this note");
     }
 
     const [updated] = await this.db
-      .update(customerNotes)
+      .update(notes)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(customerNotes.id, id))
+      .where(eq(notes.id, id))
       .returning();
 
     return updated;
@@ -118,20 +116,20 @@ export class CustomerNotesService {
   async remove(id: string, user: SessionUser) {
     const [existing] = await this.db
       .select()
-      .from(customerNotes)
-      .where(eq(customerNotes.id, id));
+      .from(notes)
+      .where(eq(notes.id, id));
     if (!existing) throw new NotFoundException("Note not found");
 
-    if (existing.authorUserId !== user.id && user.role !== "admin") {
+    if (existing.createdByUserId !== user.id && user.role !== "admin") {
       throw new ForbiddenException("Only the author can delete this note");
     }
 
-    await this.db.delete(customerNotes).where(eq(customerNotes.id, id));
+    await this.db.delete(notes).where(eq(notes.id, id));
 
     await this.auditService.log(
       user,
-      "customer_note_deleted",
-      "customer_note",
+      "note_deleted",
+      "note",
       id,
       { customerId: existing.customerId },
     );

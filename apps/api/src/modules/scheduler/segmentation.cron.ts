@@ -1,7 +1,13 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { customers, purchases, communications, brandConfigs } from "@loreal/database";
+import {
+  customers,
+  orders,
+  messages,
+  brandConfigs,
+  brandStores,
+} from "@loreal/database";
 import { calculateSegment } from "@loreal/domain";
 import { eq, sql, gte, and } from "drizzle-orm";
 
@@ -21,71 +27,73 @@ export class SegmentationCron {
     const twelveMonthsAgo = new Date(now);
     twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
 
-    // Load VIP spending thresholds per brand
-    const brandThresholds = await this.loadBrandThresholds();
+    // Load VIP spending thresholds per store (derived from each store's brand configs)
+    const storeThresholds = await this.loadStoreThresholds();
 
-    // Fetch all active customers with aggregated purchase data
+    // Fetch all active customers with aggregated order data
     const allCustomers = await this.db
       .select({
         id: customers.id,
-        registeredAtStoreId: customers.registeredAtStoreId,
-        customerSince: customers.customerSince,
-        lastTransactionAt: customers.lastTransactionAt,
-        lifecycleSegment: customers.lifecycleSegment,
-        inactive: customers.inactive,
+        signupStoreId: customers.signupStoreId,
+        enrolledAt: customers.enrolledAt,
+        lastOrderAt: customers.lastOrderAt,
+        lifecycleStage: customers.lifecycleStage,
+        isActive: customers.isActive,
       })
       .from(customers);
 
     let updated = 0;
 
     for (const customer of allCustomers) {
-      // Count transactions in last 12 months
-      const [txResult] = await this.db
+      // Count orders in last 12 months
+      const [orderResult] = await this.db
         .select({
           count: sql<number>`count(*)::int`,
-          total: sql<number>`coalesce(sum(${purchases.totalAmount}), 0)::float`,
+          total: sql<number>`coalesce(sum(${orders.totalPrice}), 0)::float`,
         })
-        .from(purchases)
+        .from(orders)
         .where(
           and(
-            eq(purchases.customerId, customer.id),
-            gte(purchases.purchasedAt, twelveMonthsAgo),
+            eq(orders.customerId, customer.id),
+            gte(orders.processedAt, twelveMonthsAgo),
           ),
         );
 
-      // Last communication date
-      const [commResult] = await this.db
+      // Last message date
+      const [msgResult] = await this.db
         .select({
-          lastSentAt: sql<Date | null>`max(${communications.sentAt})`,
+          lastSentAt: sql<Date | null>`max(${messages.sentAt})`,
         })
-        .from(communications)
-        .where(eq(communications.customerId, customer.id));
+        .from(messages)
+        .where(eq(messages.customerId, customer.id));
 
-      // Determine VIP threshold — use brand-specific if available
+      // Determine VIP threshold — use the customer's signup store's brand config
+      // if available. When a store carries multiple brands, the lowest threshold
+      // wins so a customer who hits any brand's bar is considered VIP.
       const threshold =
-        brandThresholds.get(customer.registeredAtStoreId) ??
+        storeThresholds.get(customer.signupStoreId) ??
         DEFAULT_VIP_SPENDING_THRESHOLD;
 
       const result = calculateSegment({
-        registeredAt: customer.customerSince,
-        transactionCount12Months: txResult?.count ?? 0,
-        totalSpending12Months: txResult?.total ?? 0,
-        lastTransactionAt: customer.lastTransactionAt,
-        lastCommunicationAt: commResult?.lastSentAt ?? null,
+        enrolledAt: customer.enrolledAt,
+        orderCount12Months: orderResult?.count ?? 0,
+        totalSpending12Months: orderResult?.total ?? 0,
+        lastOrderAt: customer.lastOrderAt,
+        lastMessageAt: msgResult?.lastSentAt ?? null,
         vipSpendingThreshold: threshold,
         now,
       });
 
-      // Only update if segment or inactive changed
+      // Only update if stage or isActive changed
       if (
-        result.segment !== customer.lifecycleSegment ||
-        result.inactive !== customer.inactive
+        result.stage !== customer.lifecycleStage ||
+        result.isActive !== customer.isActive
       ) {
         await this.db
           .update(customers)
           .set({
-            lifecycleSegment: result.segment,
-            inactive: result.inactive,
+            lifecycleStage: result.stage,
+            isActive: result.isActive,
             updatedAt: now,
           })
           .where(eq(customers.id, customer.id));
@@ -99,24 +107,53 @@ export class SegmentationCron {
     );
   }
 
-  private async loadBrandThresholds(): Promise<Map<string, number>> {
-    const configs = await this.db
+  /**
+   * Resolve VIP spending thresholds keyed by store id by joining each store
+   * with its brands' configs. brandConfigs.vipThresholdAmount is the canonical
+   * column; replenishmentRules.vipSpendingThreshold (legacy JSON key) is a
+   * fallback. When a store carries multiple brands we keep the minimum value.
+   */
+  private async loadStoreThresholds(): Promise<Map<string, number>> {
+    const rows = await this.db
       .select({
-        brandId: brandConfigs.brandId,
+        storeId: brandStores.storeId,
+        vipThresholdAmount: brandConfigs.vipThresholdAmount,
         replenishmentRules: brandConfigs.replenishmentRules,
       })
-      .from(brandConfigs);
+      .from(brandStores)
+      .innerJoin(brandConfigs, eq(brandConfigs.brandId, brandStores.brandId));
 
     const thresholds = new Map<string, number>();
-    for (const config of configs) {
-      const rules = config.replenishmentRules as Record<string, unknown> | null;
-      if (rules && typeof rules === "object" && "vipSpendingThreshold" in rules) {
-        thresholds.set(
-          config.brandId,
-          Number(rules.vipSpendingThreshold) || DEFAULT_VIP_SPENDING_THRESHOLD,
-        );
-      }
+    for (const row of rows) {
+      const value = this.extractThreshold(
+        row.vipThresholdAmount,
+        row.replenishmentRules,
+      );
+      if (value == null) continue;
+      const existing = thresholds.get(row.storeId);
+      thresholds.set(row.storeId, existing == null ? value : Math.min(existing, value));
     }
     return thresholds;
+  }
+
+  private extractThreshold(
+    vipThresholdAmount: string | null,
+    replenishmentRules: unknown,
+  ): number | null {
+    if (vipThresholdAmount != null) {
+      const parsed = Number(vipThresholdAmount);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    if (
+      replenishmentRules &&
+      typeof replenishmentRules === "object" &&
+      "vipSpendingThreshold" in replenishmentRules
+    ) {
+      const parsed = Number(
+        (replenishmentRules as Record<string, unknown>).vipSpendingThreshold,
+      );
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return null;
   }
 }

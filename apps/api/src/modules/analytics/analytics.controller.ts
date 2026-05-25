@@ -159,7 +159,7 @@ export class AnalyticsController {
       session.user,
       this.parseDateRange(from, to),
       {
-        baUserId,
+        staffUserId: baUserId,
         status,
         page: page ? parseInt(page) : undefined,
         limit: limit ? parseInt(limit) : undefined,

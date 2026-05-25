@@ -24,7 +24,7 @@ export class AdvisorController {
    * - newCustomersThisWeek: customers the BA registered or last interacted
    *   with in the past 7 days
    * - pendingFollowups: lifecycle alerts the scheduler created but the BA
-   *   hasn't acted on yet (stored as communications without delivery yet)
+   *   hasn't acted on yet (stored as messages without delivery yet)
    *
    * The endpoint is BA-centric; managers and admins receive the same shape
    * but scoped to their store, which is useful when they cover a shift.

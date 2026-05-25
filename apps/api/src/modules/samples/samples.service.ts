@@ -41,7 +41,7 @@ export class SamplesService {
       .values({
         customerId: data.customerId,
         productId: data.productId,
-        baUserId: user.id,
+        deliveredByUserId: user.id,
         storeId,
       })
       .returning();
@@ -58,8 +58,8 @@ export class SamplesService {
     const [updated] = await this.db
       .update(samples)
       .set({
-        convertedToPurchase: true,
-        conversionPurchaseId: purchaseId,
+        isConverted: true,
+        convertedOrderId: purchaseId,
       })
       .where(eq(samples.id, id))
       .returning();

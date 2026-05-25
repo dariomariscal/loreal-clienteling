@@ -9,7 +9,7 @@ import type { StoreHours } from "@loreal/contracts";
 type CreateStoreInput = {
   code: string;
   displayName: string;
-  chain: string;
+  banner: string;
   zoneId?: string;
   address?: string;
   city?: string;
@@ -24,7 +24,7 @@ type CreateStoreInput = {
   brandIds?: string[];
 };
 
-type UpdateStoreInput = Partial<CreateStoreInput> & { active?: boolean };
+type UpdateStoreInput = Partial<CreateStoreInput> & { isActive?: boolean };
 
 @Injectable()
 export class StoresService {

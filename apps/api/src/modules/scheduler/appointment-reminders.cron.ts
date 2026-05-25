@@ -2,7 +2,7 @@ import { Injectable, Inject, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { appointments, customers } from "@loreal/database";
-import { eq, and, isNull, gte, lte, inArray, sql } from "drizzle-orm";
+import { eq, and, isNull, gte, lte, inArray } from "drizzle-orm";
 
 @Injectable()
 export class AppointmentRemindersCron {
@@ -22,10 +22,10 @@ export class AppointmentRemindersCron {
       .select({
         id: appointments.id,
         customerId: appointments.customerId,
-        baUserId: appointments.baUserId,
+        staffUserId: appointments.staffUserId,
         storeId: appointments.storeId,
-        eventTypeId: appointments.eventTypeId,
-        scheduledAt: appointments.scheduledAt,
+        serviceTypeId: appointments.serviceTypeId,
+        startTime: appointments.startTime,
         durationMinutes: appointments.durationMinutes,
         status: appointments.status,
       })
@@ -34,8 +34,8 @@ export class AppointmentRemindersCron {
         and(
           inArray(appointments.status, ["scheduled", "confirmed"]),
           isNull(appointments.reminderSentAt),
-          gte(appointments.scheduledAt, now),
-          lte(appointments.scheduledAt, in24Hours),
+          gte(appointments.startTime, now),
+          lte(appointments.startTime, in24Hours),
         ),
       );
 
@@ -59,7 +59,7 @@ export class AppointmentRemindersCron {
       if (!customer) continue;
 
       const hoursUntil = Math.round(
-        (appointment.scheduledAt.getTime() - now.getTime()) / (60 * 60 * 1000),
+        (appointment.startTime.getTime() - now.getTime()) / (60 * 60 * 1000),
       );
 
       // Mark reminder as sent
@@ -74,7 +74,7 @@ export class AppointmentRemindersCron {
         .where(eq(appointments.id, appointment.id));
 
       this.logger.debug(
-        `Recordatorio: cita con ${customer.firstName} ${customer.lastName} en ~${hoursUntil}h (BA: ${appointment.baUserId})`,
+        `Recordatorio: cita con ${customer.firstName} ${customer.lastName} en ~${hoursUntil}h (staff: ${appointment.staffUserId})`,
       );
 
       sent++;

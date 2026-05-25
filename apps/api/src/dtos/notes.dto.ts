@@ -8,7 +8,7 @@ import {
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 
-export class CreateCustomerNoteDto {
+export class CreateNoteDto {
   @ApiProperty({ type: String, minLength: 1, maxLength: 500 })
   @IsString()
   @MinLength(1)
@@ -23,7 +23,7 @@ export class CreateCustomerNoteDto {
   @ApiPropertyOptional({ type: Boolean, default: false })
   @IsOptional()
   @IsBoolean()
-  private?: boolean;
+  isPrivate?: boolean;
 }
 
-export class UpdateCustomerNoteDto extends PartialType(CreateCustomerNoteDto) {}
+export class UpdateNoteDto extends PartialType(CreateNoteDto) {}

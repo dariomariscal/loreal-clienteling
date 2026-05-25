@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { eq, and, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { purchases, purchaseItems, customers } from "@loreal/database";
+import { orders, lineItems, customers, samples } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
@@ -11,11 +11,10 @@ import {
   attributePurchaseToBa,
   type RecommendationRecord,
 } from "@loreal/domain";
-import type { CreatePurchaseDto } from "../../dtos/purchases.dto";
-import { samples } from "@loreal/database";
+import type { CreateOrderDto } from "../../dtos/orders.dto";
 
 @Injectable()
-export class PurchasesService {
+export class OrdersService {
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
@@ -27,60 +26,60 @@ export class PurchasesService {
   async findByCustomer(customerId: string, user: SessionUser) {
     const storeScope = await this.scopeService.scopeByStore(
       user,
-      purchases.storeId,
+      orders.storeId,
     );
 
     const conditions = [
-      eq(purchases.customerId, customerId),
+      eq(orders.customerId, customerId),
       ...(storeScope ? [storeScope] : []),
     ];
 
     const rows = await this.db
       .select()
-      .from(purchases)
+      .from(orders)
       .where(and(...conditions))
-      .orderBy(purchases.purchasedAt);
+      .orderBy(orders.processedAt);
 
     if (rows.length === 0) return [];
 
-    // Fetch all items for these purchases in a single query
-    const purchaseIds = rows.map((p) => p.id);
+    // Fetch all line items for these orders in a single query
+    const orderIds = rows.map((o) => o.id);
     const allItems = await this.db
       .select()
-      .from(purchaseItems)
-      .where(inArray(purchaseItems.purchaseId, purchaseIds));
+      .from(lineItems)
+      .where(inArray(lineItems.orderId, orderIds));
 
-    // Group items by purchaseId
-    const itemsByPurchase = new Map<string, typeof allItems>();
+    // Group items by orderId
+    const itemsByOrder = new Map<string, typeof allItems>();
     for (const item of allItems) {
-      const existing = itemsByPurchase.get(item.purchaseId) ?? [];
+      const existing = itemsByOrder.get(item.orderId) ?? [];
       existing.push(item);
-      itemsByPurchase.set(item.purchaseId, existing);
+      itemsByOrder.set(item.orderId, existing);
     }
 
-    return rows.map((purchase) => ({
-      ...purchase,
-      items: itemsByPurchase.get(purchase.id) ?? [],
+    return rows.map((order) => ({
+      ...order,
+      items: itemsByOrder.get(order.id) ?? [],
     }));
   }
 
   async findOne(id: string) {
-    const [purchase] = await this.db
+    const [order] = await this.db
       .select()
-      .from(purchases)
-      .where(eq(purchases.id, id));
+      .from(orders)
+      .where(eq(orders.id, id));
 
-    if (!purchase) throw new NotFoundException("Purchase not found");
+    if (!order) throw new NotFoundException("Order not found");
 
     const items = await this.db
       .select()
-      .from(purchaseItems)
-      .where(eq(purchaseItems.purchaseId, id));
+      .from(lineItems)
+      .where(eq(lineItems.orderId, id));
 
-    return { ...purchase, items };
+    return { ...order, items };
   }
 
-  async create(data: CreatePurchaseDto, user: SessionUser) {
+  async create(data: CreateOrderDto, user: SessionUser) {
     const storeId = this.scopeService.assertStore(user);
 
     // a. Fetch customer
@@ -99,7 +98,7 @@ export class PurchasesService {
 
     const activeRecommendations: RecommendationRecord[] = activeRecs.map(
       (r) => ({
-        baUserId: r.baUserId,
+        recommendedByUserId: r.recommendedByUserId,
         productId: r.productId,
         recommendedAt: r.recommendedAt,
         recommendationId: r.id,
@@ -107,41 +106,49 @@ export class PurchasesService {
     );
 
     // c. Call attribution logic
-    const purchasedProductIds = data.items.map((item) => item.productId);
+    const orderedProductIds = data.items.map((item) => item.productId);
+    const now = new Date();
     const attribution = attributePurchaseToBa({
       customerId: data.customerId,
-      purchasedProductIds,
-      purchasedAt: new Date(),
-      lastBaUserId: customer.lastBaUserId,
-      lastContactAt: customer.lastContactAt,
+      orderedProductIds,
+      processedAt: now,
+      assignedToUserId: customer.assignedToUserId,
+      lastInteractionAt: customer.lastInteractionAt,
       activeRecommendations,
     });
 
-    // d. Insert purchase
-    const [purchase] = await this.db
-      .insert(purchases)
+    // d. Insert order
+    const orderNumber = `L-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+    const totalPriceStr = String(data.totalPrice);
+    const [order] = await this.db
+      .insert(orders)
       .values({
+        orderNumber,
         customerId: data.customerId,
         storeId,
-        totalAmount: String(data.totalAmount),
-        posTransactionId: data.posTransactionId,
-        source: data.source,
-        attributedBaUserId: attribution.attributedBaUserId,
-        attributionReason: attribution.attributionReason,
+        currency: "MXN",
+        subtotalPrice: totalPriceStr,
+        totalPrice: totalPriceStr,
+        externalOrderId: data.externalOrderId,
+        sourceName: data.sourceName,
+        attributedUserId: attribution.attributedUserId,
+        attributionSource: attribution.attributionSource ?? undefined,
+        processedAt: now,
       })
       .returning();
 
-    // e. Insert purchase items
+    // e. Insert line items
     const itemRows = await Promise.all(
       data.items.map((item) =>
         this.db
-          .insert(purchaseItems)
+          .insert(lineItems)
           .values({
-            purchaseId: purchase.id,
+            orderId: order.id,
             productId: item.productId,
             sku: item.sku,
+            title: item.sku, // best-effort; richer title is filled from products on read
             quantity: item.quantity,
-            unitPrice: String(item.unitPrice),
+            price: String(item.unitPrice),
           })
           .returning()
           .then(([row]) => row),
@@ -152,7 +159,7 @@ export class PurchasesService {
     if (attribution.matchedRecommendationId) {
       await this.recommendationsService.markConverted(
         attribution.matchedRecommendationId,
-        purchase.id,
+        order.id,
       );
     }
 
@@ -163,29 +170,28 @@ export class PurchasesService {
       .where(
         and(
           eq(samples.customerId, data.customerId),
-          eq(samples.convertedToPurchase, false),
-          inArray(samples.productId, purchasedProductIds),
+          eq(samples.isConverted, false),
+          inArray(samples.productId, orderedProductIds),
         ),
       );
     for (const sample of unconvertedSamples) {
-      await this.samplesService.markConverted(sample.id, purchase.id);
+      await this.samplesService.markConverted(sample.id, order.id);
     }
 
-    // h. Update customer.lastTransactionAt
+    // h. Update customer.lastOrderAt
     await this.db
       .update(customers)
-      .set({ lastTransactionAt: new Date(), updatedAt: new Date() })
+      .set({ lastOrderAt: now, updatedAt: now })
       .where(eq(customers.id, data.customerId));
 
-    await this.auditService.log(user, "create", "purchase", purchase.id, {
+    await this.auditService.log(user, "create", "order", order.id, {
       customerId: data.customerId,
-      totalAmount: data.totalAmount,
-      source: data.source,
-      attributedBaUserId: attribution.attributedBaUserId,
-      attributionReason: attribution.attributionReason,
+      totalPrice: data.totalPrice,
+      sourceName: data.sourceName,
+      attributedUserId: attribution.attributedUserId,
+      attributionSource: attribution.attributionSource,
     });
 
-    // h. Return purchase with items
-    return { ...purchase, items: itemRows };
+    return { ...order, items: itemRows };
   }
 }

@@ -3,7 +3,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { SegmentationCron } from "./segmentation.cron";
 import { LifecycleAlertsCron } from "./lifecycle-alerts.cron";
 import { AppointmentRemindersCron } from "./appointment-reminders.cron";
-import { DailyOpportunitiesCron } from "./daily-opportunities.cron";
+import { DailySuggestedActionsCron } from "./daily-suggested-actions.cron";
 import { AiModule } from "../ai/ai.module";
 
 @Module({
@@ -12,7 +12,7 @@ import { AiModule } from "../ai/ai.module";
     SegmentationCron,
     LifecycleAlertsCron,
     AppointmentRemindersCron,
-    DailyOpportunitiesCron,
+    DailySuggestedActionsCron,
   ],
 })
 export class SchedulerModule {}

@@ -55,8 +55,8 @@ export class ProductSemanticSearchService {
     const pattern = `%${query}%`;
 
     const conditions = [
-      eq(products.active, true),
-      or(ilike(products.name, pattern), ilike(products.sku, pattern)),
+      eq(products.status, "active"),
+      or(ilike(products.title, pattern), ilike(products.sku, pattern)),
       ...(brandScope ? [brandScope] : []),
     ];
 
@@ -64,7 +64,7 @@ export class ProductSemanticSearchService {
       .select({
         id: products.id,
         sku: products.sku,
-        name: products.name,
+        name: products.title,
         brandId: products.brandId,
         brandName: brands.displayName,
         category: products.category,

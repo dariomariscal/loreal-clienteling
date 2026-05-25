@@ -62,12 +62,12 @@ export class ProductEmbeddingService {
       .select({
         id: products.id,
         sku: products.sku,
-        name: products.name,
+        name: products.title,
         category: products.category,
         subcategory: products.subcategory,
         description: products.description,
         ingredients: products.ingredients,
-        salesArgument: products.salesArgument,
+        salesArgument: products.talkingPoints,
       })
       .from(products)
       .where(eq(products.id, productId));

@@ -58,7 +58,7 @@ export class ProductEmbeddingsRepository {
         productId: productEmbeddings.productId,
         distance: sql<number>`${productEmbeddings.embedding} <=> ${vectorLiteral}::vector`,
         sku: products.sku,
-        name: products.name,
+        name: products.title,
         brandId: products.brandId,
         brandName: brands.displayName,
         category: products.category,
@@ -68,7 +68,7 @@ export class ProductEmbeddingsRepository {
       .from(productEmbeddings)
       .innerJoin(products, eq(products.id, productEmbeddings.productId))
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(eq(products.active, true))
+      .where(eq(products.status, "active"))
       .orderBy(sql`${productEmbeddings.embedding} <=> ${vectorLiteral}::vector`)
       .limit(limit);
 

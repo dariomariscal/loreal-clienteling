@@ -26,7 +26,7 @@ export class AppointmentsController {
     return this.appointmentsService.findAll(session.user, {
       from: from ? new Date(from) : undefined,
       to: to ? new Date(to) : undefined,
-      baUserId,
+      staffUserId: baUserId,
     });
   }
 
@@ -47,7 +47,7 @@ export class AppointmentsController {
       new Date(from),
       new Date(to),
       session.user,
-      { baUserId, storeView: storeView === "true" },
+      { staffUserId: baUserId, storeView: storeView === "true" },
     );
   }
 
@@ -65,7 +65,7 @@ export class AppointmentsController {
     @Session() session: UserSession,
   ) {
     return this.appointmentsService.getAvailabilityDays(session.user, {
-      baUserId,
+      staffUserId: baUserId,
       from: new Date(from),
       to: new Date(to),
       durationMinutes: parseInt(durationMinutes, 10),
@@ -84,7 +84,7 @@ export class AppointmentsController {
     @Session() session: UserSession,
   ) {
     return this.appointmentsService.getAvailabilitySlots(session.user, {
-      baUserId,
+      staffUserId: baUserId,
       date: new Date(date),
       durationMinutes: parseInt(durationMinutes, 10),
     });

@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { eq, desc } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../../config/database.provider";
-import { customers, communications } from "@loreal/database";
+import { customers, messages } from "@loreal/database";
 import { buildMessageSuggestionPrompt } from "@loreal/domain";
 import type { MessageSuggestion } from "@loreal/contracts";
 import {
@@ -36,13 +36,13 @@ export class MessageSuggestionService {
 
     const recent = await this.db
       .select({
-        body: communications.body,
-        direction: communications.direction,
-        sentAt: communications.sentAt,
+        body: messages.body,
+        direction: messages.direction,
+        sentAt: messages.sentAt,
       })
-      .from(communications)
-      .where(eq(communications.customerId, customerId))
-      .orderBy(desc(communications.sentAt))
+      .from(messages)
+      .where(eq(messages.customerId, customerId))
+      .orderBy(desc(messages.sentAt))
       .limit(10);
 
     const cachedSummary = await this.summariesRepo.findFresh(customerId);

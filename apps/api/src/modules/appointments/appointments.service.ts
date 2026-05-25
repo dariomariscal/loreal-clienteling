@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException, BadRequestException } from "@nestjs/common";
 import { eq, and, gte, lte, desc, inArray, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { appointments, customers, users, stores, appointmentEventTypes } from "@loreal/database";
+import { appointments, customers, users, stores, serviceTypes } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import type { CreateAppointmentDto, UpdateAppointmentDto } from "../../dtos/appointments.dto";
@@ -78,25 +78,25 @@ export class AppointmentsService {
 
   async findAll(
     user: SessionUser,
-    filters?: { from?: Date; to?: Date; baUserId?: string },
+    filters?: { from?: Date; to?: Date; staffUserId?: string },
   ) {
     const conditions: any[] = [];
 
-    // BAs only ever see their own list — `baUserId` from the query is
+    // BAs only ever see their own list — `staffUserId` from the query is
     // ignored for them so they can't snoop on coworkers. Managers and
     // above use it as an explicit filter on top of their store scope.
     if (user.role === "ba") {
-      conditions.push(eq(appointments.baUserId, user.id));
+      conditions.push(eq(appointments.staffUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
       if (scope) conditions.push(scope);
-      if (filters?.baUserId) {
-        conditions.push(eq(appointments.baUserId, filters.baUserId));
+      if (filters?.staffUserId) {
+        conditions.push(eq(appointments.staffUserId, filters.staffUserId));
       }
     }
 
-    if (filters?.from) conditions.push(gte(appointments.scheduledAt, filters.from));
-    if (filters?.to) conditions.push(lte(appointments.scheduledAt, filters.to));
+    if (filters?.from) conditions.push(gte(appointments.startTime, filters.from));
+    if (filters?.to) conditions.push(lte(appointments.startTime, filters.to));
 
     const rows = await this.db
       .select({
@@ -107,13 +107,13 @@ export class AppointmentsService {
           lastName: customers.lastName,
           phone: customers.phone,
           email: customers.email,
-          lifecycleSegment: customers.lifecycleSegment,
+          lifecycleStage: customers.lifecycleStage,
         },
       })
       .from(appointments)
       .leftJoin(customers, eq(appointments.customerId, customers.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(appointments.scheduledAt));
+      .orderBy(desc(appointments.startTime));
 
     return rows.map((r) => ({ ...r.appointment, customer: r.customer }));
   }
@@ -128,7 +128,7 @@ export class AppointmentsService {
           lastName: customers.lastName,
           phone: customers.phone,
           email: customers.email,
-          lifecycleSegment: customers.lifecycleSegment,
+          lifecycleStage: customers.lifecycleStage,
         },
       })
       .from(appointments)
@@ -141,37 +141,41 @@ export class AppointmentsService {
   async create(data: CreateAppointmentDto, user: SessionUser) {
     const storeId = this.scopeService.assertStore(user);
 
-    // Fall back to the first active event type if the client somehow omitted
+    // Fall back to the first active service type if the client somehow omitted
     // the field (e.g. the dropdown rendered empty). Without this the INSERT
     // hits a NOT NULL violation that surfaces as an opaque 500.
-    let eventTypeId = data.eventTypeId;
-    if (!eventTypeId) {
+    let serviceTypeId = data.serviceTypeId;
+    if (!serviceTypeId) {
       const [fallback] = await this.db
-        .select({ id: appointmentEventTypes.id })
-        .from(appointmentEventTypes)
-        .where(eq(appointmentEventTypes.active, true))
-        .orderBy(appointmentEventTypes.sortOrder)
+        .select({ id: serviceTypes.id })
+        .from(serviceTypes)
+        .where(eq(serviceTypes.isActive, true))
+        .orderBy(serviceTypes.sortOrder)
         .limit(1);
       if (!fallback) {
         throw new NotFoundException(
           "No hay tipos de cita configurados. Crea al menos uno antes de agendar.",
         );
       }
-      eventTypeId = fallback.id;
+      serviceTypeId = fallback.id;
     }
+
+    const startTime = new Date(data.startTime);
+    const endTime = new Date(startTime.getTime() + data.durationMinutes * 60_000);
 
     const [appt] = await this.db
       .insert(appointments)
       .values({
         customerId: data.customerId,
-        baUserId: user.id,
+        staffUserId: user.id,
         storeId,
-        eventTypeId,
-        scheduledAt: new Date(data.scheduledAt),
+        serviceTypeId,
+        startTime,
+        endTime,
         durationMinutes: data.durationMinutes,
-        comments: data.comments,
+        notes: data.notes,
         isVirtual: data.isVirtual ?? false,
-        videoLink: data.videoLink,
+        meetingUrl: data.meetingUrl,
       })
       .returning();
     return appt;
@@ -181,24 +185,29 @@ export class AppointmentsService {
     const existing = await this.findOne(id);
 
     // If rescheduling: create new appointment linked to old one
-    if (data.status === "rescheduled" && data.scheduledAt) {
+    if (data.status === "rescheduled" && data.startTime) {
       await this.db
         .update(appointments)
         .set({ status: "rescheduled", updatedAt: new Date() })
         .where(eq(appointments.id, id));
 
+      const newStart = new Date(data.startTime);
+      const newDuration = data.durationMinutes ?? existing.durationMinutes;
+      const newEnd = new Date(newStart.getTime() + newDuration * 60_000);
+
       const [newAppt] = await this.db
         .insert(appointments)
         .values({
           customerId: existing.customerId,
-          baUserId: existing.baUserId,
+          staffUserId: existing.staffUserId,
           storeId: existing.storeId,
-          eventTypeId: existing.eventTypeId,
-          scheduledAt: new Date(data.scheduledAt),
-          durationMinutes: data.durationMinutes ?? existing.durationMinutes,
-          comments: data.comments ?? existing.comments,
+          serviceTypeId: existing.serviceTypeId,
+          startTime: newStart,
+          endTime: newEnd,
+          durationMinutes: newDuration,
+          notes: data.notes ?? existing.notes,
           isVirtual: existing.isVirtual,
-          videoLink: existing.videoLink,
+          meetingUrl: existing.meetingUrl,
           rescheduledFromAppointmentId: id,
         })
         .returning();
@@ -206,7 +215,16 @@ export class AppointmentsService {
     }
 
     const updateData: Record<string, unknown> = { ...data, updatedAt: new Date() };
-    if (data.scheduledAt) updateData.scheduledAt = new Date(data.scheduledAt);
+    if (data.startTime) {
+      const newStart = new Date(data.startTime);
+      updateData.startTime = newStart;
+      const duration = data.durationMinutes ?? existing.durationMinutes;
+      updateData.endTime = new Date(newStart.getTime() + duration * 60_000);
+    } else if (data.durationMinutes !== undefined) {
+      updateData.endTime = new Date(
+        existing.startTime.getTime() + data.durationMinutes * 60_000,
+      );
+    }
 
     const [updated] = await this.db
       .update(appointments)
@@ -220,22 +238,22 @@ export class AppointmentsService {
     from: Date,
     to: Date,
     user: SessionUser,
-    options?: { baUserId?: string; storeView?: boolean },
+    options?: { staffUserId?: string; storeView?: boolean },
   ) {
     const conditions: any[] = [
-      gte(appointments.scheduledAt, from),
-      lte(appointments.scheduledAt, to),
+      gte(appointments.startTime, from),
+      lte(appointments.startTime, to),
     ];
 
-    if (options?.baUserId) {
-      // Viewing a specific BA's calendar
-      conditions.push(eq(appointments.baUserId, options.baUserId));
+    if (options?.staffUserId) {
+      // Viewing a specific staff member's calendar
+      conditions.push(eq(appointments.staffUserId, options.staffUserId));
     } else if (options?.storeView && user.role !== "ba") {
-      // Store view: manager+ sees all BAs in their store scope
+      // Store view: manager+ sees all staff in their store scope
       const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
       if (scope) conditions.push(scope);
     } else if (user.role === "ba") {
-      conditions.push(eq(appointments.baUserId, user.id));
+      conditions.push(eq(appointments.staffUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
       if (scope) conditions.push(scope);
@@ -244,73 +262,74 @@ export class AppointmentsService {
     const rows = await this.db
       .select({
         id: appointments.id,
-        scheduledAt: appointments.scheduledAt,
+        startTime: appointments.startTime,
+        endTime: appointments.endTime,
         durationMinutes: appointments.durationMinutes,
-        eventTypeId: appointments.eventTypeId,
-        eventTypeName: appointmentEventTypes.displayName,
-        eventTypeColor: appointmentEventTypes.color,
+        serviceTypeId: appointments.serviceTypeId,
+        serviceTypeName: serviceTypes.displayName,
+        serviceTypeColor: serviceTypes.color,
         status: appointments.status,
-        comments: appointments.comments,
+        notes: appointments.notes,
         isVirtual: appointments.isVirtual,
         customerId: appointments.customerId,
         customerName: sql<string>`${customers.firstName} || ' ' || ${customers.lastName}`,
         customerPhone: customers.phone,
-        customerSegment: customers.lifecycleSegment,
-        baUserId: appointments.baUserId,
-        baName: users.fullName,
+        customerLifecycleStage: customers.lifecycleStage,
+        staffUserId: appointments.staffUserId,
+        staffName: users.fullName,
         storeId: appointments.storeId,
         storeName: stores.displayName,
       })
       .from(appointments)
       .leftJoin(customers, eq(appointments.customerId, customers.id))
-      .leftJoin(users, eq(appointments.baUserId, users.id))
+      .leftJoin(users, eq(appointments.staffUserId, users.id))
       .leftJoin(stores, eq(appointments.storeId, stores.id))
-      .leftJoin(appointmentEventTypes, eq(appointments.eventTypeId, appointmentEventTypes.id))
+      .leftJoin(serviceTypes, eq(appointments.serviceTypeId, serviceTypes.id))
       .where(and(...conditions))
-      .orderBy(appointments.scheduledAt);
+      .orderBy(appointments.startTime);
 
     return rows;
   }
 
   /**
-   * Resolve the BA's store and hours, plus all of their blocking appointments
-   * inside a date range, in a single roundtrip. Reused by both availability
-   * endpoints — avoids divergent slot logic between the calendar dots view
-   * and the per-day slot picker.
+   * Resolve the staff member's store and hours, plus all of their blocking
+   * appointments inside a date range, in a single roundtrip. Reused by both
+   * availability endpoints — avoids divergent slot logic between the calendar
+   * dots view and the per-day slot picker.
    */
   private async loadAvailabilityContext(
-    baUserId: string,
+    staffUserId: string,
     requester: SessionUser,
     from: Date,
     to: Date,
   ) {
     // Authorization: BA can only check their own calendar. Manager/supervisor
     // checking a BA must share store scope. Admin sees everyone.
-    if (requester.role === "ba" && requester.id !== baUserId) {
+    if (requester.role === "ba" && requester.id !== staffUserId) {
       throw new BadRequestException(
         "BAs can only check their own availability",
       );
     }
 
-    const [ba] = await this.db
+    const [staff] = await this.db
       .select({
         id: users.id,
         storeId: users.storeId,
       })
       .from(users)
-      .where(eq(users.id, baUserId));
-    if (!ba) throw new NotFoundException("BA not found");
-    if (!ba.storeId) {
-      throw new BadRequestException("BA has no store assigned");
+      .where(eq(users.id, staffUserId));
+    if (!staff) throw new NotFoundException("Staff member not found");
+    if (!staff.storeId) {
+      throw new BadRequestException("Staff member has no store assigned");
     }
 
     if (requester.role !== "admin") {
       const accessibleStoreIds = await this.scopeService.getAccessibleStoreIds(
         requester,
       );
-      if (!accessibleStoreIds.includes(ba.storeId)) {
+      if (!accessibleStoreIds.includes(staff.storeId)) {
         throw new BadRequestException(
-          "You cannot view availability for this BA's store",
+          "You cannot view availability for this staff member's store",
         );
       }
     }
@@ -318,19 +337,19 @@ export class AppointmentsService {
     const [store] = await this.db
       .select({ id: stores.id, hours: stores.hours })
       .from(stores)
-      .where(eq(stores.id, ba.storeId));
+      .where(eq(stores.id, staff.storeId));
 
     const busy = await this.db
       .select({
-        scheduledAt: appointments.scheduledAt,
+        startTime: appointments.startTime,
         durationMinutes: appointments.durationMinutes,
       })
       .from(appointments)
       .where(
         and(
-          eq(appointments.baUserId, baUserId),
-          gte(appointments.scheduledAt, from),
-          lte(appointments.scheduledAt, to),
+          eq(appointments.staffUserId, staffUserId),
+          gte(appointments.startTime, from),
+          lte(appointments.startTime, to),
           inArray(appointments.status, BLOCKING_STATUSES),
         ),
       );
@@ -351,7 +370,7 @@ export class AppointmentsService {
   private buildDaySlots(
     day: Date,
     storeHours: { store?: Record<string, string> } | null | undefined,
-    busy: { scheduledAt: Date; durationMinutes: number }[],
+    busy: { startTime: Date; durationMinutes: number }[],
     durationMinutes: number,
     now: Date,
   ): { startsAt: Date; endsAt: Date }[] {
@@ -380,7 +399,7 @@ export class AppointmentsService {
       if (startsAt.getTime() <= now.getTime()) continue;
 
       const overlaps = busy.some((b) => {
-        const bStart = new Date(b.scheduledAt).getTime();
+        const bStart = new Date(b.startTime).getTime();
         const bEnd = bStart + b.durationMinutes * 60_000;
         return startsAt.getTime() < bEnd && endsAt.getTime() > bStart;
       });
@@ -398,10 +417,10 @@ export class AppointmentsService {
    */
   async getAvailabilityDays(
     requester: SessionUser,
-    params: { baUserId: string; from: Date; to: Date; durationMinutes: number },
+    params: { staffUserId: string; from: Date; to: Date; durationMinutes: number },
   ) {
     const { store, busy } = await this.loadAvailabilityContext(
-      params.baUserId,
+      params.staffUserId,
       requester,
       params.from,
       params.to,
@@ -443,7 +462,7 @@ export class AppointmentsService {
    */
   async getAvailabilitySlots(
     requester: SessionUser,
-    params: { baUserId: string; date: Date; durationMinutes: number },
+    params: { staffUserId: string; date: Date; durationMinutes: number },
   ) {
     const dayStart = new Date(params.date);
     dayStart.setHours(0, 0, 0, 0);
@@ -451,7 +470,7 @@ export class AppointmentsService {
     dayEnd.setDate(dayEnd.getDate() + 1);
 
     const { store, busy } = await this.loadAvailabilityContext(
-      params.baUserId,
+      params.staffUserId,
       requester,
       dayStart,
       dayEnd,

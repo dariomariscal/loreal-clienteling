@@ -1,4 +1,4 @@
-import { IsString, MinLength, MaxLength, IsIn, IsOptional, IsBoolean, IsObject } from "class-validator";
+import { IsString, MinLength, MaxLength, IsIn, IsOptional, IsBoolean, IsObject, IsNumber, IsPositive, IsInt } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { BRAND_TIERS } from "@loreal/contracts";
 
@@ -30,7 +30,7 @@ export class UpdateBrandDto extends PartialType(CreateBrandDto) {
   @ApiPropertyOptional({ type: Boolean })
   @IsOptional()
   @IsBoolean()
-  active?: boolean;
+  isActive?: boolean;
 }
 
 export class UpsertBrandConfigDto {
@@ -67,15 +67,22 @@ export class UpsertBrandConfigDto {
   @ApiPropertyOptional({ type: "object", additionalProperties: true })
   @IsOptional()
   @IsObject()
-  messageTemplates?: Record<string, unknown>;
-
-  @ApiPropertyOptional({ type: "object", additionalProperties: true })
-  @IsOptional()
-  @IsObject()
   replenishmentRules?: Record<string, unknown>;
 
   @ApiPropertyOptional({ type: Boolean })
   @IsOptional()
   @IsBoolean()
-  virtualTryonEnabled?: boolean;
+  isVirtualTryonEnabled?: boolean;
+
+  @ApiPropertyOptional({ type: Number })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  vipThresholdAmount?: number;
+
+  @ApiPropertyOptional({ type: Number, example: 12 })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  vipThresholdPeriodMonths?: number;
 }

@@ -13,9 +13,9 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { PURCHASE_SOURCES } from "@loreal/contracts";
+import { ORDER_SOURCES } from "@loreal/contracts";
 
-export class PurchaseItemDto {
+export class OrderLineItemDto {
   @ApiProperty({ type: String, format: "uuid" })
   @IsUUID()
   productId: string;
@@ -36,29 +36,29 @@ export class PurchaseItemDto {
   unitPrice: number;
 }
 
-export class CreatePurchaseDto {
+export class CreateOrderDto {
   @ApiProperty({ type: String, format: "uuid" })
   @IsUUID()
   customerId: string;
 
-  @ApiProperty({ type: String, enum: PURCHASE_SOURCES, example: "manual" })
-  @IsIn(PURCHASE_SOURCES)
-  source: string;
+  @ApiProperty({ type: String, enum: ORDER_SOURCES, example: "manual" })
+  @IsIn(ORDER_SOURCES)
+  sourceName: string;
 
-  @ApiProperty({ type: [PurchaseItemDto] })
+  @ApiProperty({ type: [OrderLineItemDto] })
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
-  @Type(() => PurchaseItemDto)
-  items: PurchaseItemDto[];
+  @Type(() => OrderLineItemDto)
+  items: OrderLineItemDto[];
 
   @ApiProperty({ type: Number, example: 2598.0, minimum: 0 })
   @IsNumber()
   @IsPositive()
-  totalAmount: number;
+  totalPrice: number;
 
   @ApiPropertyOptional({ type: String, example: "POS-12345" })
   @IsOptional()
   @IsString()
-  posTransactionId?: string;
+  externalOrderId?: string;
 }

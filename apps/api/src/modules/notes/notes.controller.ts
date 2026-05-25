@@ -11,20 +11,17 @@ import {
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
-import { CustomerNotesService } from "./customer-notes.service";
-import {
-  CreateCustomerNoteDto,
-  UpdateCustomerNoteDto,
-} from "../../dtos/customer-notes.dto";
+import { NotesService } from "./notes.service";
+import { CreateNoteDto, UpdateNoteDto } from "../../dtos/notes.dto";
 import type { UserSession } from "../../common/types/session";
 
-@ApiTags("Customer notes")
+@ApiTags("Notes")
 @ApiBearerAuth()
 @Controller()
-export class CustomerNotesController {
+export class NotesController {
   constructor(
-    @Inject(CustomerNotesService)
-    private customerNotesService: CustomerNotesService,
+    @Inject(NotesService)
+    private notesService: NotesService,
   ) {}
 
   @Get("customers/:customerId/notes")
@@ -34,37 +31,37 @@ export class CustomerNotesController {
     @Param("customerId") customerId: string,
     @Session() session: UserSession,
   ) {
-    return this.customerNotesService.findByCustomer(customerId, session.user);
+    return this.notesService.findByCustomer(customerId, session.user);
   }
 
   @Post("customers/:customerId/notes")
   @Roles(["ba", "manager"])
   @ApiParam({ name: "customerId", type: String })
-  @ApiBody({ type: CreateCustomerNoteDto })
+  @ApiBody({ type: CreateNoteDto })
   create(
     @Param("customerId") customerId: string,
-    @Body() body: CreateCustomerNoteDto,
+    @Body() body: CreateNoteDto,
     @Session() session: UserSession,
   ) {
-    return this.customerNotesService.create(customerId, body, session.user);
+    return this.notesService.create(customerId, body, session.user);
   }
 
-  @Patch("customer-notes/:id")
+  @Patch("notes/:id")
   @Roles(["ba", "manager", "admin"])
   @ApiParam({ name: "id", type: String })
-  @ApiBody({ type: UpdateCustomerNoteDto })
+  @ApiBody({ type: UpdateNoteDto })
   update(
     @Param("id") id: string,
-    @Body() body: UpdateCustomerNoteDto,
+    @Body() body: UpdateNoteDto,
     @Session() session: UserSession,
   ) {
-    return this.customerNotesService.update(id, body, session.user);
+    return this.notesService.update(id, body, session.user);
   }
 
-  @Delete("customer-notes/:id")
+  @Delete("notes/:id")
   @Roles(["ba", "manager", "admin"])
   @ApiParam({ name: "id", type: String })
   remove(@Param("id") id: string, @Session() session: UserSession) {
-    return this.customerNotesService.remove(id, session.user);
+    return this.notesService.remove(id, session.user);
   }
 }

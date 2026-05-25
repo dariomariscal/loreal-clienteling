@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from "@nestjs/swa
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
 import { BeautyService } from "./beauty.service";
-import { UpsertBeautyProfileDto, CreateShadeDto } from "../../dtos/beauty.dto";
+import { UpsertBeautyProfileDto, CreateShadeMatchDto } from "../../dtos/beauty.dto";
 import type { UserSession } from "../../common/types/session";
 
 @ApiTags("Beauty Profiles")
@@ -39,10 +39,10 @@ export class BeautyController {
   @Post("shades")
   @Roles(["ba", "manager"])
   @ApiParam({ name: "customerId", type: String })
-  @ApiBody({ type: CreateShadeDto })
+  @ApiBody({ type: CreateShadeMatchDto })
   addShade(
     @Param("customerId") customerId: string,
-    @Body() body: CreateShadeDto,
+    @Body() body: CreateShadeMatchDto,
     @Session() session: UserSession,
   ) {
     return this.beautyService.addShade(body, customerId, session.user);

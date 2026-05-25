@@ -15,12 +15,12 @@ import { BeautyModule } from "./modules/beauty/beauty.module";
 import { ConsentsModule } from "./modules/consents/consents.module";
 import { PrivacyNoticesModule } from "./modules/privacy-notices/privacy-notices.module";
 import { RecommendationsModule } from "./modules/recommendations/recommendations.module";
-import { PurchasesModule } from "./modules/purchases/purchases.module";
+import { OrdersModule } from "./modules/orders/orders.module";
 import { SamplesModule } from "./modules/samples/samples.module";
 import { AppointmentsModule } from "./modules/appointments/appointments.module";
-import { AppointmentEventTypesModule } from "./modules/appointment-event-types/appointment-event-types.module";
-import { CommunicationsModule } from "./modules/communications/communications.module";
-import { CustomerNotesModule } from "./modules/customer-notes/customer-notes.module";
+import { ServiceTypesModule } from "./modules/service-types/service-types.module";
+import { MessagesModule } from "./modules/messages/messages.module";
+import { NotesModule } from "./modules/notes/notes.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { SchedulerModule } from "./modules/scheduler/scheduler.module";
@@ -51,12 +51,12 @@ import { HealthController } from "./health.controller";
     ConsentsModule,
     PrivacyNoticesModule,
     RecommendationsModule,
-    PurchasesModule,
+    OrdersModule,
     SamplesModule,
     AppointmentsModule,
-    AppointmentEventTypesModule,
-    CommunicationsModule,
-    CustomerNotesModule,
+    ServiceTypesModule,
+    MessagesModule,
+    NotesModule,
     AuditModule,
     AnalyticsModule,
     SchedulerModule,

@@ -88,7 +88,7 @@ export class ScopeService {
     if (user.role === "admin") return;
 
     const [customer] = await this.db
-      .select({ storeId: customers.registeredAtStoreId })
+      .select({ storeId: customers.signupStoreId })
       .from(customers)
       .where(eq(customers.id, customerId));
 

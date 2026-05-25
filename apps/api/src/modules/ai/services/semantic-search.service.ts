@@ -53,7 +53,7 @@ export class SemanticSearchService {
   ): Promise<SemanticSearchResult[]> {
     const scope = await this.scopeService.scopeByStore(
       user,
-      customers.registeredAtStoreId,
+      customers.signupStoreId,
     );
     const pattern = `%${query}%`;
 
@@ -64,8 +64,8 @@ export class SemanticSearchService {
         lastName: customers.lastName,
         email: customers.email,
         phone: customers.phone,
-        lastContactAt: customers.lastContactAt,
-        lifecycleSegment: customers.lifecycleSegment,
+        lastContactAt: customers.lastInteractionAt,
+        lifecycleSegment: customers.lifecycleStage,
       })
       .from(customers)
       .where(

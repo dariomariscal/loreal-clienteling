@@ -1,6 +1,6 @@
 import { IsString, MaxLength, IsOptional, IsIn, IsUUID } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { RECOMMENDATION_SOURCES, VISIT_REASONS } from "@loreal/contracts";
+import { RECOMMENDATION_SOURCES, VISIT_PURPOSES } from "@loreal/contracts";
 
 export class CreateRecommendationDto {
   @ApiProperty({ type: String, format: "uuid" })
@@ -15,10 +15,10 @@ export class CreateRecommendationDto {
   @IsIn(RECOMMENDATION_SOURCES)
   source: string;
 
-  @ApiPropertyOptional({ type: String, enum: VISIT_REASONS })
+  @ApiPropertyOptional({ type: String, enum: VISIT_PURPOSES })
   @IsOptional()
-  @IsIn(VISIT_REASONS)
-  visitReason?: string;
+  @IsIn(VISIT_PURPOSES)
+  visitPurpose?: string;
 
   @ApiPropertyOptional({ type: String })
   @IsOptional()

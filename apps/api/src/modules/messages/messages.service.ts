@@ -1,12 +1,12 @@
 import { Injectable, Inject, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { eq, and, or, isNull, inArray, desc } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { communications, messageTemplates, consents } from "@loreal/database";
+import { messages, messageTemplates, consents } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
 import { ConsentsService } from "../consents/consents.service";
-import type { CreateCommunicationDto } from "../../dtos/communications.dto";
+import type { CreateMessageDto } from "../../dtos/messages.dto";
 
 const CONSENT_TO_CHANNEL: Record<string, string> = {
   marketing_whatsapp: "whatsapp",
@@ -15,7 +15,7 @@ const CONSENT_TO_CHANNEL: Record<string, string> = {
 };
 
 @Injectable()
-export class CommunicationsService {
+export class MessagesService {
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
@@ -24,17 +24,15 @@ export class CommunicationsService {
   ) {}
 
   async findAll(user: SessionUser) {
-    // BA/manager: only their own sent communications
-    // Admin: all communications
+    // BA/manager: only their own sent messages
+    // Admin: all messages
     const conditions =
-      user.role === "admin"
-        ? []
-        : [eq(communications.sentByUserId, user.id)];
+      user.role === "admin" ? [] : [eq(messages.sentByUserId, user.id)];
     return this.db
       .select()
-      .from(communications)
+      .from(messages)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(communications.sentAt))
+      .orderBy(desc(messages.sentAt))
       .limit(100);
   }
 
@@ -43,11 +41,11 @@ export class CommunicationsService {
 
     return this.db
       .select()
-      .from(communications)
-      .where(eq(communications.customerId, customerId));
+      .from(messages)
+      .where(eq(messages.customerId, customerId));
   }
 
-  async create(data: CreateCommunicationDto, user: SessionUser) {
+  async create(data: CreateMessageDto, user: SessionUser) {
     const direction = data.direction ?? "outbound";
     const isOutbound = direction === "outbound";
 
@@ -65,8 +63,8 @@ export class CommunicationsService {
       }
     }
 
-    const [comm] = await this.db
-      .insert(communications)
+    const [msg] = await this.db
+      .insert(messages)
       .values({
         customerId: data.customerId,
         sentByUserId: isOutbound ? user.id : null,
@@ -75,23 +73,23 @@ export class CommunicationsService {
         status: data.status ?? (isOutbound ? "sent" : "received"),
         fromAddress: data.fromAddress,
         toAddress: data.toAddress,
-        externalId: data.externalId,
+        providerMessageId: data.providerMessageId,
         templateId: data.templateId,
         subject: data.subject,
         body: data.body,
-        followupType: isOutbound ? data.followupType : undefined,
+        campaignType: isOutbound ? data.campaignType : undefined,
       })
       .returning();
 
     await this.auditService.log(
       user,
-      isOutbound ? "communication_sent" : "communication_received",
-      "communication",
-      comm.id,
+      isOutbound ? "message_sent" : "message_received",
+      "message",
+      msg.id,
       { channel: data.channel, customerId: data.customerId, direction },
     );
 
-    return comm;
+    return msg;
   }
 
   async findTemplates(
@@ -100,7 +98,7 @@ export class CommunicationsService {
   ) {
     // Step 1: brand scope. Admin gets every active template; everyone else
     // gets brand-specific + global (null-brand) templates.
-    const baseConditions: any[] = [eq(messageTemplates.active, true)];
+    const baseConditions: any[] = [eq(messageTemplates.isActive, true)];
     if (user.role !== "admin") {
       const brandId = this.scopeService.assertBrand(user);
       baseConditions.push(
@@ -143,7 +141,7 @@ export class CommunicationsService {
     name: string;
     channel: string;
     body: string;
-    followupType: string;
+    campaignType: string;
   }) {
     const [template] = await this.db
       .insert(messageTemplates)
@@ -152,7 +150,16 @@ export class CommunicationsService {
     return template;
   }
 
-  async updateTemplate(id: string, data: Partial<{ name: string; channel: string; body: string; followupType: string; active: boolean }>) {
+  async updateTemplate(
+    id: string,
+    data: Partial<{
+      name: string;
+      channel: string;
+      body: string;
+      campaignType: string;
+      isActive: boolean;
+    }>,
+  ) {
     const [template] = await this.db
       .update(messageTemplates)
       .set({ ...data, updatedAt: new Date() })
@@ -162,13 +169,16 @@ export class CommunicationsService {
     return template;
   }
 
-  async updateTracking(id: string, data: { deliveredAt?: Date; readAt?: Date; respondedAt?: Date }) {
+  async updateTracking(
+    id: string,
+    data: { deliveredAt?: Date; readAt?: Date; respondedAt?: Date },
+  ) {
     const [updated] = await this.db
-      .update(communications)
+      .update(messages)
       .set(data)
-      .where(eq(communications.id, id))
+      .where(eq(messages.id, id))
       .returning();
-    if (!updated) throw new NotFoundException("Communication not found");
+    if (!updated) throw new NotFoundException("Message not found");
     return updated;
   }
 }

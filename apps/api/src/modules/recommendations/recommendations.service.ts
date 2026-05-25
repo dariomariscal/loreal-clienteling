@@ -42,10 +42,10 @@ export class RecommendationsService {
         customerId: data.customerId,
         productId: data.productId,
         source: data.source,
-        visitReason: data.visitReason,
+        visitPurpose: data.visitPurpose,
         aiReasoning: data.aiReasoning,
         notes: data.notes,
-        baUserId: user.id,
+        recommendedByUserId: user.id,
         storeId,
       })
       .returning();
@@ -65,8 +65,8 @@ export class RecommendationsService {
     const [updated] = await this.db
       .update(recommendations)
       .set({
-        convertedToPurchase: true,
-        conversionPurchaseId: purchaseId,
+        isConverted: true,
+        convertedOrderId: purchaseId,
         updatedAt: new Date(),
       })
       .where(eq(recommendations.id, id))
@@ -103,7 +103,7 @@ export class RecommendationsService {
       .where(
         and(
           eq(recommendations.customerId, customerId),
-          eq(recommendations.convertedToPurchase, false),
+          eq(recommendations.isConverted, false),
           gte(recommendations.recommendedAt, since),
         ),
       );

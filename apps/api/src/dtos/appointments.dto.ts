@@ -20,14 +20,14 @@ export class CreateAppointmentDto {
   @IsUUID()
   customerId: string;
 
-  @ApiProperty({ type: String, format: "uuid", description: "FK to appointment_event_types.id" })
+  @ApiProperty({ type: String, format: "uuid", description: "FK to service_types.id" })
   @IsUUID()
-  eventTypeId: string;
+  serviceTypeId: string;
 
   @ApiProperty({ type: String, format: "date-time" })
   @IsDate()
   @Type(() => Date)
-  scheduledAt: Date;
+  startTime: Date;
 
   @ApiProperty({ type: Number, example: 60, minimum: 1, maximum: 480 })
   @IsInt()
@@ -39,7 +39,7 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsString()
   @MaxLength(1000)
-  comments?: string;
+  notes?: string;
 
   @ApiPropertyOptional({ type: Boolean, default: false })
   @IsOptional()
@@ -49,7 +49,7 @@ export class CreateAppointmentDto {
   @ApiPropertyOptional({ type: String, example: "https://meet.google.com/abc-defg-hij" })
   @IsOptional()
   @IsUrl()
-  videoLink?: string;
+  meetingUrl?: string;
 }
 
 export class UpdateAppointmentDto {
@@ -62,7 +62,7 @@ export class UpdateAppointmentDto {
   @IsOptional()
   @IsDate()
   @Type(() => Date)
-  scheduledAt?: Date;
+  startTime?: Date;
 
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 480 })
   @IsOptional()
@@ -75,5 +75,5 @@ export class UpdateAppointmentDto {
   @IsOptional()
   @IsString()
   @MaxLength(1000)
-  comments?: string;
+  notes?: string;
 }

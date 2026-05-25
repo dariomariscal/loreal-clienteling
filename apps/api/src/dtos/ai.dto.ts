@@ -47,15 +47,15 @@ export class SemanticSearchDto {
   limit?: number;
 }
 
-export class DailyOpportunitiesQueryDto {
+export class SuggestedActionsQueryDto {
   @ApiPropertyOptional({
     type: String,
     example: "2026-05-22",
     description: "ISO date (YYYY-MM-DD). Defaults to today in server tz.",
   })
   @IsOptional()
-  @Matches(ISO_DATE, { message: "forDate must be YYYY-MM-DD" })
-  forDate?: string;
+  @Matches(ISO_DATE, { message: "dueDate must be YYYY-MM-DD" })
+  dueDate?: string;
 
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 20, default: 5 })
   @IsOptional()

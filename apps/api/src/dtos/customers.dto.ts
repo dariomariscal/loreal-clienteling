@@ -32,7 +32,7 @@ import {
   ApiPropertyOptional,
   PartialType,
 } from "@nestjs/swagger";
-import { GENDERS, LIFECYCLE_SEGMENTS } from "@loreal/contracts";
+import { GENDERS, LIFECYCLE_STAGES } from "@loreal/contracts";
 import { PaginationDto } from "./common.dto";
 
 export class CreateCustomerDto {
@@ -74,7 +74,7 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsDate()
   @Type(() => Date)
-  birthDate?: Date;
+  birthday?: Date;
 }
 
 export class UpdateCustomerDto extends PartialType(CreateCustomerDto) {}
@@ -93,10 +93,10 @@ export class SearchCustomerDto {
 }
 
 export class CustomerFiltersDto extends PaginationDto {
-  @ApiPropertyOptional({ type: String, enum: LIFECYCLE_SEGMENTS })
+  @ApiPropertyOptional({ type: String, enum: LIFECYCLE_STAGES })
   @IsOptional()
-  @IsIn(LIFECYCLE_SEGMENTS)
-  segment?: string;
+  @IsIn(LIFECYCLE_STAGES)
+  stage?: string;
 
   @ApiPropertyOptional({ type: String, format: "uuid" })
   @IsOptional()
@@ -123,7 +123,7 @@ export class CustomerFiltersDto extends PaginationDto {
   @ApiPropertyOptional({ type: String })
   @IsOptional()
   @IsString()
-  baUserId?: string;
+  assignedToUserId?: string;
 
   @ApiPropertyOptional({
     type: Number,
@@ -139,9 +139,9 @@ export class CustomerFiltersDto extends PaginationDto {
   @Max(365)
   birthdayWithinDays?: number;
 
-  @ApiPropertyOptional({ type: String, enum: ["name", "customerSince", "lastContactAt", "lastTransactionAt", "ltv"] })
+  @ApiPropertyOptional({ type: String, enum: ["name", "enrolledAt", "lastInteractionAt", "lastOrderAt", "ltv"] })
   @IsOptional()
-  @IsIn(["name", "customerSince", "lastContactAt", "lastTransactionAt", "ltv"])
+  @IsIn(["name", "enrolledAt", "lastInteractionAt", "lastOrderAt", "ltv"])
   sortBy?: string;
 
   @ApiPropertyOptional({ type: String, enum: ["asc", "desc"] })

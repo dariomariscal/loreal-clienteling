@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { eq, and, ilike, or, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { products, productAvailability, brands } from "@loreal/database";
+import { products, inventoryLevels, brands } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { ProductEmbeddingService } from "../ai/services/product-embedding.service";
@@ -38,11 +38,11 @@ export class ProductsService {
     const brandScope = this.scopeService.scopeByBrand(user, products.brandId);
 
     const conditions = [
-      eq(products.active, true),
+      eq(products.status, "active"),
       ...(brandScope ? [brandScope] : []),
       ...(filters.category ? [eq(products.category, filters.category)] : []),
       ...(filters.search
-        ? [or(ilike(products.name, `%${filters.search}%`), ilike(products.sku, `%${filters.search}%`))]
+        ? [or(ilike(products.title, `%${filters.search}%`), ilike(products.sku, `%${filters.search}%`))]
         : []),
     ];
 
@@ -200,13 +200,13 @@ export class ProductsService {
           .values(
             insertable.map(({ row }) => ({
               sku: row.sku,
-              name: row.name,
+              title: row.title,
               brandId: row.brandId,
               category: row.category,
               subcategory: row.subcategory ?? null,
               description: row.description ?? null,
               price: String(row.price),
-              estimatedDurationDays: row.estimatedDurationDays ?? null,
+              replenishmentDays: row.replenishmentDays ?? null,
             })),
           )
           .returning({ id: products.id, sku: products.sku });
@@ -261,7 +261,7 @@ export class ProductsService {
     if (!product) throw new NotFoundException("Product not found");
     // Regenerate the embedding only when content that feeds it changed.
     const embeddingFields: (keyof UpdateProductDto)[] = [
-      "name",
+      "title",
       "description",
       "category",
       "subcategory",
@@ -273,33 +273,33 @@ export class ProductsService {
   }
 
   async getAvailability(productId: string, user: SessionUser) {
-    const scope = await this.scopeService.scopeByStore(user, productAvailability.storeId);
-    const conditions = [eq(productAvailability.productId, productId)];
+    const scope = await this.scopeService.scopeByStore(user, inventoryLevels.storeId);
+    const conditions = [eq(inventoryLevels.productId, productId)];
     if (scope) conditions.push(scope);
 
     return this.db
       .select()
-      .from(productAvailability)
+      .from(inventoryLevels)
       .where(and(...conditions));
   }
 
   async updateAvailability(productId: string, storeId: string, stockStatus: string) {
     const [existing] = await this.db
       .select()
-      .from(productAvailability)
-      .where(and(eq(productAvailability.productId, productId), eq(productAvailability.storeId, storeId)));
+      .from(inventoryLevels)
+      .where(and(eq(inventoryLevels.productId, productId), eq(inventoryLevels.storeId, storeId)));
 
     if (existing) {
       const [updated] = await this.db
-        .update(productAvailability)
+        .update(inventoryLevels)
         .set({ stockStatus, lastSyncedAt: new Date() })
-        .where(eq(productAvailability.id, existing.id))
+        .where(eq(inventoryLevels.id, existing.id))
         .returning();
       return updated;
     }
 
     const [created] = await this.db
-      .insert(productAvailability)
+      .insert(inventoryLevels)
       .values({ productId, storeId, stockStatus })
       .returning();
     return created;

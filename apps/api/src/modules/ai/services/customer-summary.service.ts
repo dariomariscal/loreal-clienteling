@@ -3,9 +3,9 @@ import { eq, and, desc, gte } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../../config/database.provider";
 import {
   customers,
-  customerNotes,
-  purchases,
-  purchaseItems,
+  notes,
+  orders,
+  lineItems,
   products,
   appointments,
 } from "@loreal/database";
@@ -108,54 +108,54 @@ export class CustomerSummaryService {
     const ninetyDaysAgo = new Date(now - 90 * 24 * 60 * 60 * 1000);
 
     const recentNotes = await this.db
-      .select({ body: customerNotes.body, createdAt: customerNotes.createdAt })
-      .from(customerNotes)
-      .where(eq(customerNotes.customerId, customerId))
-      .orderBy(desc(customerNotes.createdAt))
+      .select({ body: notes.body, createdAt: notes.createdAt })
+      .from(notes)
+      .where(eq(notes.customerId, customerId))
+      .orderBy(desc(notes.createdAt))
       .limit(5);
 
-    const recentPurchases = await this.db
+    const recentOrders = await this.db
       .select({
-        productName: products.name,
-        purchasedAt: purchases.purchasedAt,
-        price: purchaseItems.unitPrice,
+        productTitle: products.title,
+        processedAt: orders.processedAt,
+        price: lineItems.price,
       })
-      .from(purchaseItems)
-      .innerJoin(purchases, eq(purchases.id, purchaseItems.purchaseId))
-      .innerJoin(products, eq(products.id, purchaseItems.productId))
+      .from(lineItems)
+      .innerJoin(orders, eq(orders.id, lineItems.orderId))
+      .innerJoin(products, eq(products.id, lineItems.productId))
       .where(
         and(
-          eq(purchases.customerId, customerId),
-          gte(purchases.purchasedAt, ninetyDaysAgo),
+          eq(orders.customerId, customerId),
+          gte(orders.processedAt, ninetyDaysAgo),
         ),
       )
-      .orderBy(desc(purchases.purchasedAt))
+      .orderBy(desc(orders.processedAt))
       .limit(5);
 
     const upcoming = await this.db
       .select({
-        scheduledAt: appointments.scheduledAt,
+        startTime: appointments.startTime,
       })
       .from(appointments)
       .where(
         and(
           eq(appointments.customerId, customerId),
-          gte(appointments.scheduledAt, new Date()),
+          gte(appointments.startTime, new Date()),
         ),
       )
-      .orderBy(appointments.scheduledAt)
+      .orderBy(appointments.startTime)
       .limit(1);
 
-    const ageYears = customer.birthDate
+    const ageYears = customer.birthday
       ? Math.floor(
-          (now - new Date(customer.birthDate).getTime()) /
+          (now - new Date(customer.birthday).getTime()) /
             (365.25 * 24 * 60 * 60 * 1000),
         )
       : undefined;
 
-    const lastVisitDaysAgo = customer.lastTransactionAt
+    const lastVisitDaysAgo = customer.lastInteractionAt
       ? Math.floor(
-          (now - new Date(customer.lastTransactionAt).getTime()) /
+          (now - new Date(customer.lastInteractionAt).getTime()) /
             (24 * 60 * 60 * 1000),
         )
       : undefined;
@@ -164,15 +164,15 @@ export class CustomerSummaryService {
       firstName: customer.firstName,
       lastName: customer.lastName,
       ageYears,
-      customerSince: new Date(customer.customerSince),
-      lifecycleSegment: customer.lifecycleSegment,
+      enrolledAt: new Date(customer.enrolledAt),
+      lifecycleStage: customer.lifecycleStage,
       lastVisitDaysAgo,
-      recentPurchases: recentPurchases.map((p) => ({
-        productName: p.productName,
+      recentOrders: recentOrders.map((o) => ({
+        productTitle: o.productTitle,
         daysAgo: Math.floor(
-          (now - new Date(p.purchasedAt).getTime()) / (24 * 60 * 60 * 1000),
+          (now - new Date(o.processedAt).getTime()) / (24 * 60 * 60 * 1000),
         ),
-        price: Number(p.price),
+        price: Number(o.price),
       })),
       recentNotes: recentNotes.map((n) => ({
         body: n.body,
@@ -181,7 +181,7 @@ export class CustomerSummaryService {
         ),
       })),
       upcomingAppointment: upcoming[0]
-        ? { whenIso: new Date(upcoming[0].scheduledAt).toISOString() }
+        ? { whenIso: new Date(upcoming[0].startTime).toISOString() }
         : undefined,
     };
   }

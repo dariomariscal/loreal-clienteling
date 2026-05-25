@@ -8,7 +8,7 @@ import {
   BulkCreateProductsDto,
   CreateProductDto,
   UpdateProductDto,
-  UpdateAvailabilityDto,
+  UpdateInventoryLevelDto,
   ProductFiltersDto,
   ProductSemanticSearchDto,
 } from "../../dtos/products.dto";
@@ -93,11 +93,11 @@ export class ProductsController {
   @Roles(["admin", "manager"])
   @ApiParam({ name: "id", type: String })
   @ApiParam({ name: "storeId", type: String })
-  @ApiBody({ type: UpdateAvailabilityDto })
+  @ApiBody({ type: UpdateInventoryLevelDto })
   updateAvailability(
     @Param("id") id: string,
     @Param("storeId") storeId: string,
-    @Body() body: UpdateAvailabilityDto,
+    @Body() body: UpdateInventoryLevelDto,
   ) {
     return this.productsService.updateAvailability(id, storeId, body.stockStatus);
   }

@@ -14,7 +14,7 @@ import {
   IsObject,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-import { STORE_CHAINS, type StoreHours } from "@loreal/contracts";
+import { STORE_BANNERS, type StoreHours } from "@loreal/contracts";
 
 export class CreateStoreDto {
   @ApiProperty({ type: String, example: "LIV-SANTA-FE", minLength: 1, maxLength: 50 })
@@ -29,9 +29,14 @@ export class CreateStoreDto {
   @MaxLength(200)
   displayName: string;
 
-  @ApiProperty({ type: String, enum: STORE_CHAINS, example: "liverpool" })
-  @IsIn(STORE_CHAINS)
-  chain: string;
+  @ApiProperty({
+    type: String,
+    enum: STORE_BANNERS,
+    example: "liverpool",
+    description: "Department-store chain name (banner).",
+  })
+  @IsIn(STORE_BANNERS)
+  banner: string;
 
   @ApiPropertyOptional({ type: String, format: "uuid" })
   @IsOptional()

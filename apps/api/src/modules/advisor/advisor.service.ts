@@ -4,8 +4,8 @@ import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   appointments,
   customers,
-  communications,
-  appointmentEventTypes,
+  messages,
+  serviceTypes,
 } from "@loreal/database";
 import { ScopeService } from "../../common/services/scope.service";
 import type { SessionUser } from "../../common/types/session";
@@ -88,11 +88,11 @@ export class AdvisorService {
     endOfDay: Date,
   ): Promise<TodayAppointment[]> {
     const conditions: any[] = [
-      gte(appointments.scheduledAt, startOfDay),
-      lte(appointments.scheduledAt, endOfDay),
+      gte(appointments.startTime, startOfDay),
+      lte(appointments.startTime, endOfDay),
     ];
     if (user.role === "ba") {
-      conditions.push(eq(appointments.baUserId, user.id));
+      conditions.push(eq(appointments.staffUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(
         user,
@@ -104,41 +104,41 @@ export class AdvisorService {
     const rows = await this.db
       .select({
         id: appointments.id,
-        scheduledAt: appointments.scheduledAt,
+        startTime: appointments.startTime,
         durationMinutes: appointments.durationMinutes,
         status: appointments.status,
         isVirtual: appointments.isVirtual,
-        eventTypeId: appointments.eventTypeId,
-        eventTypeName: appointmentEventTypes.displayName,
-        eventTypeColor: appointmentEventTypes.color,
+        serviceTypeId: appointments.serviceTypeId,
+        serviceTypeName: serviceTypes.displayName,
+        serviceTypeColor: serviceTypes.color,
         customerId: appointments.customerId,
         customerFirstName: customers.firstName,
         customerLastName: customers.lastName,
         customerPhone: customers.phone,
-        customerSegment: customers.lifecycleSegment,
+        customerLifecycleStage: customers.lifecycleStage,
       })
       .from(appointments)
       .leftJoin(customers, eq(appointments.customerId, customers.id))
       .leftJoin(
-        appointmentEventTypes,
-        eq(appointments.eventTypeId, appointmentEventTypes.id),
+        serviceTypes,
+        eq(appointments.serviceTypeId, serviceTypes.id),
       )
       .where(and(...conditions))
-      .orderBy(appointments.scheduledAt);
+      .orderBy(appointments.startTime);
 
     return rows.map((r) => ({
       id: r.id,
-      scheduledAt: r.scheduledAt.toISOString(),
+      startTime: r.startTime.toISOString(),
       durationMinutes: r.durationMinutes,
       status: r.status,
       isVirtual: r.isVirtual,
-      eventTypeId: r.eventTypeId,
-      eventTypeName: r.eventTypeName,
-      eventTypeColor: r.eventTypeColor,
+      serviceTypeId: r.serviceTypeId,
+      serviceTypeName: r.serviceTypeName,
+      serviceTypeColor: r.serviceTypeColor,
       customerId: r.customerId,
       customerName: `${r.customerFirstName ?? ""} ${r.customerLastName ?? ""}`.trim(),
       customerPhone: r.customerPhone,
-      customerSegment: r.customerSegment,
+      customerLifecycleStage: r.customerLifecycleStage,
     }));
   }
 
@@ -146,16 +146,16 @@ export class AdvisorService {
     user: SessionUser,
   ): Promise<TodayBirthday[]> {
     const conditions: any[] = [
-      eq(customers.inactive, false),
+      eq(customers.isActive, true),
       // Restrict to customers the BA owns; managers see their whole store.
       ...(user.role === "ba"
-        ? [eq(customers.lastBaUserId, user.id)]
+        ? [eq(customers.assignedToUserId, user.id)]
         : []),
     ];
     if (user.role !== "ba") {
       const scope = await this.scopeService.scopeByStore(
         user,
-        customers.registeredAtStoreId,
+        customers.signupStoreId,
       );
       if (scope) conditions.push(scope);
     }
@@ -167,15 +167,15 @@ export class AdvisorService {
         (
           make_date(
             extract(year from current_date)::int,
-            extract(month from ${customers.birthDate})::int,
-            extract(day from ${customers.birthDate})::int
+            extract(month from ${customers.birthday})::int,
+            extract(day from ${customers.birthday})::int
           ) - current_date
         ),
         (
           make_date(
             extract(year from current_date)::int + 1,
-            extract(month from ${customers.birthDate})::int,
-            extract(day from ${customers.birthDate})::int
+            extract(month from ${customers.birthday})::int,
+            extract(day from ${customers.birthday})::int
           ) - current_date
         )
       )
@@ -188,15 +188,15 @@ export class AdvisorService {
         lastName: customers.lastName,
         phone: customers.phone,
         email: customers.email,
-        lifecycleSegment: customers.lifecycleSegment,
-        birthDate: customers.birthDate,
+        lifecycleStage: customers.lifecycleStage,
+        birthday: customers.birthday,
         daysUntil: upcomingExpr,
       })
       .from(customers)
       .where(
         and(
           ...conditions,
-          sql`${customers.birthDate} IS NOT NULL`,
+          sql`${customers.birthday} IS NOT NULL`,
           sql`${upcomingExpr} BETWEEN 0 AND ${BIRTHDAY_WINDOW_DAYS}`,
         ),
       )
@@ -208,8 +208,8 @@ export class AdvisorService {
       lastName: r.lastName,
       phone: r.phone,
       email: r.email,
-      lifecycleSegment: r.lifecycleSegment,
-      birthDate: r.birthDate as unknown as string,
+      lifecycleStage: r.lifecycleStage,
+      birthday: r.birthday as unknown as string,
       daysUntil: Number(r.daysUntil),
     }));
   }
@@ -218,14 +218,14 @@ export class AdvisorService {
     user: SessionUser,
   ): Promise<TodayAtRiskCustomer[]> {
     const conditions: any[] = [
-      eq(customers.inactive, false),
-      eq(customers.lifecycleSegment, "at_risk"),
-      ...(user.role === "ba" ? [eq(customers.lastBaUserId, user.id)] : []),
+      eq(customers.isActive, true),
+      eq(customers.lifecycleStage, "at_risk"),
+      ...(user.role === "ba" ? [eq(customers.assignedToUserId, user.id)] : []),
     ];
     if (user.role !== "ba") {
       const scope = await this.scopeService.scopeByStore(
         user,
-        customers.registeredAtStoreId,
+        customers.signupStoreId,
       );
       if (scope) conditions.push(scope);
     }
@@ -237,13 +237,13 @@ export class AdvisorService {
         lastName: customers.lastName,
         phone: customers.phone,
         email: customers.email,
-        lifecycleSegment: customers.lifecycleSegment,
-        lastTransactionAt: customers.lastTransactionAt,
+        lifecycleStage: customers.lifecycleStage,
+        lastOrderAt: customers.lastOrderAt,
       })
       .from(customers)
       .where(and(...conditions))
-      // Oldest "last transaction" first — those need attention most.
-      .orderBy(customers.lastTransactionAt)
+      // Oldest "last order" first — those need attention most.
+      .orderBy(customers.lastOrderAt)
       .limit(AT_RISK_LIMIT);
 
     const now = Date.now();
@@ -253,13 +253,13 @@ export class AdvisorService {
       lastName: r.lastName,
       phone: r.phone,
       email: r.email,
-      lifecycleSegment: r.lifecycleSegment,
-      lastTransactionAt: r.lastTransactionAt
-        ? r.lastTransactionAt.toISOString()
+      lifecycleStage: r.lifecycleStage,
+      lastOrderAt: r.lastOrderAt
+        ? r.lastOrderAt.toISOString()
         : null,
-      daysSinceLastPurchase: r.lastTransactionAt
+      daysSinceLastOrder: r.lastOrderAt
         ? Math.floor(
-            (now - new Date(r.lastTransactionAt).getTime()) / 86_400_000,
+            (now - new Date(r.lastOrderAt).getTime()) / 86_400_000,
           )
         : null,
     }));
@@ -270,16 +270,16 @@ export class AdvisorService {
     sevenDaysAgo: Date,
   ): Promise<TodayNewCustomer[]> {
     const conditions: any[] = [
-      eq(customers.inactive, false),
-      gte(customers.customerSince, sql`${sevenDaysAgo.toISOString().slice(0, 10)}::date`),
+      eq(customers.isActive, true),
+      gte(customers.enrolledAt, sevenDaysAgo),
       ...(user.role === "ba"
-        ? [eq(customers.lastBaUserId, user.id)]
+        ? [eq(customers.assignedToUserId, user.id)]
         : []),
     ];
     if (user.role !== "ba") {
       const scope = await this.scopeService.scopeByStore(
         user,
-        customers.registeredAtStoreId,
+        customers.signupStoreId,
       );
       if (scope) conditions.push(scope);
     }
@@ -291,25 +291,25 @@ export class AdvisorService {
         lastName: customers.lastName,
         phone: customers.phone,
         email: customers.email,
-        lifecycleSegment: customers.lifecycleSegment,
-        customerSince: customers.customerSince,
+        lifecycleStage: customers.lifecycleStage,
+        enrolledAt: customers.enrolledAt,
       })
       .from(customers)
       .where(and(...conditions))
-      .orderBy(desc(customers.customerSince))
+      .orderBy(desc(customers.enrolledAt))
       .limit(NEW_CUSTOMERS_LIMIT);
 
     return rows.map((r) => ({
       ...r,
-      customerSince: r.customerSince as unknown as string,
+      enrolledAt: r.enrolledAt.toISOString(),
     }));
   }
 
   private async getPendingFollowups(
     user: SessionUser,
   ): Promise<TodayPendingFollowup[]> {
-    // The scheduler writes lifecycle alerts as `communications` rows. Until
-    // a BA actually contacts the customer (which creates a delivered comm)
+    // The scheduler writes lifecycle alerts as `messages` rows. Until
+    // a BA actually contacts the customer (which creates a delivered message)
     // we treat them as pending tasks. We filter rows that have no delivery
     // tracking yet and that target customers the BA owns.
     const baCustomerIds = await this.getBaCustomerIds(user);
@@ -317,33 +317,33 @@ export class AdvisorService {
 
     const rows = await this.db
       .select({
-        id: communications.id,
-        customerId: communications.customerId,
+        id: messages.id,
+        customerId: messages.customerId,
         customerFirstName: customers.firstName,
         customerLastName: customers.lastName,
-        followupType: communications.followupType,
-        body: communications.body,
-        channel: communications.channel,
-        sentAt: communications.sentAt,
+        campaignType: messages.campaignType,
+        body: messages.body,
+        channel: messages.channel,
+        sentAt: messages.sentAt,
       })
-      .from(communications)
-      .leftJoin(customers, eq(communications.customerId, customers.id))
+      .from(messages)
+      .leftJoin(customers, eq(messages.customerId, customers.id))
       .where(
         and(
-          inArray(communications.customerId, baCustomerIds),
-          isNull(communications.deliveredAt),
-          isNull(communications.readAt),
-          isNull(communications.respondedAt),
+          inArray(messages.customerId, baCustomerIds),
+          isNull(messages.deliveredAt),
+          isNull(messages.readAt),
+          isNull(messages.respondedAt),
         ),
       )
-      .orderBy(desc(communications.sentAt))
+      .orderBy(desc(messages.sentAt))
       .limit(PENDING_FOLLOWUPS_LIMIT);
 
     return rows.map((r) => ({
       id: r.id,
       customerId: r.customerId,
       customerName: `${r.customerFirstName ?? ""} ${r.customerLastName ?? ""}`.trim(),
-      followupType: r.followupType,
+      campaignType: r.campaignType,
       body: r.body,
       channel: r.channel,
       sentAt: r.sentAt.toISOString(),
@@ -351,18 +351,18 @@ export class AdvisorService {
   }
 
   /**
-   * IDs of customers in the BA's care. For BA we use `lastBaUserId`; for
+   * IDs of customers in the BA's care. For BA we use `assignedToUserId`; for
    * managers/admins we widen to all customers in their store scope. Used by
    * the followups bucket to keep it BA-relevant.
    */
   private async getBaCustomerIds(user: SessionUser): Promise<string[]> {
-    const conditions: any[] = [eq(customers.inactive, false)];
+    const conditions: any[] = [eq(customers.isActive, true)];
     if (user.role === "ba") {
-      conditions.push(eq(customers.lastBaUserId, user.id));
+      conditions.push(eq(customers.assignedToUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(
         user,
-        customers.registeredAtStoreId,
+        customers.signupStoreId,
       );
       if (scope) conditions.push(scope);
     }

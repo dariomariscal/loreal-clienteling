@@ -101,7 +101,8 @@ export class UsersService {
     if (filters.storeId) conditions.push(eq(users.storeId, filters.storeId));
     if (filters.zoneId) conditions.push(eq(users.zoneId, filters.zoneId));
     if (filters.brandId) conditions.push(eq(users.brandId, filters.brandId));
-    if (filters.active !== undefined) conditions.push(eq(users.active, filters.active));
+    if (filters.active !== undefined)
+      conditions.push(eq(users.isActive, filters.active));
     if (filters.invitationStatus) conditions.push(eq(users.invitationStatus, filters.invitationStatus));
     if (filters.search) {
       conditions.push(
@@ -121,7 +122,7 @@ export class UsersService {
         id: users.id,
         email: users.email,
         fullName: users.fullName,
-        imageUrl: users.imageUrl,
+        avatarUrl: users.avatarUrl,
         role: users.role,
         storeId: users.storeId,
         storeName: stores.displayName,
@@ -129,10 +130,10 @@ export class UsersService {
         zoneName: zones.displayName,
         brandId: users.brandId,
         brandName: brands.displayName,
-        active: users.active,
+        isActive: users.isActive,
         invitationStatus: users.invitationStatus,
         invitedAt: users.invitedAt,
-        lastLoginAt: users.lastLoginAt,
+        lastSignInAt: users.lastSignInAt,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -153,7 +154,7 @@ export class UsersService {
         id: users.id,
         email: users.email,
         fullName: users.fullName,
-        imageUrl: users.imageUrl,
+        avatarUrl: users.avatarUrl,
         role: users.role,
         storeId: users.storeId,
         storeName: stores.displayName,
@@ -161,10 +162,10 @@ export class UsersService {
         zoneName: zones.displayName,
         brandId: users.brandId,
         brandName: brands.displayName,
-        active: users.active,
+        isActive: users.isActive,
         invitationStatus: users.invitationStatus,
         invitedAt: users.invitedAt,
-        lastLoginAt: users.lastLoginAt,
+        lastSignInAt: users.lastSignInAt,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -193,7 +194,7 @@ export class UsersService {
       storeId: scope.storeId,
       zoneId: scope.zoneId,
       brandId: scope.brandId,
-      active: true,
+      isActive: true,
       invitationStatus: "pending",
       invitedByUserId: invitedBy.id,
     };
@@ -250,7 +251,7 @@ export class UsersService {
         storeId: scope.storeId,
         zoneId: scope.zoneId,
         brandId: scope.brandId,
-        active: true,
+        isActive: true,
         invitationStatus: "accepted",
         invitedByUserId: createdBy.id,
       },
@@ -266,7 +267,7 @@ export class UsersService {
         storeId: scope.storeId,
         zoneId: scope.zoneId,
         brandId: scope.brandId,
-        active: true,
+        isActive: true,
         invitationStatus: "accepted",
         invitedByUserId: createdBy.id,
       })
@@ -346,7 +347,7 @@ export class UsersService {
     if (data.storeId !== undefined) updateValues.storeId = data.storeId;
     if (data.zoneId !== undefined) updateValues.zoneId = data.zoneId;
     if (data.brandId !== undefined) updateValues.brandId = data.brandId;
-    if (data.active !== undefined) updateValues.active = data.active;
+    if (data.active !== undefined) updateValues.isActive = data.active;
     if (data.fullName !== undefined) updateValues.fullName = data.fullName;
 
     if (Object.keys(updateValues).length === 0) return existing;
@@ -360,7 +361,10 @@ export class UsersService {
     // through the user.updated webhook as nulls.
     const metadataPatch: Record<string, unknown> = {};
     for (const key of ["role", "storeId", "zoneId", "brandId", "active", "fullName"] as const) {
-      if (data[key] !== undefined) metadataPatch[key] = data[key];
+      if (data[key] !== undefined) {
+        // Clerk metadata keeps the legacy `active` key; the local mirror uses `isActive`.
+        metadataPatch[key === "active" ? "isActive" : key] = data[key];
+      }
     }
     const needsMetadataPatch = Object.keys(metadataPatch).length > 0;
     const needsNameUpdate = data.fullName !== undefined;

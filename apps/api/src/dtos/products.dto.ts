@@ -37,7 +37,7 @@ export class CreateProductDto {
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  name: string;
+  title: string;
 
   @ApiProperty({ type: String, format: "uuid" })
   @IsUUID()
@@ -53,6 +53,12 @@ export class CreateProductDto {
   @MaxLength(100)
   subcategory?: string;
 
+  @ApiPropertyOptional({ type: String, example: "Serum", maxLength: 50 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  productType?: string;
+
   @ApiPropertyOptional({ type: String, maxLength: 2000 })
   @IsOptional()
   @IsString()
@@ -64,11 +70,15 @@ export class CreateProductDto {
   @IsPositive()
   price: number;
 
-  @ApiPropertyOptional({ type: Number, example: 90 })
+  @ApiPropertyOptional({
+    type: Number,
+    example: 90,
+    description: "Days a single user typically takes to finish — drives replenishment.",
+  })
   @IsOptional()
   @IsInt()
   @IsPositive()
-  estimatedDurationDays?: number;
+  replenishmentDays?: number;
 
   @ApiPropertyOptional({ type: [String], description: "Product image URLs" })
   @IsOptional()
@@ -107,7 +117,7 @@ export class ProductSemanticSearchDto {
   limit?: number;
 }
 
-export class UpdateAvailabilityDto {
+export class UpdateInventoryLevelDto {
   @ApiProperty({ type: String, enum: STOCK_STATUSES, example: "available" })
   @IsIn(STOCK_STATUSES)
   stockStatus: string;
