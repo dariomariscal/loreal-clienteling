@@ -10,24 +10,24 @@ function makeInput(
 ): ReplenishmentInput {
   return {
     productId: "product-1",
-    estimatedDurationDays: 90,
-    purchaseHistory: [],
+    replenishmentDays: 90,
+    orderHistory: [],
     now: BASE_DATE,
     ...overrides,
   };
 }
 
 describe("calculateNextPurchase", () => {
-  it("returns null when no purchases exist for the product", () => {
+  it("returns null when no orders exist for the product", () => {
     const result = calculateNextPurchase(makeInput({}));
     expect(result).toBeNull();
   });
 
-  it("calculates depletion date from single purchase using product estimate", () => {
+  it("calculates depletion date from single order using product estimate", () => {
     const result = calculateNextPurchase(
       makeInput({
-        purchaseHistory: [
-          { productId: "product-1", purchasedAt: new Date("2026-02-01") },
+        orderHistory: [
+          { productId: "product-1", processedAt: new Date("2026-02-01") },
         ],
       }),
     );
@@ -40,8 +40,8 @@ describe("calculateNextPurchase", () => {
   it("calculates repurchase window (15 days before to 30 days after depletion)", () => {
     const result = calculateNextPurchase(
       makeInput({
-        purchaseHistory: [
-          { productId: "product-1", purchasedAt: new Date("2026-02-01") },
+        orderHistory: [
+          { productId: "product-1", processedAt: new Date("2026-02-01") },
         ],
       }),
     );
@@ -53,8 +53,8 @@ describe("calculateNextPurchase", () => {
   it("correctly identifies when customer is in the repurchase window", () => {
     const result = calculateNextPurchase(
       makeInput({
-        purchaseHistory: [
-          { productId: "product-1", purchasedAt: new Date("2026-02-01") },
+        orderHistory: [
+          { productId: "product-1", processedAt: new Date("2026-02-01") },
         ],
       }),
     );
@@ -67,8 +67,8 @@ describe("calculateNextPurchase", () => {
   it("correctly identifies when customer is before the repurchase window", () => {
     const result = calculateNextPurchase(
       makeInput({
-        purchaseHistory: [
-          { productId: "product-1", purchasedAt: new Date("2026-03-01") },
+        orderHistory: [
+          { productId: "product-1", processedAt: new Date("2026-03-01") },
         ],
       }),
     );
@@ -81,8 +81,8 @@ describe("calculateNextPurchase", () => {
   it("correctly identifies when customer is past the repurchase window", () => {
     const result = calculateNextPurchase(
       makeInput({
-        purchaseHistory: [
-          { productId: "product-1", purchasedAt: new Date("2025-10-01") },
+        orderHistory: [
+          { productId: "product-1", processedAt: new Date("2025-10-01") },
         ],
       }),
     );
@@ -92,14 +92,14 @@ describe("calculateNextPurchase", () => {
     expect(result!.isInWindow).toBe(false);
   });
 
-  it("uses average historical interval when multiple purchases exist", () => {
+  it("uses average historical interval when multiple orders exist", () => {
     const result = calculateNextPurchase(
       makeInput({
-        estimatedDurationDays: 90,
-        purchaseHistory: [
-          { productId: "product-1", purchasedAt: new Date("2025-10-01") },
-          { productId: "product-1", purchasedAt: new Date("2025-12-01") },
-          { productId: "product-1", purchasedAt: new Date("2026-02-01") },
+        replenishmentDays: 90,
+        orderHistory: [
+          { productId: "product-1", processedAt: new Date("2025-10-01") },
+          { productId: "product-1", processedAt: new Date("2025-12-01") },
+          { productId: "product-1", processedAt: new Date("2026-02-01") },
         ],
       }),
     );
@@ -111,26 +111,26 @@ describe("calculateNextPurchase", () => {
     expect(result!.isInWindow).toBe(true);
   });
 
-  it("filters only purchases for the specified product", () => {
+  it("filters only orders for the specified product", () => {
     const result = calculateNextPurchase(
       makeInput({
-        purchaseHistory: [
-          { productId: "other-product", purchasedAt: new Date("2026-04-01") },
-          { productId: "product-1", purchasedAt: new Date("2026-01-01") },
+        orderHistory: [
+          { productId: "other-product", processedAt: new Date("2026-04-01") },
+          { productId: "product-1", processedAt: new Date("2026-01-01") },
         ],
       }),
     );
 
     expect(result).not.toBeNull();
-    // Should only consider product-1 purchase from Jan 1
+    // Should only consider product-1 order from Jan 1
     expect(result!.estimatedDepletionDate).toEqual(new Date("2026-04-01"));
   });
 
   it("calculates days until depletion correctly", () => {
     const result = calculateNextPurchase(
       makeInput({
-        purchaseHistory: [
-          { productId: "product-1", purchasedAt: new Date("2026-03-01") },
+        orderHistory: [
+          { productId: "product-1", processedAt: new Date("2026-03-01") },
         ],
       }),
     );
@@ -142,9 +142,9 @@ describe("calculateNextPurchase", () => {
   it("returns negative days until depletion when past due", () => {
     const result = calculateNextPurchase(
       makeInput({
-        estimatedDurationDays: 30,
-        purchaseHistory: [
-          { productId: "product-1", purchasedAt: new Date("2026-01-01") },
+        replenishmentDays: 30,
+        orderHistory: [
+          { productId: "product-1", processedAt: new Date("2026-01-01") },
         ],
       }),
     );

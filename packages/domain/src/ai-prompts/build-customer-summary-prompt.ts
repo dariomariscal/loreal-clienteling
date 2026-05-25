@@ -20,12 +20,14 @@ Reglas absolutas:
 - Nunca uses la palabra "cliente" ni "usuario" — di "clienta" o su primer nombre.
 - Si falta información, omite — nunca digas "no hay datos suficientes".`;
 
-function formatRecentPurchases(
-  purchases: CustomerSummaryContext["recentPurchases"],
+function formatRecentOrders(
+  orders: CustomerSummaryContext["recentOrders"],
 ): string {
-  if (!purchases.length) return "Sin compras registradas.";
-  return purchases
-    .map((p) => `- ${p.productName} (hace ${p.daysAgo} días, $${p.price.toFixed(0)})`)
+  if (!orders.length) return "Sin compras registradas.";
+  return orders
+    .map(
+      (o) => `- ${o.productTitle} (hace ${o.daysAgo} días, $${o.price.toFixed(0)})`,
+    )
     .join("\n");
 }
 
@@ -52,16 +54,16 @@ export function buildCustomerSummaryPrompt(
 
   lines.push(`Clienta: ${fullName}`);
   if (context.ageYears) lines.push(`Edad: ${context.ageYears} años`);
-  lines.push(`Segmento: ${context.lifecycleSegment}`);
+  lines.push(`Etapa: ${context.lifecycleStage}`);
   lines.push(
-    `Clienta desde: ${context.customerSince.toISOString().slice(0, 10)}`,
+    `Clienta desde: ${context.enrolledAt.toISOString().slice(0, 10)}`,
   );
   if (context.lastVisitDaysAgo !== undefined) {
     lines.push(`Última visita: hace ${context.lastVisitDaysAgo} días`);
   }
-  if (context.averagePurchaseIntervalDays !== undefined) {
+  if (context.averageOrderIntervalDays !== undefined) {
     lines.push(
-      `Intervalo promedio entre compras: ${context.averagePurchaseIntervalDays} días`,
+      `Intervalo promedio entre compras: ${context.averageOrderIntervalDays} días`,
     );
   }
   if (context.knownPreferences?.length) {
@@ -81,7 +83,7 @@ export function buildCustomerSummaryPrompt(
   }
   lines.push("");
   lines.push("Compras recientes:");
-  lines.push(formatRecentPurchases(context.recentPurchases));
+  lines.push(formatRecentOrders(context.recentOrders));
   lines.push("");
   lines.push("Notas recientes:");
   lines.push(formatRecentNotes(context.recentNotes));

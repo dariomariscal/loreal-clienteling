@@ -4,11 +4,11 @@ const BASE_DATE = new Date("2026-04-21");
 
 function makeInput(overrides: Partial<SegmentationInput>): SegmentationInput {
   return {
-    registeredAt: new Date("2025-01-01"),
-    transactionCount12Months: 0,
+    enrolledAt: new Date("2025-01-01"),
+    orderCount12Months: 0,
     totalSpending12Months: 0,
-    lastTransactionAt: null,
-    lastCommunicationAt: null,
+    lastOrderAt: null,
+    lastMessageAt: null,
     vipSpendingThreshold: 15000,
     now: BASE_DATE,
     ...overrides,
@@ -16,179 +16,179 @@ function makeInput(overrides: Partial<SegmentationInput>): SegmentationInput {
 }
 
 describe("calculateSegment", () => {
-  describe("new segment", () => {
-    it("classifies customer registered less than 30 days ago with no transactions", () => {
+  describe("new stage", () => {
+    it("classifies customer enrolled less than 30 days ago with no orders", () => {
       const result = calculateSegment(
         makeInput({
-          registeredAt: new Date("2026-04-10"),
-          transactionCount12Months: 0,
+          enrolledAt: new Date("2026-04-10"),
+          orderCount12Months: 0,
         }),
       );
-      expect(result.segment).toBe("new");
-      expect(result.inactive).toBe(false);
+      expect(result.stage).toBe("new");
+      expect(result.isActive).toBe(true);
     });
 
-    it("classifies customer registered less than 30 days ago with 1 transaction", () => {
+    it("classifies customer enrolled less than 30 days ago with 1 order", () => {
       const result = calculateSegment(
         makeInput({
-          registeredAt: new Date("2026-04-05"),
-          transactionCount12Months: 1,
-          lastTransactionAt: new Date("2026-04-10"),
+          enrolledAt: new Date("2026-04-05"),
+          orderCount12Months: 1,
+          lastOrderAt: new Date("2026-04-10"),
         }),
       );
-      expect(result.segment).toBe("new");
-      expect(result.inactive).toBe(false);
+      expect(result.stage).toBe("new");
+      expect(result.isActive).toBe(true);
     });
   });
 
-  describe("vip segment", () => {
-    it("classifies customer with 6+ transactions in 12 months", () => {
+  describe("vip stage", () => {
+    it("classifies customer with 6+ orders in 12 months", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 7,
-          lastTransactionAt: new Date("2026-04-01"),
+          orderCount12Months: 7,
+          lastOrderAt: new Date("2026-04-01"),
         }),
       );
-      expect(result.segment).toBe("vip");
-      expect(result.inactive).toBe(false);
+      expect(result.stage).toBe("vip");
+      expect(result.isActive).toBe(true);
     });
 
     it("classifies customer exceeding spending threshold", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 3,
+          orderCount12Months: 3,
           totalSpending12Months: 20000,
-          lastTransactionAt: new Date("2026-03-15"),
+          lastOrderAt: new Date("2026-03-15"),
         }),
       );
-      expect(result.segment).toBe("vip");
-      expect(result.inactive).toBe(false);
-      expect(result.reason).toContain("supera umbral VIP");
+      expect(result.stage).toBe("vip");
+      expect(result.isActive).toBe(true);
+      expect(result.rationale).toContain("VIP threshold");
     });
 
     it("does not classify as VIP when spending equals threshold exactly", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 3,
+          orderCount12Months: 3,
           totalSpending12Months: 15000,
-          lastTransactionAt: new Date("2026-03-15"),
+          lastOrderAt: new Date("2026-03-15"),
         }),
       );
-      expect(result.segment).not.toBe("vip");
+      expect(result.stage).not.toBe("vip");
     });
   });
 
-  describe("returning segment", () => {
-    it("classifies customer with 2-5 transactions in 12 months", () => {
+  describe("returning stage", () => {
+    it("classifies customer with 2-5 orders in 12 months", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 3,
-          lastTransactionAt: new Date("2026-03-01"),
+          orderCount12Months: 3,
+          lastOrderAt: new Date("2026-03-01"),
         }),
       );
-      expect(result.segment).toBe("returning");
-      expect(result.inactive).toBe(false);
+      expect(result.stage).toBe("returning");
+      expect(result.isActive).toBe(true);
     });
 
-    it("classifies customer at lower bound (2 transactions)", () => {
+    it("classifies customer at lower bound (2 orders)", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 2,
-          lastTransactionAt: new Date("2026-03-01"),
+          orderCount12Months: 2,
+          lastOrderAt: new Date("2026-03-01"),
         }),
       );
-      expect(result.segment).toBe("returning");
+      expect(result.stage).toBe("returning");
     });
 
-    it("classifies customer at upper bound (5 transactions)", () => {
+    it("classifies customer at upper bound (5 orders)", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 5,
-          lastTransactionAt: new Date("2026-03-01"),
+          orderCount12Months: 5,
+          lastOrderAt: new Date("2026-03-01"),
         }),
       );
-      expect(result.segment).toBe("returning");
+      expect(result.stage).toBe("returning");
     });
   });
 
-  describe("at_risk segment", () => {
-    it("classifies customer with last transaction 120-365 days ago", () => {
+  describe("at_risk stage", () => {
+    it("classifies customer with last order 120-365 days ago", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 1,
-          lastTransactionAt: new Date("2025-11-01"),
+          orderCount12Months: 1,
+          lastOrderAt: new Date("2025-11-01"),
         }),
       );
-      expect(result.segment).toBe("at_risk");
-      expect(result.inactive).toBe(false);
+      expect(result.stage).toBe("at_risk");
+      expect(result.isActive).toBe(true);
     });
 
-    it("classifies customer with last transaction >365 days ago as inactive", () => {
+    it("classifies customer with last order >365 days ago as inactive", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 0,
-          lastTransactionAt: new Date("2025-01-01"),
+          orderCount12Months: 0,
+          lastOrderAt: new Date("2025-01-01"),
         }),
       );
-      expect(result.segment).toBe("at_risk");
-      expect(result.inactive).toBe(true);
+      expect(result.stage).toBe("at_risk");
+      expect(result.isActive).toBe(false);
     });
 
-    it("keeps at_risk but not inactive if recent followup exists for >365d customer", () => {
+    it("keeps at_risk active if recent outreach exists for >365d customer", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 0,
-          lastTransactionAt: new Date("2025-01-01"),
-          lastCommunicationAt: new Date("2026-03-01"),
+          orderCount12Months: 0,
+          lastOrderAt: new Date("2025-01-01"),
+          lastMessageAt: new Date("2026-03-01"),
         }),
       );
-      expect(result.segment).toBe("at_risk");
-      expect(result.inactive).toBe(false);
+      expect(result.stage).toBe("at_risk");
+      expect(result.isActive).toBe(true);
     });
 
-    it("classifies customer with no transactions and registered >30 days ago", () => {
+    it("classifies customer with no orders and enrolled >30 days ago", () => {
       const result = calculateSegment(
         makeInput({
-          registeredAt: new Date("2025-06-01"),
-          transactionCount12Months: 0,
-          lastTransactionAt: null,
+          enrolledAt: new Date("2025-06-01"),
+          orderCount12Months: 0,
+          lastOrderAt: null,
         }),
       );
-      expect(result.segment).toBe("at_risk");
+      expect(result.stage).toBe("at_risk");
     });
   });
 
   describe("edge cases", () => {
-    it("VIP takes priority over returning (6 transactions)", () => {
+    it("VIP takes priority over returning (6 orders)", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 6,
-          lastTransactionAt: new Date("2026-04-01"),
+          orderCount12Months: 6,
+          lastOrderAt: new Date("2026-04-01"),
         }),
       );
-      expect(result.segment).toBe("vip");
+      expect(result.stage).toBe("vip");
     });
 
-    it("at_risk takes priority over returning when last tx is old", () => {
+    it("at_risk takes priority over returning when last order is old", () => {
       const result = calculateSegment(
         makeInput({
-          transactionCount12Months: 3,
-          lastTransactionAt: new Date("2025-10-01"),
+          orderCount12Months: 3,
+          lastOrderAt: new Date("2025-10-01"),
         }),
       );
-      expect(result.segment).toBe("at_risk");
+      expect(result.stage).toBe("at_risk");
     });
 
     it("uses current date when now is not provided", () => {
       const result = calculateSegment({
-        registeredAt: new Date(),
-        transactionCount12Months: 0,
+        enrolledAt: new Date(),
+        orderCount12Months: 0,
         totalSpending12Months: 0,
-        lastTransactionAt: null,
-        lastCommunicationAt: null,
+        lastOrderAt: null,
+        lastMessageAt: null,
         vipSpendingThreshold: 15000,
       });
-      expect(result.segment).toBe("new");
+      expect(result.stage).toBe("new");
     });
   });
 });

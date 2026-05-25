@@ -1,12 +1,12 @@
-export interface PurchaseRecord {
-  purchasedAt: Date;
+export interface OrderRecord {
+  processedAt: Date;
   productId: string;
 }
 
 export interface ReplenishmentInput {
   productId: string;
-  estimatedDurationDays: number;
-  purchaseHistory: PurchaseRecord[];
+  replenishmentDays: number;
+  orderHistory: OrderRecord[];
   now?: Date;
 }
 
@@ -34,35 +34,34 @@ function daysBetween(a: Date, b: Date): number {
 }
 
 /**
- * RF-16: Lógica de reposición.
+ * RF-16: Replenishment logic.
  *
- * Calcula cuándo la clienta agotará un producto y si está en la ventana de recompra.
- * Si hay múltiples compras del mismo producto, promedia el intervalo real de recompra.
+ * Computes when a customer will run out of a product and whether they are in
+ * the rebuy window. If there are multiple orders for the same product, the
+ * actual repurchase interval is averaged.
  */
 export function calculateNextPurchase(
   input: ReplenishmentInput,
 ): ReplenishmentResult | null {
   const now = input.now ?? new Date();
 
-  // Filter purchases for this specific product and sort ascending
-  const productPurchases = input.purchaseHistory
-    .filter((p) => p.productId === input.productId)
-    .sort((a, b) => a.purchasedAt.getTime() - b.purchasedAt.getTime());
+  const productOrders = input.orderHistory
+    .filter((o) => o.productId === input.productId)
+    .sort((a, b) => a.processedAt.getTime() - b.processedAt.getTime());
 
-  if (productPurchases.length === 0) {
+  if (productOrders.length === 0) {
     return null;
   }
 
-  // Calculate average repurchase interval if there are multiple purchases
   let averageIntervalDays: number | null = null;
 
-  if (productPurchases.length >= 2) {
+  if (productOrders.length >= 2) {
     const intervals: number[] = [];
-    for (let i = 1; i < productPurchases.length; i++) {
+    for (let i = 1; i < productOrders.length; i++) {
       intervals.push(
         daysBetween(
-          productPurchases[i - 1].purchasedAt,
-          productPurchases[i].purchasedAt,
+          productOrders[i - 1].processedAt,
+          productOrders[i].processedAt,
         ),
       );
     }
@@ -71,14 +70,13 @@ export function calculateNextPurchase(
     );
   }
 
-  // Use the most recent purchase as baseline
-  const lastPurchase = productPurchases[productPurchases.length - 1];
+  const lastOrder = productOrders[productOrders.length - 1];
 
   // Duration: prefer historical average if available, otherwise product estimate
-  const effectiveDuration = averageIntervalDays ?? input.estimatedDurationDays;
+  const effectiveDuration = averageIntervalDays ?? input.replenishmentDays;
 
   const estimatedDepletionDate = addDays(
-    lastPurchase.purchasedAt,
+    lastOrder.processedAt,
     effectiveDuration,
   );
   const windowStart = addDays(estimatedDepletionDate, -WINDOW_BEFORE_DAYS);

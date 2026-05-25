@@ -8,7 +8,7 @@ export {
   calculateNextPurchase,
   type ReplenishmentInput,
   type ReplenishmentResult,
-  type PurchaseRecord,
+  type OrderRecord,
 } from "./replenishment/calculate-next-purchase";
 
 export {
@@ -64,9 +64,9 @@ export {
 } from "./ai-extraction/parse-extracted-note";
 
 export {
-  selectDailyOpportunities,
-  type SelectedOpportunity,
-  type SelectDailyOpportunitiesInput,
+  selectDailySuggestedActions,
+  type SelectedSuggestedAction,
+  type SelectDailySuggestedActionsInput,
 } from "./daily-opportunities/select-daily-opportunities";
 
 export {

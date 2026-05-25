@@ -1,19 +1,19 @@
-import type { LifecycleSegment } from "@loreal/contracts";
+import type { LifecycleStage } from "@loreal/contracts";
 
 export interface CustomerSearchRecord {
   customerId: string;
   firstName: string;
   lastName: string;
-  lastContactAt: Date | null;
-  lastTransactionAt: Date | null;
-  lastBaUserId: string | null;
-  lifecycleSegment: LifecycleSegment;
+  lastInteractionAt: Date | null;
+  lastOrderAt: Date | null;
+  assignedToUserId: string | null;
+  lifecycleStage: LifecycleStage;
   textMatchScore: number;
 }
 
 export interface SearchRankingInput {
   results: CustomerSearchRecord[];
-  searchingBaUserId: string;
+  searchingUserId: string;
   now?: Date;
 }
 
@@ -24,22 +24,23 @@ export interface RankedSearchResult {
 
 const DAYS_MS = 24 * 60 * 60 * 1000;
 
-// Segment value weights: VIPs and at-risk customers surface higher
-const SEGMENT_WEIGHTS: Record<LifecycleSegment, number> = {
+// Lifecycle-stage value weights: VIPs and at-risk customers surface higher
+const STAGE_WEIGHTS: Record<LifecycleStage, number> = {
   vip: 20,
   at_risk: 15,
   returning: 10,
   new: 5,
+  dormant: 8,
 };
 
 /**
- * RF-03: Ranking de resultados de búsqueda de clientes.
+ * RF-03: Customer search result ranking.
  *
- * Scoring compuesto:
- * - textMatchScore (0-100): peso del full-text search de Postgres
- * - Recency bonus: interacciones recientes suben posición
- * - BA affinity: si el BA que busca fue el último en atender, bonus
- * - Segment value: VIPs y at_risk suben posición
+ * Composite scoring:
+ * - textMatchScore (0-100): Postgres full-text search weight
+ * - Recency bonus: recent interactions surface higher
+ * - Advisor affinity: bonus if the searching advisor is the one assigned
+ * - Lifecycle stage value: VIPs and at_risk surface higher
  */
 export function rankCustomerSearchResults(
   input: SearchRankingInput,
@@ -50,33 +51,33 @@ export function rankCustomerSearchResults(
     .map((customer) => {
       let score = customer.textMatchScore;
 
-      // Recency bonus: last contact within 30 days adds up to 25 points
-      if (customer.lastContactAt) {
-        const daysSinceContact = Math.floor(
-          (now.getTime() - customer.lastContactAt.getTime()) / DAYS_MS,
+      // Recency bonus: last interaction within 30 days adds up to 25 points
+      if (customer.lastInteractionAt) {
+        const daysSinceInteraction = Math.floor(
+          (now.getTime() - customer.lastInteractionAt.getTime()) / DAYS_MS,
         );
-        if (daysSinceContact <= 30) {
-          score += Math.round(25 * (1 - daysSinceContact / 30));
+        if (daysSinceInteraction <= 30) {
+          score += Math.round(25 * (1 - daysSinceInteraction / 30));
         }
       }
 
-      // Transaction recency: last transaction within 90 days adds up to 15 points
-      if (customer.lastTransactionAt) {
-        const daysSinceTx = Math.floor(
-          (now.getTime() - customer.lastTransactionAt.getTime()) / DAYS_MS,
+      // Order recency: last order within 90 days adds up to 15 points
+      if (customer.lastOrderAt) {
+        const daysSinceOrder = Math.floor(
+          (now.getTime() - customer.lastOrderAt.getTime()) / DAYS_MS,
         );
-        if (daysSinceTx <= 90) {
-          score += Math.round(15 * (1 - daysSinceTx / 90));
+        if (daysSinceOrder <= 90) {
+          score += Math.round(15 * (1 - daysSinceOrder / 90));
         }
       }
 
-      // BA affinity: bonus if the searching BA was the last one to assist
-      if (customer.lastBaUserId === input.searchingBaUserId) {
+      // Advisor affinity: bonus if the searching user is the assigned advisor
+      if (customer.assignedToUserId === input.searchingUserId) {
         score += 30;
       }
 
-      // Segment value bonus
-      score += SEGMENT_WEIGHTS[customer.lifecycleSegment] ?? 0;
+      // Lifecycle stage value bonus
+      score += STAGE_WEIGHTS[customer.lifecycleStage] ?? 0;
 
       return { customer, finalScore: score };
     })

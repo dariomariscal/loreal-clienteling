@@ -1,17 +1,17 @@
-import type { FollowupType } from "@loreal/contracts";
+import type { CampaignType } from "@loreal/contracts";
 import type { ReplenishmentResult } from "../replenishment/calculate-next-purchase";
 
 export interface CustomerForAlerts {
   customerId: string;
-  birthDate: Date | null;
-  customerSince: Date;
-  baUserId: string;
+  birthday: Date | null;
+  enrolledAt: Date;
+  assignedToUserId: string;
 }
 
 export interface LifeEventAlert {
   customerId: string;
-  baUserId: string;
-  type: FollowupType;
+  assignedToUserId: string;
+  type: CampaignType;
   label: string;
   eventDate: Date;
   daysUntil: number;
@@ -50,12 +50,12 @@ function getNextOccurrence(
 }
 
 /**
- * RF-09: Alertas automáticas de eventos de vida.
+ * RF-09: Automatic life-event alerts.
  *
- * Genera alertas cuando:
- * - Cumpleaños de la clienta está dentro de los próximos 7 días
- * - Aniversario como clienta (customer_since) está dentro de los próximos 7 días
- * - Productos en ventana de reposición (datos de replenishment)
+ * Generates alerts when:
+ * - The customer's birthday is within the next 7 days.
+ * - The customer's enrollment anniversary is within the next 7 days.
+ * - Any product is in its replenishment window.
  */
 export function generateLifeEventAlerts(
   customer: CustomerForAlerts,
@@ -66,46 +66,43 @@ export function generateLifeEventAlerts(
   const alerts: LifeEventAlert[] = [];
 
   // Birthday alert
-  if (customer.birthDate) {
-    const { date, daysUntil } = getNextOccurrence(
-      customer.birthDate,
-      currentDate,
-    );
+  if (customer.birthday) {
+    const { date, daysUntil } = getNextOccurrence(customer.birthday, currentDate);
     if (daysUntil >= 0 && daysUntil <= ALERT_WINDOW_DAYS) {
       alerts.push({
         customerId: customer.customerId,
-        baUserId: customer.baUserId,
+        assignedToUserId: customer.assignedToUserId,
         type: "birthday",
         label:
           daysUntil === 0
-            ? "Hoy es su cumpleaños"
-            : `Cumpleaños en ${daysUntil} día${daysUntil === 1 ? "" : "s"}`,
+            ? "Today is her birthday"
+            : `Birthday in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`,
         eventDate: date,
         daysUntil,
       });
     }
   }
 
-  // Anniversary alert
+  // Anniversary alert (enrollment anniversary)
   const { date: anniversaryDate, daysUntil: daysUntilAnniversary } =
-    getNextOccurrence(customer.customerSince, currentDate);
+    getNextOccurrence(customer.enrolledAt, currentDate);
 
-  // Only alert if customer has been around for at least 1 year
+  // Only alert if the customer has been around for at least 1 year
   if (
-    currentDate.getFullYear() > customer.customerSince.getFullYear() &&
+    currentDate.getFullYear() > customer.enrolledAt.getFullYear() &&
     daysUntilAnniversary >= 0 &&
     daysUntilAnniversary <= ALERT_WINDOW_DAYS
   ) {
     const years =
-      anniversaryDate.getFullYear() - customer.customerSince.getFullYear();
+      anniversaryDate.getFullYear() - customer.enrolledAt.getFullYear();
     alerts.push({
       customerId: customer.customerId,
-      baUserId: customer.baUserId,
+      assignedToUserId: customer.assignedToUserId,
       type: "special_event",
       label:
         daysUntilAnniversary === 0
-          ? `Hoy cumple ${years} año${years === 1 ? "" : "s"} como clienta`
-          : `Aniversario de ${years} año${years === 1 ? "" : "s"} en ${daysUntilAnniversary} día${daysUntilAnniversary === 1 ? "" : "s"}`,
+          ? `Today marks ${years} year${years === 1 ? "" : "s"} as a customer`
+          : `${years}-year anniversary in ${daysUntilAnniversary} day${daysUntilAnniversary === 1 ? "" : "s"}`,
       eventDate: anniversaryDate,
       daysUntil: daysUntilAnniversary,
     });
@@ -116,12 +113,12 @@ export function generateLifeEventAlerts(
     if (replenishment.isInWindow) {
       alerts.push({
         customerId: customer.customerId,
-        baUserId: customer.baUserId,
+        assignedToUserId: customer.assignedToUserId,
         type: "replenishment",
         label:
           replenishment.daysUntilDepletion <= 0
-            ? "Producto probablemente agotado"
-            : `Producto se agota en ~${replenishment.daysUntilDepletion} días`,
+            ? "Product likely out of stock"
+            : `Product runs out in ~${replenishment.daysUntilDepletion} days`,
         eventDate: replenishment.estimatedDepletionDate,
         daysUntil: Math.max(0, replenishment.daysUntilDepletion),
       });

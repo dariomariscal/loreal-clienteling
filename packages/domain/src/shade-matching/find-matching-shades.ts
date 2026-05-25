@@ -1,4 +1,4 @@
-import type { ShadeCategory, SkinTone, SkinSubtone } from "@loreal/contracts";
+import type { ShadeCategory, SkinTone, Undertone } from "@loreal/contracts";
 
 export interface ShadeRecord {
   productId: string;
@@ -6,13 +6,13 @@ export interface ShadeRecord {
   shadeCode: string;
   category: ShadeCategory;
   skinTone: SkinTone;
-  skinSubtone: SkinSubtone;
+  undertone: Undertone;
 }
 
 export interface ShadeMatchInput {
   targetCategory: ShadeCategory;
   customerSkinTone: SkinTone;
-  customerSkinSubtone: SkinSubtone;
+  customerUndertone: Undertone;
   currentShades: ShadeRecord[];
   availableShades: ShadeRecord[];
   targetBrandId?: string;
@@ -34,11 +34,11 @@ const TONE_ADJACENCY: Record<SkinTone, SkinTone[]> = {
 };
 
 /**
- * RF-58, RF-60: Búsqueda de shades compatibles.
+ * RF-58, RF-60: Cross-brand shade matching.
  *
- * Finds matching shades for a customer based on their skin tone/subtone
- * and existing shade history. Useful for cross-brand shade matching
- * (e.g., customer uses Lancôme Teint Idole shade 360N, find equivalent in YSL).
+ * Finds matching shades for a customer based on their skin tone / undertone
+ * and existing shade history. Useful for cross-brand shade matching (e.g.,
+ * customer uses Lancôme Teint Idole shade 360N, find equivalent in YSL).
  */
 export function findMatchingShades(input: ShadeMatchInput): ShadeMatchResult[] {
   const results: ShadeMatchResult[] = [];
@@ -63,15 +63,15 @@ export function findMatchingShades(input: ShadeMatchInput): ShadeMatchResult[] {
 
   for (const shade of candidates) {
     const toneMatch = shade.skinTone === input.customerSkinTone;
-    const subtoneMatch = shade.skinSubtone === input.customerSkinSubtone;
+    const undertoneMatch = shade.undertone === input.customerUndertone;
     const adjacentTones = TONE_ADJACENCY[input.customerSkinTone] ?? [];
     const isAdjacentTone = adjacentTones.includes(shade.skinTone);
 
-    if (toneMatch && subtoneMatch) {
+    if (toneMatch && undertoneMatch) {
       results.push({ shade, score: 100, matchType: "exact" });
     } else if (toneMatch) {
       results.push({ shade, score: 70, matchType: "tone_match" });
-    } else if (isAdjacentTone && subtoneMatch) {
+    } else if (isAdjacentTone && undertoneMatch) {
       results.push({ shade, score: 50, matchType: "adjacent" });
     } else if (isAdjacentTone) {
       results.push({ shade, score: 30, matchType: "adjacent" });

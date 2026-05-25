@@ -4,7 +4,7 @@ import {
 } from "./rank-customer-search-results";
 
 const BASE_DATE = new Date("2026-04-21");
-const SEARCHING_BA = "ba-1";
+const SEARCHING_USER = "ba-1";
 
 function makeCustomer(
   overrides: Partial<CustomerSearchRecord>,
@@ -13,10 +13,10 @@ function makeCustomer(
     customerId: "customer-1",
     firstName: "María",
     lastName: "García",
-    lastContactAt: null,
-    lastTransactionAt: null,
-    lastBaUserId: null,
-    lifecycleSegment: "returning",
+    lastInteractionAt: null,
+    lastOrderAt: null,
+    assignedToUserId: null,
+    lifecycleStage: "returning",
     textMatchScore: 80,
     ...overrides,
   };
@@ -30,7 +30,7 @@ describe("rankCustomerSearchResults", () => {
         makeCustomer({ customerId: "c2", textMatchScore: 90 }),
         makeCustomer({ customerId: "c3", textMatchScore: 75 }),
       ],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
@@ -39,44 +39,44 @@ describe("rankCustomerSearchResults", () => {
     expect(results[2].customer.customerId).toBe("c1");
   });
 
-  it("boosts customers recently contacted by the searching BA", () => {
+  it("boosts customers assigned to the searching advisor", () => {
     const results = rankCustomerSearchResults({
       results: [
         makeCustomer({
           customerId: "c1",
           textMatchScore: 80,
-          lastBaUserId: SEARCHING_BA,
+          assignedToUserId: SEARCHING_USER,
         }),
         makeCustomer({
           customerId: "c2",
           textMatchScore: 90,
-          lastBaUserId: "other-ba",
+          assignedToUserId: "other-ba",
         }),
       ],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
-    // c1 gets +30 BA affinity bonus: 80 + 30 + 10 = 120
+    // c1 gets +30 affinity bonus: 80 + 30 + 10 = 120
     // c2: 90 + 10 = 100
     expect(results[0].customer.customerId).toBe("c1");
   });
 
-  it("adds recency bonus for recent contacts", () => {
+  it("adds recency bonus for recent interactions", () => {
     const results = rankCustomerSearchResults({
       results: [
         makeCustomer({
           customerId: "c1",
           textMatchScore: 80,
-          lastContactAt: new Date("2026-04-20"), // 1 day ago
+          lastInteractionAt: new Date("2026-04-20"), // 1 day ago
         }),
         makeCustomer({
           customerId: "c2",
           textMatchScore: 80,
-          lastContactAt: null,
+          lastInteractionAt: null,
         }),
       ],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
@@ -84,42 +84,42 @@ describe("rankCustomerSearchResults", () => {
     expect(results[0].finalScore).toBeGreaterThan(results[1].finalScore);
   });
 
-  it("adds transaction recency bonus", () => {
+  it("adds order recency bonus", () => {
     const results = rankCustomerSearchResults({
       results: [
         makeCustomer({
           customerId: "c1",
           textMatchScore: 80,
-          lastTransactionAt: new Date("2026-04-15"), // 6 days ago
+          lastOrderAt: new Date("2026-04-15"), // 6 days ago
         }),
         makeCustomer({
           customerId: "c2",
           textMatchScore: 80,
-          lastTransactionAt: null,
+          lastOrderAt: null,
         }),
       ],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
     expect(results[0].customer.customerId).toBe("c1");
   });
 
-  it("weights VIP customers higher than other segments", () => {
+  it("weights VIP customers higher than other stages", () => {
     const results = rankCustomerSearchResults({
       results: [
         makeCustomer({
           customerId: "c-new",
           textMatchScore: 80,
-          lifecycleSegment: "new",
+          lifecycleStage: "new",
         }),
         makeCustomer({
           customerId: "c-vip",
           textMatchScore: 80,
-          lifecycleSegment: "vip",
+          lifecycleStage: "vip",
         }),
       ],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
@@ -132,15 +132,15 @@ describe("rankCustomerSearchResults", () => {
         makeCustomer({
           customerId: "c-returning",
           textMatchScore: 80,
-          lifecycleSegment: "returning",
+          lifecycleStage: "returning",
         }),
         makeCustomer({
           customerId: "c-at-risk",
           textMatchScore: 80,
-          lifecycleSegment: "at_risk",
+          lifecycleStage: "at_risk",
         }),
       ],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
@@ -150,32 +150,32 @@ describe("rankCustomerSearchResults", () => {
   it("returns empty array for empty input", () => {
     const results = rankCustomerSearchResults({
       results: [],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
     expect(results).toEqual([]);
   });
 
-  it("no recency bonus for contacts older than 30 days", () => {
+  it("no recency bonus for interactions older than 30 days", () => {
     const results = rankCustomerSearchResults({
       results: [
         makeCustomer({
           customerId: "c1",
           textMatchScore: 80,
-          lastContactAt: new Date("2026-03-01"),
+          lastInteractionAt: new Date("2026-03-01"),
         }),
         makeCustomer({
           customerId: "c2",
           textMatchScore: 80,
-          lastContactAt: null,
+          lastInteractionAt: null,
         }),
       ],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
-    // Both should have same segment bonus, no contact recency for c1
+    // Both should have same lifecycle bonus, no interaction recency for c1
     expect(results[0].finalScore).toBe(results[1].finalScore);
   });
 
@@ -185,17 +185,17 @@ describe("rankCustomerSearchResults", () => {
         makeCustomer({
           customerId: "perfect",
           textMatchScore: 95,
-          lastContactAt: new Date("2026-04-20"),
-          lastTransactionAt: new Date("2026-04-18"),
-          lastBaUserId: SEARCHING_BA,
-          lifecycleSegment: "vip",
+          lastInteractionAt: new Date("2026-04-20"),
+          lastOrderAt: new Date("2026-04-18"),
+          assignedToUserId: SEARCHING_USER,
+          lifecycleStage: "vip",
         }),
       ],
-      searchingBaUserId: SEARCHING_BA,
+      searchingUserId: SEARCHING_USER,
       now: BASE_DATE,
     });
 
-    // 95 (text) + ~24 (contact 1d ago) + ~14 (tx 3d ago) + 30 (BA) + 20 (VIP) ≈ 183
+    // 95 (text) + ~24 (contact 1d ago) + ~14 (order 3d ago) + 30 (affinity) + 20 (VIP) ≈ 183
     expect(results[0].finalScore).toBeGreaterThan(150);
   });
 });

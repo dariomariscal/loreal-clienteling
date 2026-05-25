@@ -11,7 +11,7 @@ function makeShade(overrides: Partial<ShadeRecord>): ShadeRecord {
     shadeCode: "N100",
     category: "foundation",
     skinTone: "medium",
-    skinSubtone: "neutral",
+    undertone: "neutral",
     ...overrides,
   };
 }
@@ -20,7 +20,7 @@ function makeInput(overrides: Partial<ShadeMatchInput>): ShadeMatchInput {
   return {
     targetCategory: "foundation",
     customerSkinTone: "medium",
-    customerSkinSubtone: "warm",
+    customerUndertone: "warm",
     currentShades: [],
     availableShades: [],
     ...overrides,
@@ -28,13 +28,13 @@ function makeInput(overrides: Partial<ShadeMatchInput>): ShadeMatchInput {
 }
 
 describe("findMatchingShades", () => {
-  it("returns exact matches (tone + subtone) with score 100", () => {
+  it("returns exact matches (tone + undertone) with score 100", () => {
     const results = findMatchingShades(
       makeInput({
         customerSkinTone: "medium",
-        customerSkinSubtone: "warm",
+        customerUndertone: "warm",
         availableShades: [
-          makeShade({ shadeCode: "W300", skinTone: "medium", skinSubtone: "warm" }),
+          makeShade({ shadeCode: "W300", skinTone: "medium", undertone: "warm" }),
         ],
       }),
     );
@@ -44,13 +44,13 @@ describe("findMatchingShades", () => {
     expect(results[0].matchType).toBe("exact");
   });
 
-  it("returns tone matches (same tone, different subtone) with score 70", () => {
+  it("returns tone matches (same tone, different undertone) with score 70", () => {
     const results = findMatchingShades(
       makeInput({
         customerSkinTone: "medium",
-        customerSkinSubtone: "warm",
+        customerUndertone: "warm",
         availableShades: [
-          makeShade({ shadeCode: "C300", skinTone: "medium", skinSubtone: "cool" }),
+          makeShade({ shadeCode: "C300", skinTone: "medium", undertone: "cool" }),
         ],
       }),
     );
@@ -60,13 +60,13 @@ describe("findMatchingShades", () => {
     expect(results[0].matchType).toBe("tone_match");
   });
 
-  it("returns adjacent tone matches with matching subtone at score 50", () => {
+  it("returns adjacent tone matches with matching undertone at score 50", () => {
     const results = findMatchingShades(
       makeInput({
         customerSkinTone: "medium",
-        customerSkinSubtone: "warm",
+        customerUndertone: "warm",
         availableShades: [
-          makeShade({ shadeCode: "W200", skinTone: "light", skinSubtone: "warm" }),
+          makeShade({ shadeCode: "W200", skinTone: "light", undertone: "warm" }),
         ],
       }),
     );
@@ -76,13 +76,13 @@ describe("findMatchingShades", () => {
     expect(results[0].matchType).toBe("adjacent");
   });
 
-  it("returns adjacent tone without subtone match at score 30", () => {
+  it("returns adjacent tone without undertone match at score 30", () => {
     const results = findMatchingShades(
       makeInput({
         customerSkinTone: "medium",
-        customerSkinSubtone: "warm",
+        customerUndertone: "warm",
         availableShades: [
-          makeShade({ shadeCode: "C200", skinTone: "light", skinSubtone: "cool" }),
+          makeShade({ shadeCode: "C200", skinTone: "light", undertone: "cool" }),
         ],
       }),
     );
@@ -95,9 +95,9 @@ describe("findMatchingShades", () => {
     const results = findMatchingShades(
       makeInput({
         customerSkinTone: "fair",
-        customerSkinSubtone: "cool",
+        customerUndertone: "cool",
         availableShades: [
-          makeShade({ shadeCode: "D500", skinTone: "deep", skinSubtone: "cool" }),
+          makeShade({ shadeCode: "D500", skinTone: "deep", undertone: "cool" }),
         ],
       }),
     );
@@ -110,10 +110,10 @@ describe("findMatchingShades", () => {
       makeInput({
         targetCategory: "lipstick",
         customerSkinTone: "medium",
-        customerSkinSubtone: "warm",
+        customerUndertone: "warm",
         availableShades: [
-          makeShade({ category: "foundation", skinTone: "medium", skinSubtone: "warm" }),
-          makeShade({ category: "lipstick", shadeCode: "R100", skinTone: "medium", skinSubtone: "warm" }),
+          makeShade({ category: "foundation", skinTone: "medium", undertone: "warm" }),
+          makeShade({ category: "lipstick", shadeCode: "R100", skinTone: "medium", undertone: "warm" }),
         ],
       }),
     );
@@ -127,8 +127,8 @@ describe("findMatchingShades", () => {
       makeInput({
         targetBrandId: "brand-lancome",
         availableShades: [
-          makeShade({ brandId: "brand-lancome", shadeCode: "L300", skinTone: "medium", skinSubtone: "warm" }),
-          makeShade({ brandId: "brand-ysl", shadeCode: "Y300", skinTone: "medium", skinSubtone: "warm" }),
+          makeShade({ brandId: "brand-lancome", shadeCode: "L300", skinTone: "medium", undertone: "warm" }),
+          makeShade({ brandId: "brand-ysl", shadeCode: "Y300", skinTone: "medium", undertone: "warm" }),
         ],
       }),
     );
@@ -142,7 +142,7 @@ describe("findMatchingShades", () => {
       productId: "p1",
       shadeCode: "W300",
       skinTone: "medium",
-      skinSubtone: "warm",
+      undertone: "warm",
     });
 
     const results = findMatchingShades(
@@ -150,7 +150,7 @@ describe("findMatchingShades", () => {
         currentShades: [ownedShade],
         availableShades: [
           ownedShade,
-          makeShade({ productId: "p2", shadeCode: "W301", skinTone: "medium", skinSubtone: "warm" }),
+          makeShade({ productId: "p2", shadeCode: "W301", skinTone: "medium", undertone: "warm" }),
         ],
       }),
     );
@@ -163,11 +163,11 @@ describe("findMatchingShades", () => {
     const results = findMatchingShades(
       makeInput({
         customerSkinTone: "medium",
-        customerSkinSubtone: "warm",
+        customerUndertone: "warm",
         availableShades: [
-          makeShade({ shadeCode: "C200", skinTone: "light", skinSubtone: "cool", productId: "p1" }),
-          makeShade({ shadeCode: "W300", skinTone: "medium", skinSubtone: "warm", productId: "p2" }),
-          makeShade({ shadeCode: "N300", skinTone: "medium", skinSubtone: "neutral", productId: "p3" }),
+          makeShade({ shadeCode: "C200", skinTone: "light", undertone: "cool", productId: "p1" }),
+          makeShade({ shadeCode: "W300", skinTone: "medium", undertone: "warm", productId: "p2" }),
+          makeShade({ shadeCode: "N300", skinTone: "medium", undertone: "neutral", productId: "p3" }),
         ],
       }),
     );
