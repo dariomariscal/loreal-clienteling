@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
@@ -12,21 +13,26 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SignInForm } from "@/components/auth/sign-in-form";
-import { Glyph, Text } from "@/components/ui";
+import { Text } from "@/components/ui";
+import { LancomeLogo, LorealLogo, YslLogo } from "@/components/ui/brand-logos";
 import { useTheme } from "@/theme";
 
-// iPad-first sign-in.
+// iPad sign-in — mirrors the web auth shell exactly.
 //
-// Layout: two columns in landscape (regular width). Left column is the
-// brand canvas — warm-gray surface, large wordmark, a one-line value
-// prop ("La consultora que conoce a sus clientas"). Right column is a
-// centered form on the white background, ~440pt wide, never wider.
+// Layout (landscape iPad): 45/55 split.
+//   • Left 45%: dark "primary" brand canvas. L'Oréal wordmark + caption
+//     top-left, Coco Chanel quote centered with a gold accent rule and
+//     attribution, Lancôme + YSL secondary marks at 40% opacity, footer
+//     tagline at 30%. A single hairline gold gradient sits on the right
+//     edge as the deliberate Zen stroke.
+//   • Right 55%: white form column with header, the SignInForm, and a
+//     footer of Soporte · Privacidad · Términos.
 //
-// In portrait or compact width, columns stack vertically and the brand
-// column collapses to a slim 56pt header so the form gets the room.
-
-const FORM_MAX_WIDTH = 440;
-const SPLIT_BREAKPOINT = 760;
+// Below the SPLIT_BREAKPOINT (portrait iPad / iPhone), the left panel
+// collapses to a slim mobile header and the form takes the full stage.
+const SPLIT_BREAKPOINT = 900;
+const FORM_MAX_WIDTH = 420;
+const BRAND_PANEL_WIDTH_PCT = 0.45;
 
 export default function SignInScreen() {
   const theme = useTheme();
@@ -68,11 +74,7 @@ export default function SignInScreen() {
       style={[styles.root, { backgroundColor: theme.colors.background }]}
     >
       <View style={[styles.split, !isSplit && styles.stack]}>
-        {isSplit ? (
-          <BrandPanelWide />
-        ) : (
-          <BrandPanelCompact />
-        )}
+        {isSplit ? <BrandPanelWide /> : <BrandPanelCompact />}
 
         <View
           style={[
@@ -91,14 +93,15 @@ export default function SignInScreen() {
             >
               <View style={[styles.formInner, { maxWidth: FORM_MAX_WIDTH }]}>
                 <View style={styles.formHeader}>
-                  <Text variant="eyebrow" color="foregroundMuted">
-                    Beauty Advisor
+                  <Text variant="display" color="foreground" style={styles.formHeading}>
+                    Iniciar sesión
                   </Text>
-                  <Text variant="display" color="foreground" style={{ marginTop: 8 }}>
-                    Bienvenida
-                  </Text>
-                  <Text variant="body" color="foregroundMuted" style={{ marginTop: 6 }}>
-                    Inicia sesión para continuar con tus clientas.
+                  <Text
+                    variant="body"
+                    color="foregroundMuted"
+                    style={{ marginTop: 8 }}
+                  >
+                    Accede a tu cuenta de L&apos;Oréal Clienteling
                   </Text>
                 </View>
 
@@ -106,14 +109,10 @@ export default function SignInScreen() {
                   onSubmit={handleSignIn}
                   onForgotPassword={() => console.log("forgot password")}
                 />
-
-                <View style={styles.footer}>
-                  <Text variant="caption" color="foregroundSubtle">
-                    Al iniciar sesión aceptas los términos de uso de L'Oréal.
-                  </Text>
-                </View>
               </View>
             </ScrollView>
+
+            <FormFooter />
           </KeyboardAvoidingView>
         </View>
       </View>
@@ -123,9 +122,9 @@ export default function SignInScreen() {
 
 // ─── Brand panel (wide / landscape iPad) ─────────────────────────────
 //
-// Warm-gray canvas with the wordmark stacked. One sparkle accent and
-// an AI-positioning sentence — this is the only place in the auth flow
-// we lean into the brand.
+// 45% wide dark canvas. Three vertical zones (top / center / bottom)
+// separated by space-between, plus a hairline gold gradient on the
+// right edge — the single deliberate Zen stroke from the web.
 
 function BrandPanelWide() {
   const theme = useTheme();
@@ -133,60 +132,116 @@ function BrandPanelWide() {
     <View
       style={[
         styles.brandWide,
-        { backgroundColor: theme.colors.sidebar },
+        {
+          backgroundColor: theme.colors.primary,
+          width: `${BRAND_PANEL_WIDTH_PCT * 100}%`,
+        },
       ]}
     >
-      <View style={styles.brandHeader}>
-        <Wordmark />
+      {/* Hairline gold gradient on the right edge — emulated with three
+          stacked 1pt strips at varying opacities to avoid pulling in a
+          gradient lib for a single decorative line. */}
+      <View pointerEvents="none" style={styles.goldEdge}>
+        <View
+          style={[
+            styles.goldEdgeSegment,
+            { backgroundColor: theme.colors.accent, opacity: 0.0 },
+          ]}
+        />
+        <View
+          style={[
+            styles.goldEdgeSegment,
+            { backgroundColor: theme.colors.accent, opacity: 0.3 },
+          ]}
+        />
+        <View
+          style={[
+            styles.goldEdgeSegment,
+            { backgroundColor: theme.colors.accent, opacity: 0.0 },
+          ]}
+        />
       </View>
 
+      {/* Top: wordmark + divider + caption */}
+      <View style={styles.brandHeader}>
+        <View style={styles.brandHeaderRow}>
+          <LorealLogo
+            width={120}
+            color={theme.colors.primaryForeground}
+          />
+          <View
+            style={[
+              styles.headerDivider,
+              { backgroundColor: theme.colors.primaryForeground, opacity: 0.2 },
+            ]}
+          />
+          <Text
+            variant="eyebrow"
+            style={[
+              styles.headerCaption,
+              { color: theme.colors.primaryForeground, opacity: 0.5 },
+            ]}
+          >
+            Clienteling
+          </Text>
+        </View>
+      </View>
+
+      {/* Center: Zen quote — accent rule, quote, attribution, brand
+          marks below. Generous spacing follows "Ma". */}
       <View style={styles.brandBody}>
         <View
           style={[
-            styles.aiPill,
-            {
-              backgroundColor: theme.colors.accentSoft,
-              borderRadius: theme.radius.full,
-            },
+            styles.accentRule,
+            { backgroundColor: theme.colors.accent, opacity: 0.4 },
+          ]}
+        />
+        <Text
+          style={[
+            styles.quote,
+            { color: theme.colors.primaryForeground, opacity: 0.9 },
           ]}
         >
-          <Glyph name="sparkle" size={12} color={theme.colors.accent} />
-          <Text variant="eyebrow" color="accent" style={{ marginLeft: 6 }}>
-            Clienteling con IA
-          </Text>
+          La belleza comienza en el momento en que decides ser tú misma.
+        </Text>
+        <Text
+          variant="eyebrow"
+          style={[styles.attribution, { color: theme.colors.accent }]}
+        >
+          — Coco Chanel
+        </Text>
+
+        <View style={styles.secondaryBrands}>
+          <LancomeLogo
+            width={100}
+            color={theme.colors.primaryForeground}
+            opacity={0.4}
+          />
+          <YslLogo
+            width={120}
+            color={theme.colors.primaryForeground}
+            opacity={0.4}
+          />
         </View>
-
-        <Text
-          variant="display"
-          color="sidebarForeground"
-          style={[styles.brandHeadline, { color: theme.colors.foreground }]}
-        >
-          La consultora{"\n"}que conoce a sus clientas.
-        </Text>
-
-        <Text
-          variant="body"
-          color="foregroundMuted"
-          style={{ marginTop: 14, maxWidth: 360 }}
-        >
-          Recibe sugerencias en tiempo real, agenda en segundos y mantén la
-          conversación viva con cada clienta.
-        </Text>
       </View>
 
-      <View style={styles.brandFooter}>
-        <Text variant="caption" color="foregroundSubtle">
-          © L'Oréal · Clienteling
+      {/* Bottom: subtle footer */}
+      <View>
+        <Text
+          variant="caption"
+          style={{ color: theme.colors.primaryForeground, opacity: 0.3 }}
+        >
+          Plataforma de gestión de relaciones con clientas
         </Text>
       </View>
     </View>
   );
 }
 
-// ─── Brand panel (compact / portrait) ────────────────────────────────
+// ─── Brand panel (compact / portrait iPad & iPhone) ──────────────────
 //
-// Slim header strip with the wordmark only. The form below gets the
-// stage — portrait iPad and iPhone usage.
+// Slim header strip with the wordmark + caption. The form below gets
+// the stage — same behavior as the web mobile header.
 
 function BrandPanelCompact() {
   const theme = useTheme();
@@ -195,36 +250,60 @@ function BrandPanelCompact() {
       style={[
         styles.brandCompact,
         {
-          backgroundColor: theme.colors.sidebar,
-          borderBottomColor: theme.colors.sidebarBorder,
+          backgroundColor: theme.colors.background,
+          borderBottomColor: theme.colors.border,
         },
       ]}
     >
-      <Wordmark />
+      <LorealLogo width={90} color={theme.colors.foreground} />
+      <View
+        style={[
+          styles.headerDivider,
+          {
+            backgroundColor: theme.colors.border,
+            opacity: 1,
+            height: 16,
+          },
+        ]}
+      />
+      <Text variant="eyebrow" color="foregroundMuted">
+        Clienteling
+      </Text>
     </View>
   );
 }
 
-function Wordmark() {
+// ─── Form footer links ────────────────────────────────────────────────
+
+function FormFooter() {
   const theme = useTheme();
   return (
-    <View>
-      <Text
-        style={[
-          styles.wordmark,
-          { color: theme.colors.foreground },
-        ]}
-      >
-        L'ORÉAL
+    <View
+      style={[
+        styles.formFooter,
+        { borderTopColor: theme.colors.border },
+      ]}
+    >
+      <FooterLink label="Soporte" />
+      <Text variant="caption" color="foregroundSubtle">
+        ·
       </Text>
-      <Text
-        variant="eyebrow"
-        color="foregroundMuted"
-        style={{ marginTop: 4 }}
-      >
-        Clienteling
+      <FooterLink label="Privacidad" />
+      <Text variant="caption" color="foregroundSubtle">
+        ·
       </Text>
+      <FooterLink label="Términos" />
     </View>
+  );
+}
+
+function FooterLink({ label, onPress }: { label: string; onPress?: () => void }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={8}>
+      <Text variant="caption" color="foregroundMuted">
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -242,48 +321,75 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
 
-  // Brand panel (wide)
+  // Brand panel (wide / dark)
   brandWide: {
-    flex: 1,
-    paddingHorizontal: 56,
+    paddingHorizontal: 48,
     paddingVertical: 48,
     justifyContent: "space-between",
-    maxWidth: "55%",
+    overflow: "hidden",
+  },
+  goldEdge: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: StyleSheet.hairlineWidth,
+    flexDirection: "column",
+  },
+  goldEdgeSegment: {
+    flex: 1,
+    width: "100%",
   },
   brandHeader: {},
-  brandBody: {
-    justifyContent: "center",
-    flex: 1,
-    maxWidth: 480,
-  },
-  brandFooter: {},
-  brandHeadline: {
-    fontSize: 38,
-    lineHeight: 44,
-    letterSpacing: -0.8,
-    marginTop: 28,
-  },
-  aiPill: {
+  brandHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignSelf: "flex-start",
+    gap: 12,
+  },
+  headerDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 24,
+    marginLeft: 8,
+    marginRight: 4,
+  },
+  headerCaption: {
+    letterSpacing: 1.6,
+  },
+  brandBody: {
+    gap: 32,
+  },
+  accentRule: {
+    width: 48,
+    height: StyleSheet.hairlineWidth,
+  },
+  quote: {
+    fontSize: 22,
+    lineHeight: 32,
+    fontWeight: "300",
+    letterSpacing: 0.2,
+    marginTop: 16,
+    maxWidth: 460,
+  },
+  attribution: {
+    marginTop: 16,
+    letterSpacing: 1.6,
+  },
+  secondaryBrands: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 32,
+    paddingTop: 16,
   },
 
   // Brand panel (compact)
   brandCompact: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 18,
+    paddingTop: 12,
+    paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-
-  // Wordmark text
-  wordmark: {
-    fontSize: 18,
-    fontWeight: "700",
-    letterSpacing: 2.4,
   },
 
   // Form column
@@ -296,7 +402,7 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingVertical: 48,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -304,10 +410,23 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   formHeader: {
-    marginBottom: 28,
+    marginBottom: 32,
   },
-  footer: {
-    marginTop: 22,
+  formHeading: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: "300",
+    letterSpacing: -0.4,
+  },
+
+  // Form footer (links row)
+  formFooter: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });
