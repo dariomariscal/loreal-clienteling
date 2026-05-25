@@ -141,7 +141,19 @@ interface AgendaPageProps {
   user: { id: string; role?: string | null };
 }
 
-export function AgendaPage({ user }: AgendaPageProps) {
+export function AgendaPage(props: AgendaPageProps) {
+  // Gate on hydration: the whole page derives from `new Date()`, which diverges
+  // between server (UTC) and client (browser TZ). Render an empty placeholder
+  // during SSR so the markup matches; the real grid mounts only after hydrate.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+  if (!mounted) {
+    return <div className="mx-auto max-w-7xl space-y-4 pb-12" aria-hidden />;
+  }
+  return <AgendaPageInner {...props} />;
+}
+
+function AgendaPageInner({ user }: AgendaPageProps) {
   const role = user.role ?? "ba";
   const [view, setView] = React.useState<CalendarView>(
     role === "ba" ? "day" : "week",

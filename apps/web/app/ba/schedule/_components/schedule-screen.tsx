@@ -44,11 +44,15 @@ export function ScheduleScreen({ user }: ScheduleScreenProps) {
   const flagged = React.useMemo(() => flagCurrentAndNext(grouped), [grouped]);
 
   const [isNewApptOpen, setIsNewApptOpen] = React.useState(false);
+  const [eyebrow, setEyebrow] = React.useState("");
+  React.useEffect(() => {
+    setEyebrow(formatTodayEyebrow());
+  }, []);
 
   return (
     <>
       <ViewHeader
-        eyebrow={formatTodayEyebrow()}
+        eyebrow={eyebrow}
         title="Citas"
         actions={
           <Button

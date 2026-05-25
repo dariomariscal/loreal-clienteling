@@ -38,12 +38,18 @@ export function BaTodayPage({ user }: BaTodayPageProps) {
   const { data, isLoading, isError, refetch } = useAdvisorToday();
 
   const firstName = user.fullName?.split(" ")[0] ?? "";
-  const greeting = getGreeting();
-  const today = new Date().toLocaleDateString("es-MX", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const [greeting, setGreeting] = React.useState("");
+  const [today, setToday] = React.useState("");
+  React.useEffect(() => {
+    setGreeting(getGreeting());
+    setToday(
+      new Date().toLocaleDateString("es-MX", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }),
+    );
+  }, []);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 pb-12">

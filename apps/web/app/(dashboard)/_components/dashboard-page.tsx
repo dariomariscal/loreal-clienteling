@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -51,7 +52,10 @@ export function DashboardPage({ user }: DashboardPageProps) {
     ventas: Number(d.totalAmount),
   }));
 
-  const greeting = getGreeting();
+  const [greeting, setGreeting] = React.useState("");
+  React.useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

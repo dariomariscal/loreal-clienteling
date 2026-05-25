@@ -76,10 +76,14 @@ export function MessagesInboxScreen({ user: _user }: MessagesInboxScreenProps) {
   );
 
   const grouped = React.useMemo(() => groupByDay(filtered), [filtered]);
+  const [eyebrow, setEyebrow] = React.useState("");
+  React.useEffect(() => {
+    setEyebrow(formatToday());
+  }, []);
 
   return (
     <>
-      <ViewHeader eyebrow={formatToday()} title="Mensajes" />
+      <ViewHeader eyebrow={eyebrow} title="Mensajes" />
 
       <div className="px-8 pt-8 pb-16">
         <div className="mx-auto max-w-2xl">

@@ -22,10 +22,14 @@ interface TodayScreenProps {
 // Each block has its own visual rhythm so the eye distinguishes
 // "decisions to make" from "facts to know".
 export function TodayScreen({ user }: TodayScreenProps) {
-  const today = React.useMemo(() => formatToday(), []);
+  const [today, setToday] = React.useState("");
+  const [greeting, setGreeting] = React.useState("");
+  React.useEffect(() => {
+    setToday(formatToday());
+    setGreeting(computeGreeting());
+  }, []);
   const dateRange = React.useMemo(() => getTodayRange(), []);
   const firstName = user.fullName.split(" ")[0] ?? "";
-  const greeting = useGreeting();
 
   const opportunities = useDailySuggestedActions(undefined, 5);
   const appointments = useAppointmentCalendar(dateRange.from, dateRange.to, {
@@ -219,11 +223,9 @@ function getTodayRange(): { from: string; to: string } {
   return { from: start, to: end };
 }
 
-function useGreeting(): string {
-  return React.useMemo(() => {
-    const h = new Date().getHours();
-    if (h < 12) return "Buenos días";
-    if (h < 19) return "Buenas tardes";
-    return "Buenas noches";
-  }, []);
+function computeGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
 }
