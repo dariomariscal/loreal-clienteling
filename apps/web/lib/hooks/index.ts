@@ -16,3 +16,7 @@ export * from "./use-privacy-notices";
 export * from "./use-customer-registration";
 export * from "./use-customer-profile";
 export * from "./use-advisor";
+export * from "./use-wishlists";
+export * from "./use-tasks";
+export * from "./use-events";
+export * from "./use-segments";
