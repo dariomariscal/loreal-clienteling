@@ -28,6 +28,10 @@ import { AdvisorModule } from "./modules/advisor/advisor.module";
 import { UsersModule } from "./modules/users/users.module";
 import { UploadsModule } from "./modules/uploads/uploads.module";
 import { AiModule } from "./modules/ai/ai.module";
+import { WishlistsModule } from "./modules/wishlists/wishlists.module";
+import { TasksModule } from "./modules/tasks/tasks.module";
+import { EventsModule } from "./modules/events/events.module";
+import { SegmentsModule } from "./modules/segments/segments.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -64,6 +68,10 @@ import { HealthController } from "./health.controller";
     UsersModule,
     UploadsModule,
     AiModule,
+    WishlistsModule,
+    TasksModule,
+    EventsModule,
+    SegmentsModule,
   ],
   controllers: [HealthController],
 })
