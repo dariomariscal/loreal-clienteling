@@ -5,7 +5,7 @@ export interface CreateBrand {
   logoUrl?: string;
 }
 
-export type UpdateBrand = Partial<CreateBrand> & { active?: boolean };
+export type UpdateBrand = Partial<CreateBrand> & { isActive?: boolean };
 
 export interface UpsertBrandConfig {
   primaryColor?: string;
@@ -13,7 +13,8 @@ export interface UpsertBrandConfig {
   accentColor?: string;
   logoUrl?: string;
   fontFamily?: string;
-  messageTemplates?: Record<string, unknown>;
   replenishmentRules?: Record<string, unknown>;
-  virtualTryonEnabled?: boolean;
+  isVirtualTryonEnabled?: boolean;
+  vipThresholdAmount?: number;
+  vipThresholdPeriodMonths?: number;
 }

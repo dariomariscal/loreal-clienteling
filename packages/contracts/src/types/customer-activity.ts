@@ -1,9 +1,9 @@
 export type CustomerActivityType =
   | "customer_registered"
-  | "purchase"
+  | "order"
   | "recommendation"
   | "appointment"
-  | "communication"
+  | "message"
   | "note";
 
 export interface CustomerActivityActor {

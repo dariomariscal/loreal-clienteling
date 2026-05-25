@@ -1,16 +1,16 @@
 import type {
   CommunicationChannel,
-  FollowupType,
+  CampaignType,
   MessageDirection,
   MessageStatus,
-} from "../enums/communication";
+} from "../enums/message";
 
 /**
  * Payload to record a new message. Used both by:
  * - The "send" endpoint (outbound, defaults set by service).
  * - The provider webhook ingestor (inbound, sets `direction: "inbound"`).
  */
-export interface CreateCommunication {
+export interface CreateMessage {
   customerId: string;
   channel: CommunicationChannel;
   body: string;
@@ -18,18 +18,18 @@ export interface CreateCommunication {
   status?: MessageStatus;
   fromAddress?: string;
   toAddress?: string;
-  externalId?: string;
+  providerMessageId?: string;
   templateId?: string;
   subject?: string;
   /** Required for outbound campaign-style messages, omitted for inbound. */
-  followupType?: FollowupType;
+  campaignType?: CampaignType;
   failureReason?: string;
 }
 
 /**
  * Full message record as returned by the API. Mirrors the DB row.
  */
-export interface Communication {
+export interface Message {
   id: string;
   customerId: string;
   sentByUserId: string | null;
@@ -38,11 +38,11 @@ export interface Communication {
   status: MessageStatus;
   fromAddress: string | null;
   toAddress: string | null;
-  externalId: string | null;
+  providerMessageId: string | null;
   templateId: string | null;
   subject: string | null;
   body: string;
-  followupType: FollowupType | null;
+  campaignType: CampaignType | null;
   failureReason: string | null;
   sentAt: Date;
   deliveredAt: Date | null;

@@ -3,17 +3,17 @@
 
 export interface TodayAppointment {
   id: string;
-  scheduledAt: string;
+  startTime: string;
   durationMinutes: number;
   status: string;
   isVirtual: boolean;
-  eventTypeId: string;
-  eventTypeName: string | null;
-  eventTypeColor: string | null;
+  serviceTypeId: string;
+  serviceTypeName: string | null;
+  serviceTypeColor: string | null;
   customerId: string;
   customerName: string;
   customerPhone: string | null;
-  customerSegment: string | null;
+  customerLifecycleStage: string | null;
 }
 
 export interface TodayCustomerRef {
@@ -22,21 +22,21 @@ export interface TodayCustomerRef {
   lastName: string;
   phone: string | null;
   email: string | null;
-  lifecycleSegment: string;
+  lifecycleStage: string;
 }
 
 export interface TodayBirthday extends TodayCustomerRef {
-  birthDate: string;
+  birthday: string;
   daysUntil: number;
 }
 
 export interface TodayAtRiskCustomer extends TodayCustomerRef {
-  lastTransactionAt: string | null;
-  daysSinceLastPurchase: number | null;
+  lastOrderAt: string | null;
+  daysSinceLastOrder: number | null;
 }
 
 export interface TodayNewCustomer extends TodayCustomerRef {
-  customerSince: string;
+  enrolledAt: string;
 }
 
 export interface TodayPendingFollowup {
@@ -44,7 +44,7 @@ export interface TodayPendingFollowup {
   customerId: string;
   customerName: string;
   /** Null for inbound messages — they're not campaign follow-ups. */
-  followupType: string | null;
+  campaignType: string | null;
   body: string;
   channel: string;
   sentAt: string;

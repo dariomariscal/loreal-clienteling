@@ -1,18 +1,18 @@
 export interface CreateAppointment {
   customerId: string;
-  eventTypeId: string;
-  scheduledAt: Date;
+  serviceTypeId: string;
+  startTime: Date;
   durationMinutes: number;
-  comments?: string;
+  notes?: string;
   isVirtual?: boolean;
-  videoLink?: string;
+  meetingUrl?: string;
 }
 
 export interface UpdateAppointment {
   status?: string;
-  scheduledAt?: Date;
+  startTime?: Date;
   durationMinutes?: number;
-  comments?: string;
+  notes?: string;
 }
 
 export interface AvailabilityDay {

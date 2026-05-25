@@ -1,12 +1,14 @@
 export interface CreateProduct {
   sku: string;
-  name: string;
+  title: string;
   brandId: string;
   category: string;
   subcategory?: string;
+  productType?: string;
   description?: string;
   price: number;
-  estimatedDurationDays?: number;
+  /** Days a single user typically takes to finish the product. Drives replenishment. */
+  replenishmentDays?: number;
   images?: string[];
 }
 

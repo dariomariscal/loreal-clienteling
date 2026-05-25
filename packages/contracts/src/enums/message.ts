@@ -2,6 +2,7 @@ export const CommunicationChannel = {
   WHATSAPP: "whatsapp",
   SMS: "sms",
   EMAIL: "email",
+  IN_APP: "in_app",
 } as const;
 
 export type CommunicationChannel =
@@ -9,22 +10,31 @@ export type CommunicationChannel =
 
 export const COMMUNICATION_CHANNELS = Object.values(CommunicationChannel);
 
-export const FollowupType = {
-  THREE_MONTHS: "3_months",
-  SIX_MONTHS: "6_months",
+/**
+ * Campaign / flow trigger for an outbound message. Mirrors Klaviyo's "flow"
+ * and Salesforce Marketing Cloud's "campaign type" so future integrations
+ * map cleanly. `null` for inbound messages.
+ */
+export const CampaignType = {
   BIRTHDAY: "birthday",
   REPLENISHMENT: "replenishment",
+  WIN_BACK: "win_back",
+  NEW_LAUNCH: "new_launch",
+  POST_PURCHASE: "post_purchase",
+  APPOINTMENT_REMINDER: "appointment_reminder",
+  ABANDONED_CART: "abandoned_cart",
   SPECIAL_EVENT: "special_event",
+  MANUAL: "manual",
   CUSTOM: "custom",
 } as const;
 
-export type FollowupType = (typeof FollowupType)[keyof typeof FollowupType];
+export type CampaignType = (typeof CampaignType)[keyof typeof CampaignType];
 
-export const FOLLOWUP_TYPES = Object.values(FollowupType);
+export const CAMPAIGN_TYPES = Object.values(CampaignType);
 
 /**
  * Direction of a message relative to the brand:
- * - `outbound` — sent by the BA to the customer.
+ * - `outbound` — sent by the advisor to the customer.
  * - `inbound`  — received from the customer (provider webhook).
  *
  * Naming follows the de-facto industry standard (Twilio, MessageBird, Front,

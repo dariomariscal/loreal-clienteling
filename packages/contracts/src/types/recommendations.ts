@@ -2,7 +2,7 @@ export interface CreateRecommendation {
   customerId: string;
   productId: string;
   source: string;
-  visitReason?: string;
+  visitPurpose?: string;
   aiReasoning?: string;
   notes?: string;
 }

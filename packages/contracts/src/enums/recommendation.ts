@@ -2,6 +2,7 @@ export const RecommendationSource = {
   MANUAL: "manual",
   AI_SUGGESTED: "ai_suggested",
   REPLENISHMENT_ALERT: "replenishment_alert",
+  NEXT_BEST_ACTION: "next_best_action",
 } as const;
 
 export type RecommendationSource =
@@ -9,7 +10,11 @@ export type RecommendationSource =
 
 export const RECOMMENDATION_SOURCES = Object.values(RecommendationSource);
 
-export const VisitReason = {
+/**
+ * Reason a customer walked into the store / engaged the advisor. Drives
+ * recommendation context.
+ */
+export const VisitPurpose = {
   NEW_PURCHASE: "new_purchase",
   REBUY: "rebuy",
   GIFT: "gift",
@@ -18,6 +23,6 @@ export const VisitReason = {
   BROWSING: "browsing",
 } as const;
 
-export type VisitReason = (typeof VisitReason)[keyof typeof VisitReason];
+export type VisitPurpose = (typeof VisitPurpose)[keyof typeof VisitPurpose];
 
-export const VISIT_REASONS = Object.values(VisitReason);
+export const VISIT_PURPOSES = Object.values(VisitPurpose);

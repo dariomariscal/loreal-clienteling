@@ -20,12 +20,12 @@ export interface CustomerSummaryContext {
   firstName: string;
   lastName: string;
   ageYears?: number;
-  customerSince: Date;
-  lifecycleSegment: string;
+  enrolledAt: Date;
+  lifecycleStage: string;
   lastVisitDaysAgo?: number;
-  averagePurchaseIntervalDays?: number;
-  recentPurchases: Array<{
-    productName: string;
+  averageOrderIntervalDays?: number;
+  recentOrders: Array<{
+    productTitle: string;
     daysAgo: number;
     price: number;
   }>;

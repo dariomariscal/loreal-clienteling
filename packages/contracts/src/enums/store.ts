@@ -1,9 +1,12 @@
-export const StoreChain = {
+/**
+ * Department-store chain — the retail industry calls this a "banner".
+ */
+export const StoreBanner = {
   LIVERPOOL: "liverpool",
   PALACIO: "palacio",
   OWNED: "owned",
 } as const;
 
-export type StoreChain = (typeof StoreChain)[keyof typeof StoreChain];
+export type StoreBanner = (typeof StoreBanner)[keyof typeof StoreBanner];
 
-export const STORE_CHAINS = Object.values(StoreChain);
+export const STORE_BANNERS = Object.values(StoreBanner);

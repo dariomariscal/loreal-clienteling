@@ -10,7 +10,8 @@ export interface StoreHours {
 export interface CreateStore {
   code: string;
   displayName: string;
-  chain: string;
+  /** Department-store chain name (liverpool | palacio | owned). Retail term. */
+  banner: string;
   /** Manual override. When omitted, the server derives it from municipalityId. */
   zoneId?: string;
   address?: string;

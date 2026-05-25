@@ -4,7 +4,7 @@ export interface CreateCustomer {
   email?: string;
   phone?: string;
   gender?: string;
-  birthDate?: Date;
+  birthday?: Date;
 }
 
 export type UpdateCustomer = Partial<CreateCustomer>;
@@ -15,7 +15,8 @@ export interface SearchCustomer {
 }
 
 export interface CustomerFilters {
-  segment?: string;
+  /** Filter by lifecycle stage (new | returning | vip | at_risk | dormant). */
+  stage?: string;
   storeId?: string;
   brandId?: string;
 }

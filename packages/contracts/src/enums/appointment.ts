@@ -12,7 +12,11 @@ export type AppointmentStatus =
 
 export const APPOINTMENT_STATUSES = Object.values(AppointmentStatus);
 
-export const AppointmentEventType = {
+/**
+ * Built-in service type codes. Retailers can add their own via
+ * service_types table — this constant is just the seeded defaults.
+ */
+export const BuiltInServiceType = {
   CABIN_SERVICE: "cabin_service",
   FACIAL: "facial",
   ANNIVERSARY_EVENT: "anniversary_event",
@@ -21,7 +25,7 @@ export const AppointmentEventType = {
   CUSTOM: "custom",
 } as const;
 
-export type AppointmentEventType =
-  (typeof AppointmentEventType)[keyof typeof AppointmentEventType];
+export type BuiltInServiceType =
+  (typeof BuiltInServiceType)[keyof typeof BuiltInServiceType];
 
-export const APPOINTMENT_EVENT_TYPES = Object.values(AppointmentEventType);
+export const BUILT_IN_SERVICE_TYPES = Object.values(BuiltInServiceType);
