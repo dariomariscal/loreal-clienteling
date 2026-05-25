@@ -9,8 +9,6 @@ export const zones = pgTable("zones", {
   color: varchar("color", { length: 7 }).notNull().default("#D4AF37"),
   /** Lucide icon name (e.g. "map-pin", "store"). */
   icon: varchar("icon", { length: 50 }).notNull().default("map-pin"),
-  /** Free-text region label (legacy, kept for backwards compat). */
-  region: varchar("region", { length: 200 }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

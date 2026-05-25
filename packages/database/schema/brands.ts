@@ -6,7 +6,7 @@ export const brands = pgTable("brands", {
   displayName: varchar("display_name", { length: 200 }).notNull(),
   tier: varchar("tier", { length: 20 }).notNull(), // luxury | premium | mass
   logoUrl: varchar("logo_url", { length: 500 }),
-  active: boolean("active").notNull().default(true),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

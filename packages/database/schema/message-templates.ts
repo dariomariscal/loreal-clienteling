@@ -14,8 +14,9 @@ export const messageTemplates = pgTable("message_templates", {
   name: varchar("name", { length: 200 }).notNull(),
   channel: varchar("channel", { length: 20 }).notNull(), // whatsapp | sms | email
   body: text("body").notNull(),
-  followupType: varchar("followup_type", { length: 30 }).notNull(),
-  active: boolean("active").notNull().default(true),
+  /** Matches messages.campaignType — birthday | replenishment | win_back | ... */
+  campaignType: varchar("campaign_type", { length: 30 }).notNull(),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

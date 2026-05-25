@@ -29,7 +29,8 @@ export const stores = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     code: varchar("code", { length: 50 }).notNull().unique(),
     displayName: varchar("display_name", { length: 200 }).notNull(),
-    chain: varchar("chain", { length: 20 }).notNull(), // liverpool | palacio | owned
+    /** Retail industry term for the parent department-store chain. */
+    banner: varchar("banner", { length: 20 }).notNull(), // liverpool | palacio | owned
     /** Auto-derived from geom via trigger when null; can be overridden manually. */
     zoneId: uuid("zone_id").references(() => zones.id),
     address: varchar("address", { length: 500 }),
@@ -49,7 +50,7 @@ export const stores = pgTable(
     geom: point("geom"),
     phone: varchar("phone", { length: 20 }),
     hours: jsonb("hours").$type<StoreHours>(),
-    active: boolean("active").notNull().default(true),
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

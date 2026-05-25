@@ -21,9 +21,8 @@ export const brandConfigs = pgTable("brand_configs", {
   accentColor: varchar("accent_color", { length: 20 }),
   logoUrl: varchar("logo_url", { length: 500 }),
   fontFamily: varchar("font_family", { length: 100 }),
-  messageTemplates: jsonb("message_templates"),
   replenishmentRules: jsonb("replenishment_rules"),
-  virtualTryonEnabled: boolean("virtual_tryon_enabled")
+  isVirtualTryonEnabled: boolean("is_virtual_tryon_enabled")
     .notNull()
     .default(false),
   vipThresholdAmount: numeric("vip_threshold_amount", {
@@ -31,8 +30,6 @@ export const brandConfigs = pgTable("brand_configs", {
     scale: 2,
   }),
   vipThresholdPeriodMonths: integer("vip_threshold_period_months").default(12),
-  communicationRules: jsonb("communication_rules"),
-  enabledModules: jsonb("enabled_modules"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

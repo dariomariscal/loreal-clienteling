@@ -14,7 +14,7 @@ export const users = pgTable("users", {
   id: text("id").primaryKey(), // Clerk userId
   email: text("email").notNull().unique(),
   fullName: text("full_name").notNull(),
-  imageUrl: text("image_url"),
+  avatarUrl: text("avatar_url"),
 
   // ─── Business fields ────────────────────────────────────────────────────
   // Source of truth: Clerk publicMetadata. Mirrored here for joins/listings.
@@ -22,13 +22,13 @@ export const users = pgTable("users", {
   storeId: text("store_id"), // logical FK to stores.id (uuid) — enforced at app level
   zoneId: text("zone_id"), // logical FK to zones.id (uuid) — enforced at app level
   brandId: text("brand_id"), // logical FK to brands.id (uuid) — enforced at app level
-  active: boolean("active").default(true).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
 
   // Lifecycle
   invitationStatus: text("invitation_status"), // pending | accepted | revoked
   invitedAt: timestamp("invited_at", { withTimezone: true }),
   invitedByUserId: text("invited_by_user_id"),
-  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
 
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()

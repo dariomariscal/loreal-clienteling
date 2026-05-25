@@ -5,50 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1779245417926,
-      "tag": "0000_careless_ultimates",
+      "when": 1779661033252,
+      "tag": "0000_steady_harpoon",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1779310918359,
-      "tag": "0001_breezy_queen_noir",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1779574800000,
-      "tag": "0002_sync_user_zone_from_store",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1779660000000,
-      "tag": "0003_greedy_harpoon",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1779700000000,
-      "tag": "0004_sparkling_chat",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1779800000000,
-      "tag": "0005_third_whiplash",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1779900000000,
-      "tag": "0006_shocking_cerise",
+      "when": 1779661033253,
+      "tag": "0001_sync_user_zone_from_store",
       "breakpoints": true
     }
   ]
