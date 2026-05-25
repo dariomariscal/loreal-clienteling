@@ -2,7 +2,7 @@ import * as React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { Card, Glyph, Text } from "@/components/ui";
-import { useTheme } from "@/theme";
+import { useTheme, type ThemeMode } from "@/theme";
 
 import { ActivityCard } from "./components/activity-card";
 import { IdentityHero } from "./components/identity-hero";
@@ -479,12 +479,24 @@ function RecognitionsView({ presenter }: SectionViewProps) {
 // ─── Preferencias ─────────────────────────────────────────────────────────
 
 function ThemeView(_: SectionViewProps) {
+  const { mode, setMode } = useTheme();
+  const options: { value: ThemeMode; label: string; hint?: string }[] = [
+    { value: "system", label: "Automático", hint: "Sigue al sistema" },
+    { value: "light", label: "Claro" },
+    { value: "dark", label: "Oscuro" },
+  ];
   return (
     <SectionGrid>
       <InfoCard eyebrow="Apariencia" title="Tema de la app">
-        <ChoiceRow label="Automático" hint="Sigue al sistema" selected />
-        <ChoiceRow label="Claro" />
-        <ChoiceRow label="Oscuro" />
+        {options.map((opt) => (
+          <ChoiceRow
+            key={opt.value}
+            label={opt.label}
+            hint={opt.hint}
+            selected={mode === opt.value}
+            onPress={() => setMode(opt.value)}
+          />
+        ))}
       </InfoCard>
 
       <InfoCard eyebrow="Acento" title="Color de marca">
@@ -541,16 +553,19 @@ function ChoiceRow({
   label,
   hint,
   selected,
+  onPress,
 }: {
   label: string;
   hint?: string;
   selected?: boolean;
+  onPress?: () => void;
 }) {
   const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ selected }}
+      onPress={onPress}
       style={[
         styles.choiceRow,
         { borderTopColor: theme.colors.borderSoft },
