@@ -1,26 +1,35 @@
-import React from 'react';
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import * as React from "react";
+import { StyleSheet, View, type ViewProps } from "react-native";
 
-import { Radius, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme } from "@/theme";
 
 interface CardProps extends ViewProps {
+  elevation?: "xs" | "sm" | "md";
   padded?: boolean;
 }
 
-export function Card({ style, padded = true, children, ...props }: CardProps) {
+// Card — white surface, hairline ring, shadow-based elevation.
+// Mirror of apps/web/components/ui/card.tsx: ring-1 ring-foreground/6 +
+// shadow-sm baseline, no opaque border.
+export function Card({
+  elevation = "sm",
+  padded = true,
+  style,
+  children,
+  ...props
+}: CardProps) {
   const theme = useTheme();
-
   return (
     <View
       style={[
-        styles.card,
+        styles.base,
+        theme.elevation[elevation],
         {
-          backgroundColor: theme.background,
-          shadowColor: theme.cardShadow,
-          borderColor: theme.borderLight,
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+          borderRadius: theme.radius["2xl"],
+          padding: padded ? theme.spacing[5] : 0,
         },
-        padded && styles.padded,
         style,
       ]}
       {...props}
@@ -31,15 +40,7 @@ export function Card({ style, padded = true, children, ...props }: CardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  padded: {
-    padding: Spacing.lg,
+  base: {
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });
