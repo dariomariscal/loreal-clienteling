@@ -1,10 +1,22 @@
-import { Injectable, Inject, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { eq, and, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { orders, lineItems, customers, samples } from "@loreal/database";
+import {
+  orders,
+  lineItems,
+  customers,
+  samples,
+  products,
+} from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
+import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import { RecommendationsService } from "../recommendations/recommendations.service";
 import { SamplesService } from "../samples/samples.service";
 import {
@@ -13,13 +25,23 @@ import {
 } from "@loreal/domain";
 import type { CreateOrderDto } from "../../dtos/orders.dto";
 
+// How far apart the computed item total and the client-supplied totalPrice can
+// drift before we reject the request. One cent per item handles MXN rounding
+// when the client adds them up in float.
+const TOTAL_PRICE_TOLERANCE = 0.05;
+
+const ORDER_NUMBER_MAX_ATTEMPTS = 5;
+
 @Injectable()
 export class OrdersService {
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
-    @Inject(RecommendationsService) private recommendationsService: RecommendationsService,
+    @Inject(CustomerActivityService)
+    private customerActivity: CustomerActivityService,
+    @Inject(RecommendationsService)
+    private recommendationsService: RecommendationsService,
     @Inject(SamplesService) private samplesService: SamplesService,
   ) {}
 
@@ -82,7 +104,18 @@ export class OrdersService {
   async create(data: CreateOrderDto, user: SessionUser) {
     const storeId = this.scopeService.assertStore(user);
 
-    // a. Fetch customer
+    // Validate item math up front so we never persist a tampered totalPrice.
+    const computedTotal = data.items.reduce(
+      (sum, it) => sum + it.unitPrice * it.quantity,
+      0,
+    );
+    if (Math.abs(computedTotal - data.totalPrice) > TOTAL_PRICE_TOLERANCE) {
+      throw new BadRequestException(
+        `totalPrice ${data.totalPrice} does not match line items total ${computedTotal.toFixed(2)}`,
+      );
+    }
+
+    // Fetch customer
     const [customer] = await this.db
       .select()
       .from(customers)
@@ -90,12 +123,20 @@ export class OrdersService {
 
     if (!customer) throw new NotFoundException("Customer not found");
 
-    // b. Fetch active recommendations (last 30 days)
+    // Fetch product titles in bulk so line items get real titles, not just SKUs.
+    const productIds = Array.from(new Set(data.items.map((i) => i.productId)));
+    const productRows = await this.db
+      .select({ id: products.id, title: products.title })
+      .from(products)
+      .where(inArray(products.id, productIds));
+    const titleById = new Map(productRows.map((p) => [p.id, p.title]));
+
+    // Compute attribution before opening the transaction — pure function, no
+    // DB writes. Keeps the transaction body small.
     const activeRecs = await this.recommendationsService.findActiveForCustomer(
       data.customerId,
       30,
     );
-
     const activeRecommendations: RecommendationRecord[] = activeRecs.map(
       (r) => ({
         recommendedByUserId: r.recommendedByUserId,
@@ -105,7 +146,6 @@ export class OrdersService {
       }),
     );
 
-    // c. Call attribution logic
     const orderedProductIds = data.items.map((item) => item.productId);
     const now = new Date();
     const attribution = attributePurchaseToBa({
@@ -117,74 +157,101 @@ export class OrdersService {
       activeRecommendations,
     });
 
-    // d. Insert order
-    const orderNumber = `L-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
-    const totalPriceStr = String(data.totalPrice);
-    const [order] = await this.db
-      .insert(orders)
-      .values({
-        orderNumber,
-        customerId: data.customerId,
-        storeId,
-        currency: "MXN",
-        subtotalPrice: totalPriceStr,
-        totalPrice: totalPriceStr,
-        externalOrderId: data.externalOrderId,
-        sourceName: data.sourceName,
-        attributedUserId: attribution.attributedUserId,
-        attributionSource: attribution.attributionSource ?? undefined,
-        processedAt: now,
-      })
-      .returning();
+    const totalPriceStr = data.totalPrice.toFixed(2);
 
-    // e. Insert line items
-    const itemRows = await Promise.all(
-      data.items.map((item) =>
-        this.db
-          .insert(lineItems)
-          .values({
-            orderId: order.id,
-            productId: item.productId,
-            sku: item.sku,
-            title: item.sku, // best-effort; richer title is filled from products on read
-            quantity: item.quantity,
-            price: String(item.unitPrice),
-          })
-          .returning()
-          .then(([row]) => row),
-      ),
-    );
+    const result = await this.db.transaction(async (tx) => {
+      // Insert order with retry on order_number collision. Random short codes
+      // are not guaranteed unique, but the schema is — without the retry one
+      // collision per few million orders surfaces as an opaque 500.
+      let order: typeof orders.$inferSelect | null = null;
+      for (let attempt = 0; attempt < ORDER_NUMBER_MAX_ATTEMPTS; attempt++) {
+        const orderNumber = generateOrderNumber();
+        try {
+          const [inserted] = await tx
+            .insert(orders)
+            .values({
+              orderNumber,
+              customerId: data.customerId,
+              storeId,
+              currency: "MXN",
+              subtotalPrice: totalPriceStr,
+              totalPrice: totalPriceStr,
+              externalOrderId: data.externalOrderId,
+              sourceName: data.sourceName,
+              attributedUserId: attribution.attributedUserId,
+              attributionSource: attribution.attributionSource ?? undefined,
+              processedAt: now,
+            })
+            .returning();
+          order = inserted;
+          break;
+        } catch (err) {
+          if (!isUniqueViolation(err, "orders_order_number_unique")) throw err;
+        }
+      }
+      if (!order) {
+        throw new Error(
+          "Could not generate a unique order number after retries",
+        );
+      }
 
-    // f. If matched recommendation, mark it as converted
-    if (attribution.matchedRecommendationId) {
-      await this.recommendationsService.markConverted(
-        attribution.matchedRecommendationId,
-        order.id,
-      );
-    }
-
-    // g. Mark matching unconverted samples as converted
-    const unconvertedSamples = await this.db
-      .select()
-      .from(samples)
-      .where(
-        and(
-          eq(samples.customerId, data.customerId),
-          eq(samples.isConverted, false),
-          inArray(samples.productId, orderedProductIds),
+      const itemRows = await Promise.all(
+        data.items.map((item) =>
+          tx
+            .insert(lineItems)
+            .values({
+              orderId: order!.id,
+              productId: item.productId,
+              sku: item.sku,
+              title: titleById.get(item.productId) ?? item.sku,
+              quantity: item.quantity,
+              price: item.unitPrice.toFixed(2),
+            })
+            .returning()
+            .then(([row]) => row),
         ),
       );
-    for (const sample of unconvertedSamples) {
-      await this.samplesService.markConverted(sample.id, order.id);
-    }
 
-    // h. Update customer.lastOrderAt
-    await this.db
-      .update(customers)
-      .set({ lastOrderAt: now, updatedAt: now })
-      .where(eq(customers.id, data.customerId));
+      // Convert matched recommendation
+      if (attribution.matchedRecommendationId) {
+        await this.recommendationsService.markConverted(
+          attribution.matchedRecommendationId,
+          order.id,
+        );
+      }
 
-    await this.auditService.log(user, "create", "order", order.id, {
+      // Convert matching unconverted samples
+      const unconvertedSamples = await tx
+        .select()
+        .from(samples)
+        .where(
+          and(
+            eq(samples.customerId, data.customerId),
+            eq(samples.isConverted, false),
+            inArray(samples.productId, orderedProductIds),
+          ),
+        );
+      for (const sample of unconvertedSamples) {
+        await this.samplesService.markConverted(sample.id, order.id);
+      }
+
+      // Recompute denormalized customer metrics + lifecycle in the same tx so
+      // the post-commit state is always consistent. This replaces the old
+      // single-column UPDATE that left totalSpent/ordersCount/AOV stale.
+      await this.customerActivity.recomputeMetricsAndSegment(
+        data.customerId,
+        tx,
+        now,
+      );
+
+      // An order is itself an interaction — keeps the attribution window
+      // honest for follow-up purchases.
+      await this.customerActivity.touchInteraction(data.customerId, now, tx);
+
+      return { order, itemRows };
+    });
+
+    await this.auditService.log(user, "create", "order", result.order.id, {
       customerId: data.customerId,
       totalPrice: data.totalPrice,
       sourceName: data.sourceName,
@@ -192,6 +259,20 @@ export class OrdersService {
       attributionSource: attribution.attributionSource,
     });
 
-    return { ...order, items: itemRows };
+    return { ...result.order, items: result.itemRows };
   }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function generateOrderNumber(): string {
+  // 8-char base36 → ~2.8 trillion values; retry loop handles the rest.
+  return `L-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+}
+
+function isUniqueViolation(err: unknown, constraint?: string): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const e = err as { code?: string; constraint?: string };
+  if (e.code !== "23505") return false;
+  return !constraint || e.constraint === constraint;
 }

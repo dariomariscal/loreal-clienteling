@@ -40,7 +40,8 @@ export const customerSegments = pgTable(
       .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
-      .defaultNow(),
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     index("customer_segments_owner_idx").on(table.ownerUserId),

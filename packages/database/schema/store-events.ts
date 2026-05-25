@@ -40,7 +40,8 @@ export const storeEvents = pgTable(
       .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
-      .defaultNow(),
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [index("store_events_store_start_idx").on(table.storeId, table.startTime)],
 );

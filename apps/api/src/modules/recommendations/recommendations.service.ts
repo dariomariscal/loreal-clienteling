@@ -5,6 +5,7 @@ import { recommendations } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
+import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import type { CreateRecommendationDto } from "../../dtos/recommendations.dto";
 
 @Injectable()
@@ -13,6 +14,8 @@ export class RecommendationsService {
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
+    @Inject(CustomerActivityService)
+    private customerActivity: CustomerActivityService,
   ) {}
 
   async findByCustomer(customerId: string, user: SessionUser) {
@@ -49,6 +52,8 @@ export class RecommendationsService {
         storeId,
       })
       .returning();
+
+    await this.customerActivity.touchInteraction(data.customerId);
 
     await this.auditService.log(
       user,

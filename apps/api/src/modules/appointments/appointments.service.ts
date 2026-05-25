@@ -4,6 +4,7 @@ import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { appointments, customers, users, stores, serviceTypes } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
+import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import type { CreateAppointmentDto, UpdateAppointmentDto } from "../../dtos/appointments.dto";
 
 const SLOT_GRID_MINUTES = 30;
@@ -74,6 +75,8 @@ export class AppointmentsService {
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
+    @Inject(CustomerActivityService)
+    private customerActivity: CustomerActivityService,
   ) {}
 
   async findAll(
@@ -178,6 +181,9 @@ export class AppointmentsService {
         meetingUrl: data.meetingUrl,
       })
       .returning();
+
+    await this.customerActivity.touchInteraction(data.customerId);
+
     return appt;
   }
 

@@ -25,7 +25,10 @@ export interface AttributionResult {
 
 const DAYS_MS = 24 * 60 * 60 * 1000;
 const RECOMMENDATION_WINDOW_DAYS = 30;
-const CONSULTATION_WINDOW_HOURS = 24;
+// Clienteling visits regularly settle days later — same-week purchases still
+// belong to the advisor who did the consultation. 24h was too tight and left
+// most natural follow-up purchases unattributed.
+const CONSULTATION_WINDOW_HOURS = 7 * 24;
 
 /**
  * RF-25: Order attribution to an advisor.
@@ -33,7 +36,7 @@ const CONSULTATION_WINDOW_HOURS = 24;
  * Rules, in priority order:
  * 1. If an active Recommendation (last 30 days) covers a purchased product →
  *    the advisor who recommended it.
- * 2. If there was a consultation (assignedToUserId) within the last 24 hours
+ * 2. If there was a consultation (assignedToUserId) within the last 7 days
  *    → that advisor.
  * 3. No attribution.
  */

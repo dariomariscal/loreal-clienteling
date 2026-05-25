@@ -50,7 +50,8 @@ export const beautyProfiles = pgTable("beauty_profiles", {
     .defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
-    .defaultNow(),
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 /**

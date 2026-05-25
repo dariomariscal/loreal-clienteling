@@ -6,6 +6,7 @@ import type { GrantConsentDto } from "../../dtos/consents.dto";
 import type { SessionUser } from "../../common/types/session";
 import { AuditService } from "../../common/services/audit.service";
 import { ScopeService } from "../../common/services/scope.service";
+import { CustomerActivityService } from "../../common/services/customer-activity.service";
 
 const CHANNEL_TO_CONSENT: Record<string, string> = {
   whatsapp: "marketing_whatsapp",
@@ -19,6 +20,8 @@ export class ConsentsService {
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(AuditService) private auditService: AuditService,
     @Inject(ScopeService) private scopeService: ScopeService,
+    @Inject(CustomerActivityService)
+    private customerActivity: CustomerActivityService,
   ) {}
 
   async findByCustomer(customerId: string, user?: SessionUser) {
@@ -41,6 +44,15 @@ export class ConsentsService {
       .insert(consents)
       .values(data)
       .returning();
+
+    // Keep the denormalized accepts_marketing_* flag on the customer row in
+    // sync. Consents remain the audit source of truth; the flag is the fast
+    // read.
+    await this.customerActivity.syncMarketingFlag(
+      data.customerId,
+      data.type,
+      true,
+    );
 
     await this.auditService.log(
       user,
@@ -69,6 +81,8 @@ export class ConsentsService {
       .returning();
 
     if (consent) {
+      await this.customerActivity.syncMarketingFlag(customerId, type, false);
+
       await this.auditService.log(
         user,
         "consent_revoked",

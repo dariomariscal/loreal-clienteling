@@ -116,8 +116,8 @@ describe("attributePurchaseToBa", () => {
     });
   });
 
-  describe("Rule 2: last consultation within 24 hours", () => {
-    it("attributes to assigned advisor when interaction was within 24h", () => {
+  describe("Rule 2: last consultation within 7 days", () => {
+    it("attributes to assigned advisor when interaction was within window", () => {
       const result = attributePurchaseToBa(
         makeInput({
           assignedToUserId: "ba-3",
@@ -130,11 +130,25 @@ describe("attributePurchaseToBa", () => {
       expect(result.matchedRecommendationId).toBeNull();
     });
 
-    it("does not attribute if interaction was more than 24h ago", () => {
+    it("attributes when interaction was a few days ago (still in window)", () => {
       const result = attributePurchaseToBa(
         makeInput({
           assignedToUserId: "ba-3",
-          lastInteractionAt: new Date("2026-04-19T10:00:00Z"),
+          // 3 days before processedAt — well inside the 7-day window
+          lastInteractionAt: new Date("2026-04-18T14:00:00Z"),
+        }),
+      );
+
+      expect(result.attributedUserId).toBe("ba-3");
+      expect(result.attributionSource).toBe("last_consultation");
+    });
+
+    it("does not attribute if interaction was more than 7 days ago", () => {
+      const result = attributePurchaseToBa(
+        makeInput({
+          assignedToUserId: "ba-3",
+          // 9 days before processedAt
+          lastInteractionAt: new Date("2026-04-12T10:00:00Z"),
         }),
       );
 

@@ -5,6 +5,7 @@ import { messages, messageTemplates, consents } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
+import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import { ConsentsService } from "../consents/consents.service";
 import type { CreateMessageDto } from "../../dtos/messages.dto";
 
@@ -20,6 +21,8 @@ export class MessagesService {
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
+    @Inject(CustomerActivityService)
+    private customerActivity: CustomerActivityService,
     @Inject(ConsentsService) private consentsService: ConsentsService,
   ) {}
 
@@ -80,6 +83,10 @@ export class MessagesService {
         campaignType: isOutbound ? data.campaignType : undefined,
       })
       .returning();
+
+    // Both directions count as an interaction. Inbound replies are the
+    // strongest signal we have that a customer is engaged.
+    await this.customerActivity.touchInteraction(data.customerId);
 
     await this.auditService.log(
       user,

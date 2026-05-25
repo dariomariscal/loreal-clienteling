@@ -48,7 +48,8 @@ export const customerRoutines = pgTable(
       .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
-      .defaultNow(),
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     index("customer_routines_customer_slot_idx").on(table.customerId, table.slot),

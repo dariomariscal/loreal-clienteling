@@ -56,7 +56,8 @@ export const stores = pgTable(
       .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
-      .defaultNow(),
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     municipalityIdx: index("stores_municipality_idx").on(t.municipalityId),

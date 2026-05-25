@@ -48,7 +48,7 @@ export function CustomerIdentityPanel({ customer, onAction }: Props) {
           {fullName}
         </h1>
         <p className="mt-2 font-[var(--font-heading)] text-2xl text-[color:var(--ba-accent)]">
-          {formatMoney(Number(customer.totalSpent ?? metrics?.ltv ?? 0))}
+          {formatMoney(Number(customer.totalSpent))}
         </p>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
           <Badge variant={lifecycle.variant}>{lifecycle.label}</Badge>

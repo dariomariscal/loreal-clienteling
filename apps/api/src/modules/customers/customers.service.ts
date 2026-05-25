@@ -580,6 +580,8 @@ export class CustomersService {
       data.consents.privacyNoticeVersion,
     );
 
+    const channels = data.consents.marketingChannels;
+
     const customer = await this.db.transaction(async (tx) => {
       const [created] = await tx
         .insert(customers)
@@ -591,6 +593,11 @@ export class CustomersService {
           signupStoreId: storeId,
           createdByUserId: user.id,
           assignedToUserId: user.id,
+          // Denormalized marketing flags — kept in sync with `consents` rows
+          // so list queries don't have to join consents on every render.
+          acceptsMarketingEmail: channels.email === true,
+          acceptsMarketingSms: channels.sms === true,
+          acceptsMarketingWhatsapp: channels.whatsapp === true,
         })
         .returning();
 
@@ -607,7 +614,7 @@ export class CustomersService {
 
       // 2. Marketing channel consents (one row per channel marked true).
       const channelRows = (
-        Object.entries(data.consents.marketingChannels) as [
+        Object.entries(channels) as [
           keyof typeof MARKETING_CHANNEL_TO_CONSENT,
           boolean | undefined,
         ][]
@@ -797,6 +804,17 @@ export class CustomersService {
       );
   }
 
+  /**
+   * LFPDPPP "derecho al olvido" (ARCO-O): strip the customer's PII while
+   * preserving the integrity of historical analytics. Orders, appointments,
+   * messages, recommendations and samples reference the customer with a
+   * notNull FK, so we can't just null them out — that would either violate
+   * the constraint or, worse, silently bypass it via `as any` (the previous
+   * bug). Instead we keep the same row id, blank the PII columns and flip
+   * `isActive = false`. The audit log records the folio + original name so
+   * the original identity can still be proven from the audit trail when a
+   * regulator asks.
+   */
   async executeRightToBeForgotten(
     customerId: string,
     requestFolio: string,
@@ -809,6 +827,7 @@ export class CustomersService {
     if (!customer) throw new NotFoundException("Customer not found");
 
     const anonymized = `ARCO-${requestFolio}`;
+    const now = new Date();
 
     await this.db.transaction(async (tx) => {
       // 1. Delete shade matches (via beauty profile)
@@ -826,41 +845,33 @@ export class CustomersService {
           .where(eq(beautyProfiles.customerId, customerId));
       }
 
-      // 2. Delete consents
+      // 2. Drop consents — the ARCO request itself is the new auth-of-record
+      //    for what the customer agreed to.
       await tx.delete(consents).where(eq(consents.customerId, customerId));
 
-      // 3. Anonymize orders
+      // 3. Anonymize the customer row in place. Keeps the FK from
+      //    orders/appointments/etc. valid while removing every PII column.
+      //    `isActive=false` keeps the row out of advisor lists.
       await tx
-        .update(orders)
-        .set({ customerId: sql`null` } as any)
-        .where(eq(orders.customerId, customerId));
-
-      // 4. Anonymize recommendations
-      await tx
-        .update(recommendations)
-        .set({ customerId: sql`null` } as any)
-        .where(eq(recommendations.customerId, customerId));
-
-      // 5. Anonymize samples
-      await tx
-        .update(samples)
-        .set({ customerId: sql`null` } as any)
-        .where(eq(samples.customerId, customerId));
-
-      // 6. Anonymize appointments
-      await tx
-        .update(appointments)
-        .set({ customerId: sql`null` } as any)
-        .where(eq(appointments.customerId, customerId));
-
-      // 7. Anonymize messages
-      await tx
-        .update(messages)
-        .set({ customerId: sql`null` } as any)
-        .where(eq(messages.customerId, customerId));
-
-      // 8. Hard delete customer
-      await tx.delete(customers).where(eq(customers.id, customerId));
+        .update(customers)
+        .set({
+          firstName: anonymized,
+          lastName: "(anonymized)",
+          email: null,
+          phone: null,
+          avatarUrl: null,
+          gender: null,
+          birthday: null,
+          taxId: null,
+          preferredChannel: null,
+          acceptsMarketingEmail: false,
+          acceptsMarketingSms: false,
+          acceptsMarketingWhatsapp: false,
+          isActive: false,
+          assignedToUserId: null,
+          updatedAt: now,
+        })
+        .where(eq(customers.id, customerId));
     });
 
     await this.auditService.log(

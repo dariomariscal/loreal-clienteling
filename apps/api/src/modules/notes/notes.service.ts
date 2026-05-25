@@ -10,6 +10,7 @@ import { notes, users, products } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
+import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import type { CreateNoteDto, UpdateNoteDto } from "../../dtos/notes.dto";
 
 @Injectable()
@@ -18,6 +19,8 @@ export class NotesService {
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
+    @Inject(CustomerActivityService)
+    private customerActivity: CustomerActivityService,
   ) {}
 
   /**
@@ -81,6 +84,8 @@ export class NotesService {
         createdByUserId: user.id,
       })
       .returning();
+
+    await this.customerActivity.touchInteraction(customerId);
 
     await this.auditService.log(
       user,
