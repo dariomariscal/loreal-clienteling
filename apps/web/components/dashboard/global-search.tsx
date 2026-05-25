@@ -65,7 +65,7 @@ export function GlobalSearch() {
     const products = (productSearch.data ?? []).slice(0, 5).map((p) => ({
       type: "product" as const,
       id: p.id,
-      title: p.name,
+      title: p.title,
       subtitle: p.sku,
       href: `/productos/${p.id}/editar`,
     }));

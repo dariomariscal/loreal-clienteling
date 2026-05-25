@@ -32,13 +32,13 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 const productFormSchema = z.object({
   sku: z.string().min(1).max(50),
-  name: z.string().min(1).max(200),
+  title: z.string().min(1).max(200),
   brandId: z.string().uuid(),
   category: z.enum(PRODUCT_CATEGORIES as [ProductCategory, ...ProductCategory[]]),
   subcategory: z.string().max(100).optional(),
   description: z.string().max(2000).optional(),
   price: z.coerce.number().positive(),
-  estimatedDurationDays: z.coerce.number().int().positive().optional(),
+  replenishmentDays: z.coerce.number().int().positive().optional(),
   images: z.array(z.string().url()),
 });
 
@@ -61,13 +61,13 @@ export function ProductForm({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       sku: defaultValues?.sku ?? "",
-      name: defaultValues?.name ?? "",
+      title: defaultValues?.title ?? "",
       brandId: defaultValues?.brandId ?? "",
       category: defaultValues?.category ?? PRODUCT_CATEGORIES[0],
       subcategory: defaultValues?.subcategory ?? "",
       description: defaultValues?.description ?? "",
       price: defaultValues?.price ?? ("" as unknown as number),
-      estimatedDurationDays: defaultValues?.estimatedDurationDays,
+      replenishmentDays: defaultValues?.replenishmentDays,
       images: defaultValues?.images ?? [],
     },
   });
@@ -108,7 +108,7 @@ export function ProductForm({
             <CardContent className="space-y-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="title"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nombre</FormLabel>
@@ -202,7 +202,7 @@ export function ProductForm({
                 />
                 <FormField
                   control={form.control}
-                  name="estimatedDurationDays"
+                  name="replenishmentDays"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Duración estimada (días)</FormLabel>

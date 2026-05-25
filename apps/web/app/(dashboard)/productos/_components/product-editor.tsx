@@ -55,13 +55,13 @@ export function ProductEditor({ mode, productId }: ProductEditorProps) {
   const defaultValues: Partial<ProductFormValues> | undefined = product
     ? {
         sku: product.sku,
-        name: product.name,
+        title: product.title,
         brandId: product.brandId,
         category: product.category as ProductCategory,
         subcategory: product.subcategory ?? undefined,
         description: product.description ?? undefined,
         price: Number(product.price),
-        estimatedDurationDays: product.estimatedDurationDays ?? undefined,
+        replenishmentDays: product.replenishmentDays ?? undefined,
         images: product.images ?? [],
       }
     : undefined;

@@ -17,7 +17,9 @@ export function ShadeStep({
   onPickSwatch: (code: string) => void;
   onCustomChange: (v: string) => void;
 }) {
-  const options = parseShadeOptions(product.shadeOptions);
+  // Shade swatches now live on product_variants — until the variants endpoint
+  // is wired here, the picker falls back to the free-text input below.
+  const options = parseShadeOptions(undefined);
 
   return (
     <div className="space-y-5">
@@ -27,7 +29,7 @@ export function ShadeStep({
         </h3>
         <p className="text-[12px] text-muted-foreground">
           {product.brand?.displayName ? `${product.brand.displayName} · ` : ""}
-          {product.name}
+          {product.title}
         </p>
       </div>
 

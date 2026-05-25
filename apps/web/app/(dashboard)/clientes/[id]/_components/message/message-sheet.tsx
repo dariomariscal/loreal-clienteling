@@ -148,7 +148,7 @@ export function MessageSheet({
                 price > 0
                   ? `$${price.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`
                   : "";
-              return `• ${brand ? brand + " · " : ""}${p.name}${priceStr ? ` — ${priceStr}` : ""}`;
+              return `• ${brand ? brand + " · " : ""}${p.title}${priceStr ? ` — ${priceStr}` : ""}`;
             })
             .join("\n");
 

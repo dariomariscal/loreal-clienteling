@@ -4,6 +4,7 @@ import type {
   BulkCreateProducts,
   BulkImportResult,
   ProductSemanticSearchResult,
+  ProductStatus,
 } from "@loreal/contracts";
 
 export type { ProductSemanticSearchResult };
@@ -14,19 +15,18 @@ export interface Product {
   id: string;
   sku: string;
   brandId: string;
-  name: string;
+  title: string;
   category: string;
   subcategory: string | null;
   description: string | null;
   price: string;
   images: string[] | null;
   ingredients: string[] | null;
-  shadeOptions: Record<string, unknown> | null;
-  estimatedDurationDays: number | null;
+  replenishmentDays: number | null;
   technicalSheetUrl: string | null;
   tutorialUrl: string | null;
-  salesArgument: string | null;
-  active: boolean;
+  talkingPoints: string | null;
+  status: ProductStatus;
   createdAt: string;
   updatedAt: string;
   brand?: { id: string; displayName: string; code: string };

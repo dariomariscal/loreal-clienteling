@@ -63,7 +63,9 @@ export function ShadeSheet({
 
   function pickProduct(p: Product) {
     setProduct(p);
-    const options = parseShadeOptions(p.shadeOptions);
+    // Shade swatches now live on product_variants — the picker always falls
+    // back to the free-text input until variants are wired here.
+    const options = parseShadeOptions(undefined);
     if (options.length === 0) setShadeCode("");
     setStep("shade");
   }
@@ -109,7 +111,7 @@ export function ShadeSheet({
               {
                 active: step === "product",
                 done: !!product,
-                label: product?.name ?? "Producto",
+                label: product?.title ?? "Producto",
                 onClick: () => category && setStep("product"),
                 disabled: !category,
               },

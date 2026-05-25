@@ -74,19 +74,18 @@ export function ProductPicker({
         id: r.productId,
         sku: r.sku,
         brandId: r.brandId,
-        name: r.name,
+        title: r.name,
         category: r.category,
         subcategory: r.subcategory,
         description: null,
         price: r.price,
         images: null,
         ingredients: null,
-        shadeOptions: null,
-        estimatedDurationDays: null,
+        replenishmentDays: null,
         technicalSheetUrl: null,
         tutorialUrl: null,
-        salesArgument: null,
-        active: true,
+        talkingPoints: null,
+        status: "active",
         createdAt: "",
         updatedAt: "",
         brand: r.brandName
@@ -233,7 +232,7 @@ function ProductCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={image}
-              alt={product.name}
+              alt={product.title}
               className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover/card:scale-[1.03]"
               loading="lazy"
             />
@@ -261,7 +260,7 @@ function ProductCard({
             </p>
           )}
           <p className="line-clamp-2 font-heading text-[13px] leading-[1.3] text-foreground">
-            {product.name}
+            {product.title}
           </p>
           <div className="mt-auto flex items-center justify-between pt-1">
             <span className="text-[13px] font-medium tabular-nums text-foreground">

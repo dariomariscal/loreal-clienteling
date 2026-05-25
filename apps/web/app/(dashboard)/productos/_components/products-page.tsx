@@ -41,6 +41,18 @@ const CATEGORY_VARIANT: Record<string, "info" | "default" | "warning"> = {
   fragrance: "warning",
 };
 
+const STATUS_LABEL: Record<Product["status"], string> = {
+  active: "Activo",
+  draft: "Borrador",
+  archived: "Archivado",
+};
+
+const STATUS_VARIANT: Record<Product["status"], "success" | "warning" | "destructive"> = {
+  active: "success",
+  draft: "warning",
+  archived: "destructive",
+};
+
 interface ProductsPageProps {
   user: { role?: string | null };
 }
@@ -234,7 +246,7 @@ export function ProductsPage({ user }: ProductsPageProps) {
                         {p.images?.[0] ? (
                           <img
                             src={p.images[0]}
-                            alt={p.name}
+                            alt={p.title}
                             className="size-full object-cover"
                           />
                         ) : (
@@ -243,7 +255,7 @@ export function ProductsPage({ user }: ProductsPageProps) {
                           </div>
                         )}
                       </div>
-                      <span className="font-medium">{p.name}</span>
+                      <span className="font-medium">{p.title}</span>
                     </div>
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
@@ -266,10 +278,10 @@ export function ProductsPage({ user }: ProductsPageProps) {
                   </td>
                   <td className="px-3 py-2">
                     <Badge
-                      variant={p.active ? "success" : "destructive"}
+                      variant={STATUS_VARIANT[p.status]}
                       size="sm"
                     >
-                      {p.active ? "Activo" : "Inactivo"}
+                      {STATUS_LABEL[p.status]}
                     </Badge>
                   </td>
                 </tr>
@@ -296,7 +308,7 @@ export function ProductsPage({ user }: ProductsPageProps) {
           {previewProduct && (
             <>
               <SheetHeader>
-                <SheetTitle>{previewProduct.name}</SheetTitle>
+                <SheetTitle>{previewProduct.title}</SheetTitle>
               </SheetHeader>
               <SheetBody>
                 <ProductDetail
@@ -348,7 +360,7 @@ function ProductCard({
         {imageUrl ? (
           <img
             src={imageUrl}
-            alt={product.name}
+            alt={product.title}
             className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
@@ -380,9 +392,11 @@ function ProductCard({
           </button>
         )}
 
-        {!product.active && (
+        {product.status !== "active" && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-            <Badge variant="destructive">Inactivo</Badge>
+            <Badge variant={STATUS_VARIANT[product.status]}>
+              {STATUS_LABEL[product.status]}
+            </Badge>
           </div>
         )}
       </div>
@@ -392,7 +406,7 @@ function ProductCard({
           {brandName}
         </div>
         <h3 className="mb-1 line-clamp-2 text-sm font-medium leading-tight text-foreground">
-          {product.name}
+          {product.title}
         </h3>
         <div className="flex items-center justify-between">
           <span className="text-base font-semibold tabular-nums">
@@ -426,7 +440,7 @@ function ProductDetail({
           {imageUrl ? (
             <img
               src={imageUrl}
-              alt={product.name}
+              alt={product.title}
               className="size-full object-cover"
             />
           ) : (
@@ -439,7 +453,7 @@ function ProductDetail({
           <div className="mb-1 text-xs text-muted-foreground">
             {brandName} · {product.sku}
           </div>
-          <h3 className="mb-2 text-lg font-semibold">{product.name}</h3>
+          <h3 className="mb-2 text-lg font-semibold">{product.title}</h3>
           <div className="flex flex-wrap gap-2">
             <Badge variant={CATEGORY_VARIANT[product.category] ?? "secondary"}>
               {CATEGORY_LABEL[product.category] ?? product.category}
@@ -447,8 +461,8 @@ function ProductDetail({
             {product.subcategory && (
               <Badge variant="secondary">{product.subcategory}</Badge>
             )}
-            <Badge variant={product.active ? "success" : "destructive"} size="sm">
-              {product.active ? "Activo" : "Inactivo"}
+            <Badge variant={STATUS_VARIANT[product.status]} size="sm">
+              {STATUS_LABEL[product.status]}
             </Badge>
           </div>
           <div className="mt-2 text-2xl font-bold tabular-nums">
@@ -482,7 +496,7 @@ function ProductDetail({
               >
                 <img
                   src={img}
-                  alt={`${product.name} ${i + 1}`}
+                  alt={`${product.title} ${i + 1}`}
                   className="size-full object-cover"
                 />
               </div>

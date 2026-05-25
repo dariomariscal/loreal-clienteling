@@ -33,13 +33,13 @@ export function AttachmentList({
             ) : null}
           </span>
           <span className="max-w-[180px] truncate text-[12px] text-foreground">
-            {p.name}
+            {p.title}
           </span>
           <button
             type="button"
             onClick={() => onRemove(p)}
             disabled={disabled}
-            aria-label={`Quitar ${p.name}`}
+            aria-label={`Quitar ${p.title}`}
             className="ml-1 text-muted-foreground transition-colors hover:text-destructive"
           >
             <XIcon className="size-3" />

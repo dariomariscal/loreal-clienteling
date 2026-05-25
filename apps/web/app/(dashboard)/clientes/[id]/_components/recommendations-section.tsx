@@ -270,7 +270,7 @@ function RecommendationRow({
               </p>
             )}
             <p className="truncate font-heading text-[13px] leading-tight text-foreground">
-              {product?.name ?? recommendation.productId}
+              {product?.title ?? recommendation.productId}
             </p>
           </div>
           {converted && (

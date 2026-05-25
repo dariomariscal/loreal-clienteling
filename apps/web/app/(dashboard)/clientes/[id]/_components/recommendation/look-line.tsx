@@ -41,7 +41,7 @@ export function LookLine({
                 </p>
               )}
               <p className="truncate font-heading text-[13px] leading-tight text-foreground">
-                {line.product.name}
+                {line.product.title}
               </p>
             </div>
             <button
