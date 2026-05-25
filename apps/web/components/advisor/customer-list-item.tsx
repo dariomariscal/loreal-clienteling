@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import { CustomerAvatar } from "@/components/advisor/customer-avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatMoney, lifecycleMeta } from "@/components/advisor/customer-vocabulary";
 import type { CustomerListItem as CustomerListItemType } from "@/lib/hooks/use-customers";
 
 interface Props {
@@ -21,6 +22,7 @@ export function CustomerListItem({
 }: Props) {
   const fullName = `${customer.firstName} ${customer.lastName}`.trim();
   const hook = buildHook(customer);
+  const lifecycle = lifecycleMeta(customer.lifecycleStage);
   const isVip = customer.lifecycleStage === "vip";
 
   return (
@@ -51,9 +53,9 @@ export function CustomerListItem({
           ) : null}
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {customer.lifecycleStage}
+          {lifecycle.label}
           {customer.lastInteractionAt
-            ? ` · ${formatDistanceToNowStrict(new Date(customer.lastInteractionAt), { locale: es, addSuffix: false })}`
+            ? ` · hace ${formatDistanceToNowStrict(new Date(customer.lastInteractionAt), { locale: es, addSuffix: false })}`
             : ""}
         </p>
         {hook ? (
@@ -68,19 +70,9 @@ export function CustomerListItem({
 
 function buildHook(c: CustomerListItemType): string | null {
   if (c.orderCount && c.orderCount > 0 && c.ltv) {
-    return `${c.orderCount} órdenes · ${formatCurrency(c.ltv)}`;
+    return `${c.orderCount} compras · ${formatMoney(c.ltv)}`;
   }
   if (c.email) return c.email;
   if (c.phone) return c.phone;
   return null;
-}
-
-function formatCurrency(value: string): string {
-  const n = Number(value);
-  if (Number.isNaN(n)) return value;
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(n);
 }

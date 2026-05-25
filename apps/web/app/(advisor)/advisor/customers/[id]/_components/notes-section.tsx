@@ -32,7 +32,7 @@ export function NotesSection({ customerId }: Props) {
 
   return (
     <SectionCard
-      title="Notes"
+      title="Tus notas"
       action={
         !composing ? (
           <Button
@@ -41,7 +41,7 @@ export function NotesSection({ customerId }: Props) {
             onClick={() => setComposing(true)}
           >
             <PlusGlyph className="size-4" />
-            Add
+            Añadir
           </Button>
         ) : null
       }
@@ -51,7 +51,7 @@ export function NotesSection({ customerId }: Props) {
           <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Private note (only you can see this)"
+            placeholder="Nota privada — solo tú puedes verla"
             rows={3}
             autoFocus
           />
@@ -64,24 +64,24 @@ export function NotesSection({ customerId }: Props) {
                 setComposing(false);
               }}
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               size="sm"
               onClick={handleSave}
               disabled={createNote.isPending || !draft.trim()}
             >
-              Save
+              Guardar
             </Button>
           </div>
         </div>
       ) : null}
 
       {isLoading ? (
-        <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+        <p className="px-4 py-6 text-sm text-muted-foreground">Cargando…</p>
       ) : !data || data.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          No notes yet. Add private notes about preferences, conversations, or anything you want to remember.
+          Aún no tienes notas. Apunta preferencias, conversaciones o detalles que te ayuden a recordar a la clienta.
         </p>
       ) : (
         <ul className="divide-y divide-border">

@@ -37,12 +37,12 @@ export function TimelineSection({ customerId }: Props) {
     data?.pages.flatMap((p) => p.events) ?? [];
 
   return (
-    <SectionCard title="Timeline">
+    <SectionCard title="Historia con la clienta">
       {isLoading ? (
-        <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+        <p className="px-4 py-6 text-sm text-muted-foreground">Cargando…</p>
       ) : events.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          No activity yet.
+          Aún no hay actividad registrada.
         </p>
       ) : (
         <ol className="relative px-4 pt-2 pb-4">

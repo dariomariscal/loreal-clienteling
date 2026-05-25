@@ -13,12 +13,12 @@ export function WishlistSection({ customerId }: Props) {
   const items = data?.flatMap((w) => w.items ?? []) ?? [];
 
   return (
-    <SectionCard title="Wishlist">
+    <SectionCard title="Lista de deseos">
       {isLoading ? (
-        <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+        <p className="px-4 py-6 text-sm text-muted-foreground">Cargando…</p>
       ) : items.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          No items in wishlist.
+          Aún no ha guardado nada en su lista de deseos.
         </p>
       ) : (
         <ul className="divide-y divide-border">
@@ -27,7 +27,7 @@ export function WishlistSection({ customerId }: Props) {
               <div className="size-12 shrink-0 rounded-md bg-muted" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">
-                  Product #{item.productId.slice(0, 8)}
+                  Producto #{item.productId.slice(0, 8)}
                 </p>
                 {item.note ? (
                   <p className="truncate text-xs text-muted-foreground">

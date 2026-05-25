@@ -14,12 +14,12 @@ export function PurchaseHistorySection({ customerId }: Props) {
   const { data, isLoading } = useCustomerOrders(customerId);
 
   return (
-    <SectionCard title="Purchase history">
+    <SectionCard title="Compras anteriores">
       {isLoading ? (
-        <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+        <p className="px-4 py-6 text-sm text-muted-foreground">Cargando…</p>
       ) : !data || data.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          No orders yet.
+          Aún sin compras registradas.
         </p>
       ) : (
         <ul className="divide-y divide-border">

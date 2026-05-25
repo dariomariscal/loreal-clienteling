@@ -34,32 +34,32 @@ export function ActiveContextSection({ customerId }: Props) {
     recentSamples.length > 0;
 
   return (
-    <SectionCard title="Active">
+    <SectionCard title="Lo que está pasando">
       {!hasAny ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          Nothing active right now.
+          Por ahora no hay nada en curso con esta clienta.
         </p>
       ) : (
         <div className="flex flex-col gap-1 px-4 pt-2 pb-4">
           {upcomingAppointments.slice(0, 2).map((a) => (
             <Row
               key={a.id}
-              label="Appointment"
-              detail={`${format(new Date(a.startTime), "d MMM, HH:mm", { locale: es })} · ${a.durationMinutes} min`}
+              label="Próxima cita"
+              detail={`${format(new Date(a.startTime), "d MMM · HH:mm", { locale: es })} · ${a.durationMinutes} min`}
             />
           ))}
           {recentSamples.map((s) => (
             <Row
               key={s.id}
-              label="Sample"
-              detail={`${formatDistanceToNowStrict(new Date(s.deliveredAt), { locale: es, addSuffix: false })} ago${s.isConverted ? " · converted" : ""}`}
+              label="Muestra entregada"
+              detail={`hace ${formatDistanceToNowStrict(new Date(s.deliveredAt), { locale: es, addSuffix: false })}${s.isConverted ? " · se volvió compra" : ""}`}
             />
           ))}
           {recentMessages.map((m) => (
             <Row
               key={m.id}
-              label={`${m.direction === "outbound" ? "Sent" : "Received"} · ${m.channel}`}
-              detail={`${formatDistanceToNowStrict(new Date(m.sentAt), { locale: es, addSuffix: false })} ago — ${truncate(m.body, 60)}`}
+              label={`${m.direction === "outbound" ? "Le escribiste" : "Te escribió"} · ${m.channel}`}
+              detail={`hace ${formatDistanceToNowStrict(new Date(m.sentAt), { locale: es, addSuffix: false })} — ${truncate(m.body, 60)}`}
             />
           ))}
         </div>
