@@ -1,3 +1,5 @@
+import { useSignIn } from "@clerk/clerk-expo";
+import { useRouter } from "expo-router";
 import * as React from "react";
 import {
   KeyboardAvoidingView,
@@ -30,6 +32,35 @@ export default function SignInScreen() {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const isSplit = width >= SPLIT_BREAKPOINT;
+  const router = useRouter();
+  const { signIn, setActive, isLoaded } = useSignIn();
+
+  async function handleSignIn({
+    email,
+    password,
+  }: {
+    email: string;
+    password: string;
+  }) {
+    if (!isLoaded || !signIn) {
+      throw new Error("Sign-in no está listo todavía");
+    }
+
+    const attempt = await signIn.create({
+      identifier: email,
+      password,
+    });
+
+    if (attempt.status === "complete") {
+      await setActive({ session: attempt.createdSessionId });
+      router.replace("/(app)" as never);
+      return;
+    }
+
+    throw new Error(
+      `No se pudo iniciar sesión (estado: ${attempt.status}). Verifica tus credenciales.`,
+    );
+  }
 
   return (
     <SafeAreaView
@@ -72,9 +103,7 @@ export default function SignInScreen() {
                 </View>
 
                 <SignInForm
-                  onSubmit={(values) => {
-                    console.log("sign-in submit", values.email);
-                  }}
+                  onSubmit={handleSignIn}
                   onForgotPassword={() => console.log("forgot password")}
                 />
 

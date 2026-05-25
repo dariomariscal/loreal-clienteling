@@ -30,6 +30,12 @@ export function SignInForm({ onSubmit, onForgotPassword }: SignInFormProps) {
     setSubmitting(true);
     try {
       await onSubmit?.({ email: email.trim(), password });
+    } catch (err) {
+      const message =
+        (err as { errors?: { message?: string }[] })?.errors?.[0]?.message ??
+        (err as Error)?.message ??
+        "No se pudo iniciar sesión. Intenta de nuevo.";
+      setError(message);
     } finally {
       setSubmitting(false);
     }
