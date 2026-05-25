@@ -68,14 +68,17 @@ COPY apps/api/package.json ./apps/api/
 # the build stage so symlinks in node_modules resolve to real files.
 COPY --from=build /repo/packages/contracts/package.json ./packages/contracts/package.json
 COPY --from=build /repo/packages/contracts/dist ./packages/contracts/dist
+COPY --from=prod-deps /repo/packages/contracts/node_modules ./packages/contracts/node_modules
 COPY --from=build /repo/packages/database/package.json ./packages/database/package.json
 COPY --from=build /repo/packages/database/dist ./packages/database/dist
 # node_modules so the release_command (tsx migrate.ts) can resolve drizzle-orm + pg.
 COPY --from=prod-deps /repo/packages/database/node_modules ./packages/database/node_modules
 COPY --from=build /repo/packages/domain/package.json ./packages/domain/package.json
 COPY --from=build /repo/packages/domain/dist ./packages/domain/dist
+COPY --from=prod-deps /repo/packages/domain/node_modules ./packages/domain/node_modules
 COPY --from=build /repo/packages/utils/package.json ./packages/utils/package.json
 COPY --from=build /repo/packages/utils/dist ./packages/utils/dist
+COPY --from=prod-deps /repo/packages/utils/node_modules ./packages/utils/node_modules
 
 # Compiled API output + drizzle migrations (needed by release_command).
 COPY --from=build /repo/apps/api/dist ./apps/api/dist
