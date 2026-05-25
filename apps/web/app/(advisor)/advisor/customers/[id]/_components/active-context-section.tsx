@@ -70,11 +70,11 @@ export function ActiveContextSection({ customerId }: Props) {
 
 function Row({ label, detail }: { label: string; detail: string }) {
   return (
-    <div className="flex items-baseline gap-4 py-1.5">
-      <span className="w-32 shrink-0 text-xs tracking-wide uppercase text-muted-foreground">
+    <div className="grid grid-cols-[minmax(0,7rem)_1fr] items-baseline gap-x-4 gap-y-1 py-1.5">
+      <span className="text-xs tracking-wide uppercase text-muted-foreground">
         {label}
       </span>
-      <span className="flex-1 truncate text-sm text-foreground">{detail}</span>
+      <span className="min-w-0 text-sm text-foreground">{detail}</span>
     </div>
   );
 }

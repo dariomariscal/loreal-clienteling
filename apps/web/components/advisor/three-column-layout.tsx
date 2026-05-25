@@ -17,7 +17,7 @@ export function ThreeColumnLayout({
   detailClassName,
 }: ThreeColumnLayoutProps) {
   return (
-    <div className="grid h-full w-full grid-cols-1 md:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
+    <div className="grid h-full w-full grid-cols-1 md:grid-cols-[300px_1fr] lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
       <aside
         className={cn(
           "hidden md:flex flex-col overflow-hidden border-r border-[color:var(--ba-sidebar-border)] bg-background",

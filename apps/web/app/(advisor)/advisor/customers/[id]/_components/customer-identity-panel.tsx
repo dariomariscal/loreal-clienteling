@@ -35,19 +35,19 @@ export function CustomerIdentityPanel({ customer, onAction }: Props) {
   const { data: metrics } = useCustomerMetrics(customer.id);
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[color:var(--ba-sidebar)] text-[color:var(--ba-sidebar-foreground)]">
-      <div className="shrink-0 flex flex-col items-center px-6 pt-10 text-center">
+    <aside className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[color:var(--ba-sidebar)] text-[color:var(--ba-sidebar-foreground)]">
+      <div className="shrink-0 flex flex-col items-center px-4 pt-7 text-center lg:px-6 lg:pt-10">
         <CustomerAvatar
           firstName={customer.firstName}
           lastName={customer.lastName}
           avatarUrl={customer.avatarUrl}
           size="xl"
-          className="size-28 text-2xl"
+          className="size-20 text-xl lg:size-28 lg:text-2xl"
         />
-        <h1 className="mt-5 font-[var(--font-heading)] text-xl tracking-tight">
+        <h1 className="mt-4 font-[var(--font-heading)] text-base tracking-tight lg:mt-5 lg:text-xl">
           {fullName}
         </h1>
-        <p className="mt-2 font-[var(--font-heading)] text-2xl text-[color:var(--ba-accent)]">
+        <p className="mt-1.5 font-[var(--font-heading)] text-xl text-[color:var(--ba-accent)] lg:mt-2 lg:text-2xl">
           {formatMoney(Number(customer.totalSpent))}
         </p>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
@@ -61,7 +61,7 @@ export function CustomerIdentityPanel({ customer, onAction }: Props) {
       </div>
 
       <dl
-        className="ba-identity-scroll mt-8 min-h-0 flex-1 space-y-6 overflow-y-auto px-6 pb-6 text-left"
+        className="ba-identity-scroll mt-6 min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-6 text-left lg:mt-8 lg:space-y-6 lg:px-6"
         style={{
           scrollbarColor:
             "color-mix(in oklab, var(--ba-accent) 55%, transparent) transparent",
@@ -78,7 +78,9 @@ export function CustomerIdentityPanel({ customer, onAction }: Props) {
         ) : null}
         {customer.email ? (
           <Field label="Email">
-            <span className="text-[color:var(--ba-accent)]">{customer.email}</span>
+            <span className="block break-words text-[color:var(--ba-accent)]">
+              {customer.email}
+            </span>
           </Field>
         ) : null}
         {customer.phone ? <Field label="Teléfono">{customer.phone}</Field> : null}

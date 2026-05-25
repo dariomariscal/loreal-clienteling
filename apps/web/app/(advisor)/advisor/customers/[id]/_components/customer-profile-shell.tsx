@@ -108,7 +108,7 @@ export function CustomerProfileShell({ customerId, user }: Props) {
       ) : isError || !customer ? (
         <ShellState>No encontramos a esta clienta.</ShellState>
       ) : (
-        <div className="@container grid min-h-0 flex-1 grid-cols-[340px_1fr]">
+        <div className="grid min-h-0 flex-1 grid-cols-[260px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)]">
           <CustomerIdentityPanel
             customer={customer}
             onAction={handleQuickAction}
@@ -117,10 +117,10 @@ export function CustomerProfileShell({ customerId, user }: Props) {
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
-            className="flex h-full min-h-0 flex-col gap-0 bg-[color:var(--ba-surface)]"
+            className="@container flex h-full min-w-0 min-h-0 flex-col gap-0 bg-[color:var(--ba-surface)]"
           >
-            <div className="shrink-0 border-b border-border bg-background px-6 lg:px-10">
-              <TabsList className="border-b-0">
+            <div className="relative min-w-0 shrink-0 border-b border-border bg-background">
+              <TabsList className="border-b-0 px-4 lg:px-10">
                 {TABS.map((t) => (
                   <TabsTrigger key={t.key} value={t.key}>
                     {t.label}
@@ -128,10 +128,14 @@ export function CustomerProfileShell({ customerId, user }: Props) {
                 ))}
                 <TabsIndicator />
               </TabsList>
+              <span
+                aria-hidden
+                className="pointer-events-none absolute top-0 right-0 h-full w-6 bg-gradient-to-l from-background to-transparent lg:hidden"
+              />
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8 lg:px-10">
-              <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+            <div className="min-w-0 min-h-0 flex-1 overflow-y-auto px-4 py-6 lg:px-10 lg:py-8">
+              <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6">
                 <TabsContent value="overview" className="flex flex-col gap-6">
                   <CustomerKpiCards customerId={customerId} />
                   <ActiveContextSection customerId={customerId} />
