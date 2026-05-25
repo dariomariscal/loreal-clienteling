@@ -1,109 +1,255 @@
 import { useAuth } from "@clerk/clerk-expo";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import * as React from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 
+import {
+  DetailPane,
+  MasterList,
+  Sidebar,
+  SplitShell,
+  type MasterGroup,
+} from "@/components/layout";
 import { Button, Card, Text } from "@/components/ui";
+import {
+  findSection,
+  initialsFor,
+  PROFILE_GROUPS,
+  roleLabel,
+  type ProfileSectionId,
+} from "@/features/profile/sections";
+import { SectionView } from "@/features/profile/views";
 import { useMe } from "@/features/users/hooks";
-import { useTheme } from "@/theme";
+
+// Mi perfil — three-column iPad-landscape shell.
+// Sidebar: top-level app nav (only "Mi perfil" is wired for now).
+// Master:  index of the 11 profile sub-sections + identity anchor.
+// Detail:  the active sub-section's view (sticky header + grid body).
+
+const SIDEBAR_SECTIONS = [
+  {
+    items: [
+      { id: "today", label: "Hoy", icon: "home" as const },
+      { id: "clients", label: "Clientes", icon: "users" as const },
+      { id: "appointments", label: "Citas", icon: "calendar" as const },
+      { id: "catalog", label: "Catálogo", icon: "grid" as const },
+      { id: "lookbooks", label: "Lookbooks", icon: "bookmark" as const },
+      { id: "messages", label: "Mensajes", icon: "message" as const },
+      { id: "tasks", label: "Tareas", icon: "task" as const },
+    ],
+  },
+  {
+    eyebrow: "Administración",
+    items: [
+      { id: "store", label: "Tienda", icon: "store" as const },
+      { id: "team", label: "Equipo", icon: "team" as const },
+    ],
+  },
+];
+
+const SIDEBAR_FOOTER = [
+  { id: "profile", label: "Mi perfil", icon: "user" as const },
+  { id: "signout", label: "Cerrar sesión", icon: "signOut" as const },
+];
 
 export default function HomeScreen() {
-  const theme = useTheme();
   const { signOut } = useAuth();
   const { data, isLoading, error, refetch, isRefetching } = useMe();
 
+  const [activeSection, setActiveSection] =
+    React.useState<ProfileSectionId>("personal");
+  const [presenter, setPresenter] = React.useState(false);
+
+  const handleSidebar = React.useCallback(
+    (id: string) => {
+      if (id === "signout") {
+        signOut();
+        return;
+      }
+      // Only "profile" is wired; everything else is a placeholder.
+      // We stay on the profile shell regardless.
+    },
+    [signOut],
+  );
+
+  const masterGroups: MasterGroup[] = PROFILE_GROUPS.map((g) => ({
+    eyebrow: g.eyebrow,
+    items: g.items.map((i) => ({
+      id: i.id,
+      label: i.label,
+      icon: i.icon,
+    })),
+  }));
+
+  const sidebar = (
+    <Sidebar
+      sections={SIDEBAR_SECTIONS}
+      footer={SIDEBAR_FOOTER}
+      activeId="profile"
+      onSelect={handleSidebar}
+    />
+  );
+
+  if (isLoading) {
+    return (
+      <SplitShell
+        sidebar={sidebar}
+        master={
+          <MasterList
+            title="Mi perfil"
+            groups={masterGroups}
+            activeId={activeSection}
+            onSelect={(id) => setActiveSection(id as ProfileSectionId)}
+          />
+        }
+        detail={<LoadingDetail />}
+      />
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <SplitShell
+        sidebar={sidebar}
+        master={
+          <MasterList
+            title="Mi perfil"
+            groups={masterGroups}
+            activeId={activeSection}
+            onSelect={(id) => setActiveSection(id as ProfileSectionId)}
+          />
+        }
+        detail={
+          <ErrorDetail
+            message={
+              (error as { message?: string })?.message ??
+              "No se pudo cargar tu perfil."
+            }
+            onRetry={() => refetch()}
+            retrying={isRefetching}
+          />
+        }
+      />
+    );
+  }
+
+  const me = data;
+  const section = findSection(activeSection);
+
   return (
-    <SafeAreaView
-      edges={["top", "bottom"]}
-      style={[styles.root, { backgroundColor: theme.colors.background }]}
-    >
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text variant="eyebrow" color="foregroundMuted">
-            Beauty Advisor
-          </Text>
-          <Text variant="display" color="foreground" style={{ marginTop: 8 }}>
-            Mi perfil
-          </Text>
-        </View>
-
-        {isLoading ? (
-          <ActivityIndicator />
-        ) : error ? (
-          <Card>
-            <Text variant="body" color="foreground">
-              No se pudo cargar tu perfil.
-            </Text>
-            <Text
-              variant="caption"
-              color="foregroundMuted"
-              style={{ marginTop: 4 }}
-            >
-              {(error as { message?: string })?.message ?? "Error desconocido"}
-            </Text>
-            <Button
-              variant="secondary"
-              label="Reintentar"
-              onPress={() => refetch()}
-              style={{ marginTop: 12 }}
-            />
-          </Card>
-        ) : data ? (
-          <Card>
-            <Row label="Nombre" value={data.fullName} />
-            <Row label="Correo" value={data.email} />
-            <Row label="Rol" value={data.role} />
-            <Row label="Tienda" value={data.storeName ?? "—"} />
-            <Row label="Zona" value={data.zoneName ?? "—"} />
-            <Row label="Marca" value={data.brandName ?? "—"} />
-            <Row
-              label="Activo"
-              value={data.isActive ? "Sí" : "No"}
-            />
-          </Card>
-        ) : null}
-
-        <Button
-          variant="ghost"
-          label={isRefetching ? "Actualizando…" : "Actualizar"}
-          onPress={() => refetch()}
-          style={{ marginTop: 12 }}
-          disabled={isRefetching}
+    <SplitShell
+      sidebar={sidebar}
+      master={
+        <MasterList
+          title="Mi perfil"
+          identity={{
+            initials: initialsFor(me.fullName),
+            primary: me.fullName,
+            secondary: roleLabel(me.role),
+            tertiary: me.isActive ? "Activa" : "Inactiva",
+          }}
+          groups={masterGroups}
+          activeId={activeSection}
+          onSelect={(id) => setActiveSection(id as ProfileSectionId)}
         />
-
-        <Button
-          variant="secondary"
-          label="Cerrar sesión"
-          onPress={() => signOut()}
-          style={{ marginTop: 24 }}
-        />
-      </ScrollView>
-    </SafeAreaView>
+      }
+      detail={
+        <DetailPane
+          breadcrumb={["Mi perfil", section.breadcrumbGroup, section.label]}
+          title={section.label}
+          subtitle={subtitleFor(section.id)}
+          presenter={presenter}
+          onPresenterToggle={() => setPresenter((p) => !p)}
+          actions={[
+            {
+              id: "edit",
+              label: "Editar",
+              onPress: () => {},
+            },
+          ]}
+        >
+          <SectionView id={section.id} me={me} presenter={presenter} />
+        </DetailPane>
+      }
+    />
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function subtitleFor(id: ProfileSectionId): string {
+  switch (id) {
+    case "personal":
+      return "Tu identidad como Beauty Advisor dentro de L'Oréal.";
+    case "contact":
+      return "Cómo te contactan clientes, tienda y soporte.";
+    case "security":
+      return "Acceso a la app y sesiones activas.";
+    case "store":
+      return "Tienda asignada, equipo y zona en la que operas.";
+    case "brands":
+      return "Las marcas en las que puedes atender clientes.";
+    case "schedule":
+      return "Tu turno, descansos y disponibilidad.";
+    case "kpis":
+      return "Tu desempeño del mes en curso.";
+    case "recognitions":
+      return "Logros, programas y certificaciones.";
+    case "theme":
+      return "Cómo se ve la app en tu iPad.";
+    case "notifications":
+      return "Qué te notifica la app y cómo.";
+    case "language":
+      return "Idioma, formato y zona horaria.";
+  }
+}
+
+function LoadingDetail() {
   return (
-    <View style={styles.row}>
-      <Text variant="caption" color="foregroundMuted">
-        {label}
-      </Text>
-      <Text variant="body" color="foreground" style={{ marginTop: 2 }}>
-        {value}
-      </Text>
+    <View style={styles.fill}>
+      <ActivityIndicator />
+    </View>
+  );
+}
+
+function ErrorDetail({
+  message,
+  onRetry,
+  retrying,
+}: {
+  message: string;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  return (
+    <View style={styles.fill}>
+      <View style={{ maxWidth: 420 }}>
+        <Card>
+          <Text variant="title" color="foreground">
+            No se pudo cargar tu perfil
+          </Text>
+          <Text
+            variant="small"
+            color="foregroundMuted"
+            style={{ marginTop: 6 }}
+          >
+            {message}
+          </Text>
+          <Button
+            variant="primary"
+            label={retrying ? "Reintentando…" : "Reintentar"}
+            onPress={onRetry}
+            disabled={retrying}
+            style={{ marginTop: 16 }}
+          />
+        </Card>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: {
-    padding: 24,
-    gap: 12,
-  },
-  header: {
-    marginBottom: 16,
-  },
-  row: {
-    paddingVertical: 10,
+  fill: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
   },
 });
