@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { ROUTES } from "@/lib/constants";
+import { ADVISOR_HOME } from "@/lib/auth/home-for-role";
 import { SidebarProvider } from "@/components/dashboard/sidebar-context";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
@@ -20,6 +21,12 @@ export default async function DashboardLayout({
 
   if (!session.user.active) {
     redirect(ROUTES.SIGN_IN);
+  }
+
+  // Beauty Advisors live in the iPad-first /advisor shell — bounce them
+  // out of the desktop dashboard so they never land in the wrong surface.
+  if (session.user.role === "ba") {
+    redirect(ADVISOR_HOME);
   }
 
   return (
