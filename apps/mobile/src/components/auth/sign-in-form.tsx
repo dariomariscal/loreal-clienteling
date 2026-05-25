@@ -9,11 +9,9 @@ interface SignInFormProps {
   onForgotPassword?: () => void;
 }
 
-// Pure presentational form. No auth wiring — the parent screen decides
-// what happens on submit. Local state owns the field values and the
-// password-visibility toggle. Validation is intentionally minimal here
-// (presence only); real validation lives at the schema layer when the
-// backend is wired.
+// Pure presentational form. The parent screen decides what happens on
+// submit. Local state owns the field values and the password-visibility
+// toggle. Validation is intentionally minimal here (presence only).
 export function SignInForm({ onSubmit, onForgotPassword }: SignInFormProps) {
   const theme = useTheme();
 

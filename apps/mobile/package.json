@@ -11,14 +11,11 @@
     "lint": "expo lint"
   },
   "dependencies": {
-    "@better-auth/expo": "^1.6.10",
     "@expo/vector-icons": "^15.0.2",
-    "@loreal/contracts": "workspace:^",
     "@react-native-community/datetimepicker": "8.6.0",
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/elements": "^2.9.10",
     "@react-navigation/native": "^7.1.33",
-    "better-auth": "^1.6.10",
     "expo": "~55.0.17",
     "expo-constants": "~55.0.15",
     "expo-device": "~55.0.15",
@@ -28,7 +25,6 @@
     "expo-linking": "~55.0.14",
     "expo-network": "~55.0.13",
     "expo-router": "~55.0.13",
-    "expo-secure-store": "^55.0.13",
     "expo-splash-screen": "~55.0.19",
     "expo-status-bar": "~55.0.5",
     "expo-symbols": "~55.0.7",

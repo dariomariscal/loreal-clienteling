@@ -73,7 +73,6 @@ export default function SignInScreen() {
 
                 <SignInForm
                   onSubmit={(values) => {
-                    // Backend wiring pending. For now, just log.
                     console.log("sign-in submit", values.email);
                   }}
                   onForgotPassword={() => console.log("forgot password")}
