@@ -1,24 +1,24 @@
 "use client";
 
-import type { Communication } from "@/lib/hooks";
+import type { Message } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { CHANNELS, type ChannelValue } from "./constants";
 import { ChannelIcon } from "./icons";
 
 interface DayBucket {
   day: string;
-  comms: Communication[];
+  messages: Message[];
 }
 
-export function groupByDay(comms: Communication[]): DayBucket[] {
-  const buckets = new Map<string, Communication[]>();
-  for (const c of comms) {
-    const day = formatDayHeader(new Date(c.sentAt));
+export function groupByDay(messages: Message[]): DayBucket[] {
+  const buckets = new Map<string, Message[]>();
+  for (const m of messages) {
+    const day = formatDayHeader(new Date(m.sentAt));
     const arr = buckets.get(day) ?? [];
-    arr.push(c);
+    arr.push(m);
     buckets.set(day, arr);
   }
-  return Array.from(buckets.entries()).map(([day, comms]) => ({ day, comms }));
+  return Array.from(buckets.entries()).map(([day, messages]) => ({ day, messages }));
 }
 
 function formatDayHeader(date: Date): string {
@@ -43,21 +43,21 @@ function formatDayHeader(date: Date): string {
 }
 
 export function MessageThread({
-  comms,
+  messages,
   accent,
   customerName,
   loading,
   channel,
   hasConsent,
 }: {
-  comms: Communication[];
+  messages: Message[];
   accent: string;
   customerName: string;
   loading: boolean;
   channel: ChannelValue;
   hasConsent: boolean;
 }) {
-  const grouped = groupByDay(comms);
+  const grouped = groupByDay(messages);
 
   return (
     <div
@@ -86,7 +86,7 @@ export function MessageThread({
             <DayGroup
               key={g.day}
               day={g.day}
-              comms={g.comms}
+              messages={g.messages}
               accent={accent}
               customerName={customerName}
             />
@@ -99,12 +99,12 @@ export function MessageThread({
 
 function DayGroup({
   day,
-  comms,
+  messages,
   accent,
   customerName,
 }: {
   day: string;
-  comms: Communication[];
+  messages: Message[];
   accent: string;
   customerName: string;
 }) {
@@ -113,22 +113,22 @@ function DayGroup({
       <p className="text-center text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/70">
         {day}
       </p>
-      {comms.map((c) => (
-        <Bubble key={c.id} comm={c} accent={accent} customerName={customerName} />
+      {messages.map((m) => (
+        <Bubble key={m.id} message={m} accent={accent} customerName={customerName} />
       ))}
     </div>
   );
 }
 
 function Bubble({
-  comm,
+  message,
   accent,
 }: {
-  comm: Communication;
+  message: Message;
   accent: string;
   customerName: string;
 }) {
-  const time = new Date(comm.sentAt).toLocaleTimeString("es-MX", {
+  const time = new Date(message.sentAt).toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -136,19 +136,19 @@ function Bubble({
   return (
     <div className="flex justify-end">
       <div className="flex max-w-[78%] flex-col items-end gap-0.5">
-        {comm.subject && (
+        {message.subject && (
           <p className="px-3 text-[10px] font-medium text-muted-foreground">
-            {comm.subject}
+            {message.subject}
           </p>
         )}
         <div
           className="rounded-2xl px-3.5 py-2 text-sm leading-snug text-white shadow-sm"
           style={{ backgroundColor: accent }}
         >
-          <p className="whitespace-pre-wrap">{comm.body}</p>
+          <p className="whitespace-pre-wrap">{message.body}</p>
         </div>
         <div className="flex items-center gap-1.5 px-2 text-[10px] text-muted-foreground">
-          <DeliveryStatus comm={comm} />
+          <DeliveryStatus message={message} />
           <span>·</span>
           <time>{time}</time>
         </div>
@@ -157,10 +157,10 @@ function Bubble({
   );
 }
 
-function DeliveryStatus({ comm }: { comm: Communication }) {
-  if (comm.respondedAt) return <span className="text-success">Respondido</span>;
-  if (comm.readAt) return <span className="text-info">Leído</span>;
-  if (comm.deliveredAt) return <span>Entregado</span>;
+function DeliveryStatus({ message }: { message: Message }) {
+  if (message.respondedAt) return <span className="text-success">Respondido</span>;
+  if (message.readAt) return <span className="text-info">Leído</span>;
+  if (message.deliveredAt) return <span>Entregado</span>;
   return <span>Enviado</span>;
 }
 

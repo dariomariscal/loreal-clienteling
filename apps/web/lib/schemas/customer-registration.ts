@@ -59,7 +59,7 @@ export const registrationBasicsSchema = z
       .enum(GENDERS as [string, ...string[]])
       .optional()
       .or(z.literal("")),
-    birthDate: z.string().optional(),
+    birthday: z.string().optional(),
   })
   .refine((data) => Boolean(data.email) || Boolean(data.phone), {
     message: "Captura email o teléfono para poder contactarla",

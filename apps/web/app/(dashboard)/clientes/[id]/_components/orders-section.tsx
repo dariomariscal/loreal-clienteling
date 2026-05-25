@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useCustomerPurchases, type Purchase } from "@/lib/hooks";
+import { useCustomerOrders, type Order, type OrderLineItem } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,16 +20,16 @@ const SOURCE_VARIANT: Record<string, "default" | "info" | "secondary"> = {
   ecommerce: "secondary",
 };
 
-interface PurchasesSectionProps {
+interface OrdersSectionProps {
   customerId: string;
-  onNewPurchase?: () => void;
+  onNewOrder?: () => void;
 }
 
-export function PurchasesSection({
+export function OrdersSection({
   customerId,
-  onNewPurchase,
-}: PurchasesSectionProps) {
-  const { data: purchases = [], isLoading } = useCustomerPurchases(customerId);
+  onNewOrder,
+}: OrdersSectionProps) {
+  const { data: orders = [], isLoading } = useCustomerOrders(customerId);
 
   if (isLoading) {
     return (
@@ -44,15 +44,15 @@ export function PurchasesSection({
     );
   }
 
-  if (purchases.length === 0) {
+  if (orders.length === 0) {
     return (
       <EmptyState
         illustration={<TimelineIllustration />}
         title="Sin compras registradas"
         description="Cuando la clienta haga una compra, aparecerá aquí con el detalle de productos y montos."
         action={
-          onNewPurchase ? (
-            <Button onClick={onNewPurchase}>Registrar compra</Button>
+          onNewOrder ? (
+            <Button onClick={onNewOrder}>Registrar compra</Button>
           ) : undefined
         }
       />
@@ -61,13 +61,17 @@ export function PurchasesSection({
 
   // Aggregate totals at the top — a small "year-to-date" feel that mirrors
   // the editorial style. Cheap to compute client-side for one customer.
-  const total = purchases.reduce(
-    (sum, p) => sum + Number(p.totalAmount),
+  const total = orders.reduce(
+    (sum: number, p: Order) => sum + Number(p.totalPrice),
     0,
   );
-  const itemTotal = purchases.reduce(
-    (sum, p) =>
-      sum + (p.items?.reduce((s, i) => s + (i.quantity ?? 0), 0) ?? 0),
+  const itemTotal = orders.reduce(
+    (sum: number, p: Order) =>
+      sum +
+      (p.items?.reduce(
+        (s: number, i: OrderLineItem) => s + (i.quantity ?? 0),
+        0,
+      ) ?? 0),
     0,
   );
 
@@ -87,7 +91,7 @@ export function PurchasesSection({
           <div>
             <p className="text-[11px] uppercase tracking-wider">Compras</p>
             <p className="font-heading text-base text-foreground tabular-nums">
-              {purchases.length}
+              {orders.length}
             </p>
           </div>
           <div>
@@ -97,8 +101,8 @@ export function PurchasesSection({
             </p>
           </div>
         </div>
-        {onNewPurchase && (
-          <Button size="sm" onClick={onNewPurchase}>
+        {onNewOrder && (
+          <Button size="sm" onClick={onNewOrder}>
             Nueva compra
           </Button>
         )}
@@ -106,25 +110,28 @@ export function PurchasesSection({
 
       {/* Receipt list */}
       <ul className="space-y-2.5">
-        {purchases
+        {orders
           .slice()
           .sort(
-            (a, b) =>
-              new Date(b.purchasedAt).getTime() -
-              new Date(a.purchasedAt).getTime(),
+            (a: Order, b: Order) =>
+              new Date(b.processedAt).getTime() -
+              new Date(a.processedAt).getTime(),
           )
-          .map((p) => (
-            <PurchaseReceipt key={p.id} purchase={p} />
+          .map((p: Order) => (
+            <OrderReceipt key={p.id} order={p} />
           ))}
       </ul>
     </div>
   );
 }
 
-function PurchaseReceipt({ purchase }: { purchase: Purchase }) {
-  const date = new Date(purchase.purchasedAt);
+function OrderReceipt({ order }: { order: Order }) {
+  const date = new Date(order.processedAt);
   const itemCount =
-    purchase.items?.reduce((s, i) => s + (i.quantity ?? 0), 0) ?? 0;
+    order.items?.reduce(
+      (s: number, i: OrderLineItem) => s + (i.quantity ?? 0),
+      0,
+    ) ?? 0;
 
   return (
     <li
@@ -153,31 +160,31 @@ function PurchaseReceipt({ purchase }: { purchase: Purchase }) {
               : itemCount === 1
                 ? "1 producto"
                 : `${itemCount} productos`}
-            {purchase.posTransactionId
-              ? ` · Folio ${purchase.posTransactionId}`
+            {order.externalOrderId
+              ? ` · Folio ${order.externalOrderId}`
               : ""}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <span className="font-heading text-lg tabular-nums text-foreground">
             $
-            {Number(purchase.totalAmount).toLocaleString("es-MX", {
+            {Number(order.totalPrice).toLocaleString("es-MX", {
               minimumFractionDigits: 2,
             })}
           </span>
           <Badge
-            variant={SOURCE_VARIANT[purchase.source] ?? "secondary"}
+            variant={SOURCE_VARIANT[order.sourceName] ?? "secondary"}
             size="sm"
           >
-            {SOURCE_LABEL[purchase.source] ?? purchase.source}
+            {SOURCE_LABEL[order.sourceName] ?? order.sourceName}
           </Badge>
         </div>
       </div>
 
       {/* Item rows — compact list, no table chrome */}
-      {purchase.items && purchase.items.length > 0 && (
+      {order.items && order.items.length > 0 && (
         <ul className="mt-3 space-y-1 border-t border-border/30 pt-3 text-[12px]">
-          {purchase.items.map((it) => (
+          {order.items.map((it: OrderLineItem) => (
             <li
               key={it.id}
               className="flex items-baseline justify-between gap-3 text-muted-foreground"

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StoreFormSheet } from "./store-form-sheet";
 
-const CHAIN_LABEL: Record<string, string> = {
+const BANNER_LABEL: Record<string, string> = {
   liverpool: "Liverpool",
   palacio: "Palacio de Hierro",
   owned: "Boutique propia",
@@ -35,10 +35,10 @@ export function StoresPage({ user }: StoresPageProps) {
     { key: "code", label: "Código" },
     { key: "displayName", label: "Nombre" },
     {
-      key: "chain",
-      label: "Cadena",
+      key: "banner",
+      label: "Banner",
       render: (v) => (
-        <Badge variant="secondary">{CHAIN_LABEL[v as string] ?? (v as string)}</Badge>
+        <Badge variant="secondary">{BANNER_LABEL[v as string] ?? (v as string)}</Badge>
       ),
     },
     {

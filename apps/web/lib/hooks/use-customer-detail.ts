@@ -8,20 +8,23 @@ export interface BeautyProfile {
   customerId: string;
   skinType: string | null;
   skinTone: string | null;
-  skinSubtone: string | null;
+  undertone: string | null;
+  fitzpatrickScale: string | null;
   skinConcerns: string[] | null;
   preferredIngredients: string[] | null;
   avoidedIngredients: string[] | null;
-  fragrancePreferences: string[] | null;
+  hairType: string | null;
+  hairTexture: string | null;
+  hairColorCurrent: string | null;
+  fragranceFamilies: string[] | null;
   makeupPreferences: unknown;
-  routineType: string | null;
   interests: string[] | null;
   createdAt: string;
   updatedAt: string;
-  shades?: Shade[];
+  shades?: ShadeMatch[];
 }
 
-export interface Shade {
+export interface ShadeMatch {
   id: string;
   beautyProfileId: string;
   category: string;
@@ -30,28 +33,28 @@ export interface Shade {
   shadeCode: string;
   capturedAt: string;
   capturedByUserId: string;
-  productName: string | null;
+  productTitle: string | null;
   brandName: string | null;
   swatchHex: string | null;
 }
 
-export interface Purchase {
+export interface Order {
   id: string;
   customerId: string;
   storeId: string;
-  purchasedAt: string;
-  totalAmount: string;
-  posTransactionId: string | null;
-  source: string;
-  attributedBaUserId: string | null;
-  attributionReason: string | null;
+  processedAt: string;
+  totalPrice: string;
+  externalOrderId: string | null;
+  sourceName: string;
+  attributedUserId: string | null;
+  attributionSource: string | null;
   createdAt: string;
-  items?: PurchaseItem[];
+  items?: OrderLineItem[];
 }
 
-export interface PurchaseItem {
+export interface OrderLineItem {
   id: string;
-  purchaseId: string;
+  orderId: string;
   productId: string;
   sku: string;
   quantity: number;
@@ -62,35 +65,35 @@ export interface Recommendation {
   id: string;
   customerId: string;
   productId: string;
-  baUserId: string;
+  recommendedByUserId: string;
   storeId: string;
   recommendedAt: string;
   source: string;
   aiReasoning: string | null;
   notes: string | null;
-  visitReason: string | null;
-  convertedToPurchase: boolean;
-  conversionPurchaseId: string | null;
+  visitPurpose: string | null;
+  isConverted: boolean;
+  convertedOrderId: string | null;
 }
 
 export interface Sample {
   id: string;
   customerId: string;
   productId: string;
-  baUserId: string;
+  deliveredByUserId: string;
   storeId: string;
   deliveredAt: string;
-  convertedToPurchase: boolean;
-  conversionPurchaseId: string | null;
+  isConverted: boolean;
+  convertedOrderId: string | null;
 }
 
 /**
- * Communication row as returned by the API. Mirrors the DB shape in
+ * Message row as returned by the API. Mirrors the DB shape in
  * @loreal/database, but timestamps land as ISO strings (JSON serialization),
  * not Date objects — the contract type uses Date because it's the modeled
  * shape, the wire shape is string.
  */
-export interface Communication {
+export interface Message {
   id: string;
   customerId: string;
   sentByUserId: string | null;
@@ -106,11 +109,11 @@ export interface Communication {
     | "received";
   fromAddress: string | null;
   toAddress: string | null;
-  externalId: string | null;
+  providerMessageId: string | null;
   templateId: string | null;
   subject: string | null;
   body: string;
-  followupType: string | null;
+  campaignType: string | null;
   failureReason: string | null;
   sentAt: string;
   deliveredAt: string | null;
@@ -133,10 +136,10 @@ export interface Consent {
 
 const detailKeys = {
   beauty: (id: string) => ["customers", id, "beauty-profile"] as const,
-  purchases: (id: string) => ["customers", id, "purchases"] as const,
+  orders: (id: string) => ["customers", id, "orders"] as const,
   recommendations: (id: string) => ["customers", id, "recommendations"] as const,
   samples: (id: string) => ["customers", id, "samples"] as const,
-  communications: (id: string) => ["customers", id, "communications"] as const,
+  messages: (id: string) => ["customers", id, "messages"] as const,
   consents: (id: string) => ["customers", id, "consents"] as const,
 };
 
@@ -181,19 +184,19 @@ export function useAddShade() {
       brandId: string;
       productId: string;
       shadeCode: string;
-    }) => api.post<Shade>(`/customers/${customerId}/shades`, data),
+    }) => api.post<ShadeMatch>(`/customers/${customerId}/shades`, data),
     onSuccess: (_, { customerId }) =>
       qc.invalidateQueries({ queryKey: detailKeys.beauty(customerId) }),
   });
 }
 
-// ── Purchases ──────────────────────────────────────────────────────
+// ── Orders ─────────────────────────────────────────────────────────
 
-export function useCustomerPurchases(customerId: string) {
+export function useCustomerOrders(customerId: string) {
   return useQuery({
-    queryKey: detailKeys.purchases(customerId),
+    queryKey: detailKeys.orders(customerId),
     queryFn: () =>
-      api.get<Purchase[]>(`/customers/${customerId}/purchases`),
+      api.get<Order[]>(`/customers/${customerId}/orders`),
     enabled: !!customerId,
   });
 }
@@ -222,14 +225,14 @@ export function useCustomerSamples(customerId: string) {
   });
 }
 
-// ── Communications ─────────────────────────────────────────────────
+// ── Messages ───────────────────────────────────────────────────────
 
-export function useCustomerCommunications(customerId: string) {
+export function useCustomerMessages(customerId: string) {
   return useQuery({
-    queryKey: detailKeys.communications(customerId),
+    queryKey: detailKeys.messages(customerId),
     queryFn: () =>
-      api.get<Communication[]>(
-        `/customers/${customerId}/communications`,
+      api.get<Message[]>(
+        `/customers/${customerId}/messages`,
       ),
     enabled: !!customerId,
   });
@@ -278,27 +281,27 @@ export function useRevokeConsent() {
   });
 }
 
-// ── Purchase mutation ──────────────────────────────────────────────
+// ── Order mutation ─────────────────────────────────────────────────
 
-export interface CreatePurchaseItem {
+export interface CreateOrderLineItem {
   productId: string;
   sku: string;
   quantity: number;
   unitPrice: number;
 }
 
-export function useCreatePurchase() {
+export function useCreateOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: {
       customerId: string;
-      source: string;
-      items: CreatePurchaseItem[];
-      totalAmount: number;
-      posTransactionId?: string;
-    }) => api.post<Purchase>("/purchases", data),
+      sourceName: string;
+      items: CreateOrderLineItem[];
+      totalPrice: number;
+      externalOrderId?: string;
+    }) => api.post<Order>("/orders", data),
     onSuccess: (_, { customerId }) => {
-      qc.invalidateQueries({ queryKey: detailKeys.purchases(customerId) });
+      qc.invalidateQueries({ queryKey: detailKeys.orders(customerId) });
       qc.invalidateQueries({ queryKey: detailKeys.recommendations(customerId) });
       qc.invalidateQueries({ queryKey: ["customers", customerId] });
     },
@@ -314,7 +317,7 @@ export function useCreateRecommendation() {
       customerId: string;
       productId: string;
       source: string;
-      visitReason?: string;
+      visitPurpose?: string;
       notes?: string;
       aiReasoning?: string;
     }) => api.post<Recommendation>("/recommendations", data),

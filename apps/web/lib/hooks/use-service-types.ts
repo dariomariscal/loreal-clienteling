@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 
-export interface AppointmentEventType {
+export interface ServiceType {
   id: string;
   code: string;
   displayName: string;
@@ -12,18 +12,18 @@ export interface AppointmentEventType {
   maxCapacity: number | null;
   requiresConfirmation: boolean;
   sortOrder: number;
-  active: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-const eventTypeKeys = {
-  all: ["appointment-event-types"] as const,
+const serviceTypeKeys = {
+  all: ["service-types"] as const,
 };
 
-export function useAppointmentEventTypes() {
+export function useServiceTypes() {
   return useQuery({
-    queryKey: eventTypeKeys.all,
-    queryFn: () => api.get<AppointmentEventType[]>("/appointment-event-types"),
+    queryKey: serviceTypeKeys.all,
+    queryFn: () => api.get<ServiceType[]>("/service-types"),
   });
 }

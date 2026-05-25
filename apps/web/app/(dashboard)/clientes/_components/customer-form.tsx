@@ -34,7 +34,7 @@ const customerFormSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().min(10).max(15).optional().or(z.literal("")),
   gender: z.enum(GENDERS as [string, ...string[]]).optional().or(z.literal("")),
-  birthDate: z.string().optional(),
+  birthday: z.string().optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -57,7 +57,7 @@ export function CustomerForm({
   onSubmit,
   isPending,
 }: CustomerFormProps) {
-  const birthDateStr = toBirthDateStr(defaultValues?.birthDate);
+  const birthdayStr = toBirthDateStr(defaultValues?.birthday);
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
@@ -67,7 +67,7 @@ export function CustomerForm({
       email: (defaultValues?.email as string) ?? "",
       phone: (defaultValues?.phone as string) ?? "",
       gender: (defaultValues?.gender as string) ?? "",
-      birthDate: birthDateStr,
+      birthday: birthdayStr,
     },
   });
 
@@ -79,7 +79,7 @@ export function CustomerForm({
     if (data.email) cleaned.email = data.email;
     if (data.phone) cleaned.phone = data.phone;
     if (data.gender) cleaned.gender = data.gender;
-    if (data.birthDate) cleaned.birthDate = data.birthDate;
+    if (data.birthday) cleaned.birthday = data.birthday;
     onSubmit(cleaned as unknown as CreateCustomer);
   }
 
@@ -187,7 +187,7 @@ export function CustomerForm({
 
           <FormField
             control={form.control}
-            name="birthDate"
+            name="birthday"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Fecha de nacimiento</FormLabel>

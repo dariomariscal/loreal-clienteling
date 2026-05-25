@@ -37,7 +37,7 @@ export function GlobalCreateSheets({ userId }: GlobalCreateSheetsProps) {
       <AppointmentSheet
         open={openEntity === "appointment"}
         onOpenChange={(o) => !o && close()}
-        baUserId={userId}
+        staffUserId={userId}
       />
       {/* Product sheet — pending full-page refactor */}
     </>

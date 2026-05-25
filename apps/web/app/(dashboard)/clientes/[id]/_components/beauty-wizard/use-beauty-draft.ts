@@ -6,12 +6,11 @@ import type { BeautyProfile } from "@/lib/hooks/use-customer-detail";
 export interface Draft {
   skinType: string | null;
   skinTone: string | null;
-  skinSubtone: string | null;
+  undertone: string | null;
   skinConcerns: string[];
   preferredIngredients: string[];
   avoidedIngredients: string[];
-  fragrancePreferences: string[];
-  routineType: string | null;
+  fragranceFamilies: string[];
   interests: string[];
 }
 
@@ -19,12 +18,11 @@ function emptyDraft(): Draft {
   return {
     skinType: null,
     skinTone: null,
-    skinSubtone: null,
+    undertone: null,
     skinConcerns: [],
     preferredIngredients: [],
     avoidedIngredients: [],
-    fragrancePreferences: [],
-    routineType: null,
+    fragranceFamilies: [],
     interests: [],
   };
 }
@@ -34,12 +32,11 @@ function toDraft(profile: BeautyProfile | null): Draft {
   return {
     skinType: profile.skinType ?? null,
     skinTone: profile.skinTone ?? null,
-    skinSubtone: profile.skinSubtone ?? null,
+    undertone: profile.undertone ?? null,
     skinConcerns: profile.skinConcerns ?? [],
     preferredIngredients: profile.preferredIngredients ?? [],
     avoidedIngredients: profile.avoidedIngredients ?? [],
-    fragrancePreferences: profile.fragrancePreferences ?? [],
-    routineType: profile.routineType ?? null,
+    fragranceFamilies: profile.fragranceFamilies ?? [],
     interests: profile.interests ?? [],
   };
 }

@@ -51,7 +51,7 @@ export function CustomerRegistrationStepBasics({
       email: defaultValues.email ?? "",
       phone: defaultValues.phone ?? "",
       gender: defaultValues.gender ?? "",
-      birthDate: defaultValues.birthDate ?? "",
+      birthday: defaultValues.birthday ?? "",
     },
     mode: "onBlur",
   });
@@ -175,7 +175,7 @@ export function CustomerRegistrationStepBasics({
 
           <FormField
             control={form.control}
-            name="birthDate"
+            name="birthday"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Fecha de nacimiento</FormLabel>

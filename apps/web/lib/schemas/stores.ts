@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { STORE_CHAINS } from "@loreal/contracts";
+import { STORE_BANNERS } from "@loreal/contracts";
 
 const hoursMapSchema = z.record(z.string(), z.string()).optional();
 
@@ -12,7 +12,7 @@ export const storeHoursSchema = z.object({
 export const createStoreSchema = z.object({
   code: z.string().min(1).max(50),
   displayName: z.string().min(1).max(200),
-  chain: z.enum(STORE_CHAINS as [string, ...string[]]),
+  banner: z.enum(STORE_BANNERS as [string, ...string[]]),
   zoneId: z.string().uuid().optional(),
   address: z.string().max(300).optional(),
   city: z.string().max(100).optional(),

@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BackGlyph } from "@/components/ui/glyphs";
 import { Avatar } from "@/components/ui/avatar";
-import { useCustomer, useCustomerCommunications } from "@/lib/hooks";
+import { useCustomer, useCustomerMessages } from "@/lib/hooks";
 import { useGenerateMessageSuggestions } from "@/lib/hooks/use-ai";
-import { useCreateCommunication } from "@/lib/hooks";
+import { useCreateMessage, type Message } from "@/lib/hooks";
 import type { MessageSuggestion } from "@loreal/contracts";
 
 interface MessagesScreenProps {
@@ -31,8 +31,8 @@ interface MessagesScreenProps {
 export function MessagesScreen({ customerId }: MessagesScreenProps) {
   const router = useRouter();
   const customer = useCustomer(customerId);
-  const comms = useCustomerCommunications(customerId);
-  const sendMessage = useCreateCommunication();
+  const messagesQuery = useCustomerMessages(customerId);
+  const sendMessage = useCreateMessage();
   const generateSuggestions = useGenerateMessageSuggestions();
 
   const [draft, setDraft] = React.useState("");
@@ -47,7 +47,7 @@ export function MessagesScreen({ customerId }: MessagesScreenProps) {
   // jerky between messages from the same burst.
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [comms.data, pending]);
+  }, [messagesQuery.data, pending]);
 
   // Generate suggestions once, on mount.
   React.useEffect(() => {
@@ -72,10 +72,10 @@ export function MessagesScreen({ customerId }: MessagesScreenProps) {
         channel: "whatsapp",
         body,
         direction: "outbound",
-        followupType: "custom",
+        campaignType: "custom",
       });
       // Once the server has it, drop the optimistic bubble — the real
-      // one will arrive via the comms list refetch.
+      // one will arrive via the messages list refetch.
       setPending((prev) => prev.filter((p) => p.id !== tempId));
     } catch {
       setPending((prev) =>
@@ -88,7 +88,7 @@ export function MessagesScreen({ customerId }: MessagesScreenProps) {
     setDraft(suggestion.text);
   }
 
-  const messages = sortMessages(comms.data ?? []);
+  const messages: Message[] = sortMessages(messagesQuery.data ?? []);
 
   return (
     <div className="flex h-full flex-col">
@@ -125,7 +125,7 @@ export function MessagesScreen({ customerId }: MessagesScreenProps) {
       {/* Scrollable conversation */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <div className="mx-auto max-w-2xl space-y-2">
-          {comms.isLoading ? (
+          {messagesQuery.isLoading ? (
             <ConversationSkeleton />
           ) : messages.length === 0 && pending.length === 0 ? (
             <EmptyConversation customerFirstName={customerFirstName} />

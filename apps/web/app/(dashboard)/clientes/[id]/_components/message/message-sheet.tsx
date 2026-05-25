@@ -2,14 +2,15 @@
 
 import * as React from "react";
 import {
-  useCustomerCommunications,
-  useCreateCommunication,
+  useCustomerMessages,
+  useCreateMessage,
   useCustomerConsents,
   useTemplates,
+  type Message,
   type MessageTemplate,
   type Product,
 } from "@/lib/hooks";
-import type { FollowupType } from "@loreal/contracts";
+import type { CampaignType } from "@loreal/contracts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   CHANNELS,
-  FOLLOWUP_TYPES,
+  CAMPAIGN_TYPES,
   composerPlaceholder,
   type ChannelValue,
 } from "./constants";
@@ -55,24 +56,24 @@ export function MessageSheet({
   const [channel, setChannel] = React.useState<ChannelValue>("whatsapp");
   const [body, setBody] = React.useState("");
   const [subject, setSubject] = React.useState("");
-  const [followupType, setFollowupType] = React.useState<FollowupType>("custom");
+  const [campaignType, setCampaignType] = React.useState<CampaignType>("custom");
   const [attachments, setAttachments] = React.useState<Product[]>([]);
   const [pickerOpen, setPickerOpen] = React.useState(false);
 
-  const { data: comms = [], isLoading: commsLoading } =
-    useCustomerCommunications(customerId);
+  const { data: messages = [], isLoading: messagesLoading } =
+    useCustomerMessages(customerId);
   const { data: consents = [] } = useCustomerConsents(customerId);
   const { data: templates = [] } = useTemplates();
-  const createComm = useCreateCommunication();
+  const createMessage = useCreateMessage();
 
   React.useEffect(() => {
     if (open) {
       setBody("");
       setSubject("");
-      setFollowupType("custom");
+      setCampaignType("custom");
       setAttachments([]);
       setPickerOpen(false);
-      createComm.reset();
+      createMessage.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -97,39 +98,39 @@ export function MessageSheet({
   const channelMeta = CHANNELS.find((c) => c.value === channel)!;
   const hasConsent = activeConsents.has(channelMeta.consentType);
 
-  // Templates for the current channel, sorted so the active followup type
+  // Templates for the current channel, sorted so the active campaign type
   // is one tap away.
   const channelTemplates = React.useMemo(
     () =>
       templates
-        .filter((t) => t.active && t.channel === channel)
-        .sort((a, b) => {
-          if (a.followupType === followupType) return -1;
-          if (b.followupType === followupType) return 1;
+        .filter((t: MessageTemplate) => t.isActive && t.channel === channel)
+        .sort((a: MessageTemplate, b: MessageTemplate) => {
+          if (a.campaignType === campaignType) return -1;
+          if (b.campaignType === campaignType) return 1;
           return 0;
         }),
-    [templates, channel, followupType],
+    [templates, channel, campaignType],
   );
 
-  const channelComms = React.useMemo(
+  const channelMessages = React.useMemo(
     () =>
-      comms
-        .filter((c) => c.channel === channel)
+      messages
+        .filter((c: Message) => c.channel === channel)
         .sort(
-          (a, b) =>
+          (a: Message, b: Message) =>
             new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
         ),
-    [comms, channel],
+    [messages, channel],
   );
 
   function applyTemplate(t: MessageTemplate) {
     setBody(t.body);
-    setFollowupType(t.followupType as FollowupType);
+    setCampaignType(t.campaignType as CampaignType);
   }
 
   function handleSend() {
     const trimmed = body.trim();
-    if (!hasConsent || createComm.isPending) return;
+    if (!hasConsent || createMessage.isPending) return;
     if (!trimmed && attachments.length === 0) return;
 
     // Compose final payload: prose + a readable block of attached products.
@@ -153,12 +154,12 @@ export function MessageSheet({
 
     const finalBody = (trimmed + productLines).slice(0, 5000) || trimmed;
 
-    createComm.mutate(
+    createMessage.mutate(
       {
         customerId,
         channel,
         body: finalBody,
-        followupType,
+        campaignType,
         ...(channel === "email" && subject.trim()
           ? { subject: subject.trim().slice(0, 200) }
           : {}),
@@ -176,7 +177,7 @@ export function MessageSheet({
   const canSend =
     (body.trim().length > 0 || attachments.length > 0) &&
     hasConsent &&
-    !createComm.isPending;
+    !createMessage.isPending;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -195,10 +196,10 @@ export function MessageSheet({
         />
 
         <MessageThread
-          comms={channelComms}
+          messages={channelMessages}
           accent={channelMeta.accent}
           customerName={customerName}
-          loading={commsLoading}
+          loading={messagesLoading}
           channel={channel}
           hasConsent={hasConsent}
         />
@@ -218,7 +219,7 @@ export function MessageSheet({
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Asunto"
-              disabled={createComm.isPending || !hasConsent}
+              disabled={createMessage.isPending || !hasConsent}
               maxLength={200}
               className={cn(
                 "h-9 w-full rounded-lg border border-border bg-transparent px-3 text-sm outline-none",
@@ -231,7 +232,7 @@ export function MessageSheet({
 
           <AttachmentList
             attachments={attachments}
-            disabled={createComm.isPending}
+            disabled={createMessage.isPending}
             onRemove={toggleAttachment}
           />
 
@@ -239,7 +240,7 @@ export function MessageSheet({
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
-              disabled={createComm.isPending || !hasConsent}
+              disabled={createMessage.isPending || !hasConsent}
               aria-label="Adjuntar producto"
               className={cn(
                 "flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-all",
@@ -258,7 +259,7 @@ export function MessageSheet({
                 placeholder={composerPlaceholder(channel)}
                 rows={2}
                 maxLength={5000}
-                disabled={createComm.isPending || !hasConsent}
+                disabled={createMessage.isPending || !hasConsent}
                 className={cn(
                   "w-full resize-none rounded-2xl border border-border bg-transparent px-3.5 py-2.5 text-sm leading-snug outline-none transition-colors",
                   "placeholder:text-muted-foreground/50",
@@ -275,7 +276,7 @@ export function MessageSheet({
               className="shrink-0 rounded-full"
               style={canSend ? { backgroundColor: channelMeta.accent } : undefined}
             >
-              {createComm.isPending ? (
+              {createMessage.isPending ? (
                 <span className="text-[10px]">…</span>
               ) : (
                 <SendIcon className="size-4" />
@@ -286,14 +287,14 @@ export function MessageSheet({
           <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
             <span className="uppercase tracking-widest">Tipo</span>
             <div className="flex flex-wrap gap-1">
-              {FOLLOWUP_TYPES.map((f) => {
-                const active = followupType === f.value;
+              {CAMPAIGN_TYPES.map((f) => {
+                const active = campaignType === f.value;
                 return (
                   <button
                     key={f.value}
                     type="button"
-                    onClick={() => setFollowupType(f.value)}
-                    disabled={createComm.isPending || !hasConsent}
+                    onClick={() => setCampaignType(f.value)}
+                    disabled={createMessage.isPending || !hasConsent}
                     className={cn(
                       "rounded-full px-2 py-0.5 text-[10px] transition-colors",
                       active
@@ -308,7 +309,7 @@ export function MessageSheet({
             </div>
           </div>
 
-          {createComm.isError && (
+          {createMessage.isError && (
             <Badge variant="destructive" className="w-full justify-center">
               No se pudo enviar el mensaje. Intenta otra vez.
             </Badge>

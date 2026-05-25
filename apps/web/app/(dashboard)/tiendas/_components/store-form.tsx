@@ -6,7 +6,7 @@ import { MapPinGlyph } from "@/components/ui/glyphs";
 import {
   type CreateStore,
   type StoreHours,
-  STORE_CHAINS,
+  STORE_BANNERS,
 } from "@loreal/contracts";
 import { createStoreSchema } from "@/lib/schemas/stores";
 import { useZoneByPoint, type Brand } from "@/lib/hooks";
@@ -32,7 +32,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-const CHAIN_LABELS: Record<string, string> = {
+const BANNER_LABELS: Record<string, string> = {
   liverpool: "Liverpool",
   palacio: "Palacio de Hierro",
   owned: "Boutique propia",
@@ -92,7 +92,7 @@ export function StoreForm({
     defaultValues: {
       code: defaultValues?.code ?? "",
       displayName: defaultValues?.displayName ?? "",
-      chain: defaultValues?.chain ?? STORE_CHAINS[0],
+      banner: defaultValues?.banner ?? STORE_BANNERS[0],
       address: defaultValues?.address ?? "",
       city: defaultValues?.city ?? "",
       state: defaultValues?.state ?? "",
@@ -204,7 +204,7 @@ export function StoreForm({
 
         <FormField
           control={form.control}
-          name="chain"
+          name="banner"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Cadena</FormLabel>
@@ -212,14 +212,14 @@ export function StoreForm({
                 <FormControl>
                   <SelectTrigger disabled={isPending}>
                     <SelectValue placeholder="Seleccionar cadena">
-                      {field.value ? CHAIN_LABELS[field.value] ?? field.value : undefined}
+                      {field.value ? BANNER_LABELS[field.value] ?? field.value : undefined}
                     </SelectValue>
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {STORE_CHAINS.map((chain) => (
-                    <SelectItem key={chain} value={chain}>
-                      {CHAIN_LABELS[chain] ?? chain}
+                  {STORE_BANNERS.map((banner: string) => (
+                    <SelectItem key={banner} value={banner}>
+                      {BANNER_LABELS[banner] ?? banner}
                     </SelectItem>
                   ))}
                 </SelectContent>

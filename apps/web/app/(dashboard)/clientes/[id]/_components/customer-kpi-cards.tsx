@@ -49,7 +49,7 @@ export function CustomerKpiCards({
       <KpiCard
         label="Compras"
         loading={isLoading}
-        value={data?.purchaseCount ?? 0}
+        value={data?.ordersCount ?? 0}
       />
       <KpiCard
         label="Citas"

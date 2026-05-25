@@ -233,7 +233,7 @@ function LexicalResultRow({
   customer: Customer;
   onSelect: () => void;
 }) {
-  const lastContactLabel = formatDaysAgo(customer.lastContactAt);
+  const lastContactLabel = formatDaysAgo(customer.lastInteractionAt);
   return (
     <li>
       <button

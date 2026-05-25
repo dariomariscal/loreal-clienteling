@@ -16,10 +16,10 @@ export type AppointmentRowEmphasis = "next" | "current" | "default";
 interface AppointmentRowProps {
   customerId: string;
   customerName: string;
-  scheduledAt: string;
+  startTime: string;
   durationMinutes: number;
-  eventTypeName: string | null;
-  eventTypeColor: string | null;
+  serviceTypeName: string | null;
+  serviceTypeColor: string | null;
   isVirtual?: boolean;
   status?: AppointmentRowStatus;
   emphasis?: AppointmentRowEmphasis;
@@ -42,10 +42,10 @@ interface AppointmentRowProps {
 export function AppointmentRow({
   customerId,
   customerName,
-  scheduledAt,
+  startTime,
   durationMinutes,
-  eventTypeName,
-  eventTypeColor,
+  serviceTypeName,
+  serviceTypeColor,
   isVirtual,
   status = "confirmed",
   emphasis = "default",
@@ -71,8 +71,8 @@ export function AppointmentRow({
       ) : null}
 
       <TimePill
-        iso={scheduledAt}
-        color={eventTypeColor}
+        iso={startTime}
+        color={serviceTypeColor}
         durationMinutes={durationMinutes}
         variant="vertical"
       />
@@ -85,7 +85,7 @@ export function AppointmentRow({
           {customerName}
         </p>
         <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-          {eventTypeName ?? "Cita"}
+          {serviceTypeName ?? "Cita"}
           {isVirtual ? " · virtual" : ""}
         </p>
       </div>

@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   type CreateTemplate,
   COMMUNICATION_CHANNELS,
-  FOLLOWUP_TYPES,
+  CAMPAIGN_TYPES,
 } from "@loreal/contracts";
 import { createTemplateSchema } from "@/lib/schemas/templates";
 import { Input } from "@/components/ui/input";
@@ -29,9 +29,17 @@ import {
 import type { Brand } from "@/lib/hooks";
 
 const CHANNEL_LABELS: Record<string, string> = { whatsapp: "WhatsApp", sms: "SMS", email: "Email" };
-const FOLLOWUP_LABELS: Record<string, string> = {
-  "3_months": "3 meses", "6_months": "6 meses", birthday: "Cumpleaños",
-  replenishment: "Reposición", special_event: "Evento especial", custom: "Personalizado",
+const CAMPAIGN_LABELS: Record<string, string> = {
+  birthday: "Cumpleaños",
+  replenishment: "Reposición",
+  win_back: "Recuperación",
+  new_launch: "Nuevo lanzamiento",
+  post_purchase: "Post-compra",
+  appointment_reminder: "Recordatorio de cita",
+  abandoned_cart: "Carrito abandonado",
+  special_event: "Evento especial",
+  manual: "Manual",
+  custom: "Personalizado",
 };
 
 interface TemplateFormProps {
@@ -50,7 +58,7 @@ export function TemplateForm({ defaultValues, brands, onSubmit, isPending }: Tem
       name: defaultValues?.name ?? "",
       brandId: defaultValues?.brandId ?? "",
       channel: defaultValues?.channel ?? COMMUNICATION_CHANNELS[0],
-      followupType: defaultValues?.followupType ?? FOLLOWUP_TYPES[0],
+      campaignType: defaultValues?.campaignType ?? CAMPAIGN_TYPES[0],
       body: defaultValues?.body ?? "",
     },
   });
@@ -135,22 +143,22 @@ export function TemplateForm({ defaultValues, brands, onSubmit, isPending }: Tem
           />
           <FormField
             control={form.control}
-            name="followupType"
+            name="campaignType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tipo de seguimiento</FormLabel>
+                <FormLabel>Tipo de campaña</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger disabled={isPending}>
                       <SelectValue placeholder="Tipo">
-                        {field.value ? FOLLOWUP_LABELS[field.value] ?? field.value : undefined}
+                        {field.value ? CAMPAIGN_LABELS[field.value] ?? field.value : undefined}
                       </SelectValue>
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {FOLLOWUP_TYPES.map((ft) => (
+                    {CAMPAIGN_TYPES.map((ft: string) => (
                       <SelectItem key={ft} value={ft}>
-                        {FOLLOWUP_LABELS[ft] ?? ft}
+                        {CAMPAIGN_LABELS[ft] ?? ft}
                       </SelectItem>
                     ))}
                   </SelectContent>

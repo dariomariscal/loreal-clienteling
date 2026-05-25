@@ -21,14 +21,19 @@ export const CHANNELS = [
 
 export type ChannelValue = (typeof CHANNELS)[number]["value"];
 
-export const FOLLOWUP_TYPES = [
-  { value: "3_months", label: "Seguimiento 3m" },
-  { value: "6_months", label: "Seguimiento 6m" },
+import type { CampaignType } from "@loreal/contracts";
+
+export const CAMPAIGN_TYPES: ReadonlyArray<{
+  value: CampaignType;
+  label: string;
+}> = [
+  { value: "post_purchase", label: "Post-compra" },
+  { value: "win_back", label: "Win-back" },
   { value: "birthday", label: "Cumpleaños" },
   { value: "replenishment", label: "Reposición" },
   { value: "special_event", label: "Evento" },
   { value: "custom", label: "Personalizado" },
-] as const;
+];
 
 export function composerPlaceholder(channel: ChannelValue): string {
   if (channel === "whatsapp") return "Mensaje por WhatsApp…";

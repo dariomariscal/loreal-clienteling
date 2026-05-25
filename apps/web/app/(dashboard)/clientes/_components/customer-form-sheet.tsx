@@ -37,7 +37,7 @@ export function CustomerFormSheet({
   function handleSubmit(data: CreateCustomer) {
     const payload = {
       ...data,
-      birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
+      birthday: data.birthday ? new Date(data.birthday) : undefined,
     };
 
     if (isEdit && customer) {
@@ -68,7 +68,7 @@ export function CustomerFormSheet({
                     email: customer.email ?? undefined,
                     phone: customer.phone ?? undefined,
                     gender: customer.gender ?? undefined,
-                    birthDate: customer.birthDate ?? undefined,
+                    birthday: customer.birthday ?? undefined,
                   }
                 : undefined
             }

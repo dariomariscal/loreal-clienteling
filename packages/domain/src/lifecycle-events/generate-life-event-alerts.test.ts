@@ -114,7 +114,7 @@ describe("generateLifeEventAlerts", () => {
 
       expect(alerts).toHaveLength(1);
       expect(alerts[0].type).toBe("special_event");
-      expect(alerts[0].label).toContain("2 year");
+      expect(alerts[0].label).toContain("2-year");
       expect(alerts[0].daysUntil).toBe(4);
     });
 

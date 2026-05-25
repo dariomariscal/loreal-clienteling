@@ -13,7 +13,7 @@ import { TimelineIllustration } from "@/components/ui/illustrations";
 import { cn } from "@/lib/utils";
 
 // ── Customer activity timeline ─────────────────────────────────────
-// Merged feed of purchases, recommendations, appointments, comms, notes
+// Merged feed of orders, recommendations, appointments, messages, notes
 // and the synthetic registration event. Backend already sorts and
 // cursor-paginates, so we just render and call fetchNextPage on demand.
 //
@@ -209,7 +209,7 @@ function EventBadge({ event }: { event: CustomerActivityEvent }) {
       return <Badge variant="secondary" size="sm">Pasada</Badge>;
     return <Badge variant="info" size="sm">Próxima</Badge>;
   }
-  if (event.type === "communication") {
+  if (event.type === "message") {
     const ch = event.metadata?.channel as string | undefined;
     if (ch)
       return (
@@ -233,10 +233,10 @@ interface TypeMeta {
 
 const TYPE_META: Record<CustomerActivityType, TypeMeta> = {
   customer_registered: { color: "#94A3B8", icon: SparkleIcon },
-  purchase: { color: "#16A34A", icon: BagIcon },
+  order: { color: "#16A34A", icon: BagIcon },
   recommendation: { color: "#A855F7", icon: SparkleIcon },
   appointment: { color: "#3B82F6", icon: CalendarIcon },
-  communication: { color: "#0EA5E9", icon: MessageIcon },
+  message: { color: "#0EA5E9", icon: MessageIcon },
   note: { color: "#6B7280", icon: NoteIcon },
 };
 

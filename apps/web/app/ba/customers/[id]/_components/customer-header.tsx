@@ -28,8 +28,8 @@ export function CustomerHeader({ customer, isLoading }: CustomerHeaderProps) {
   }
 
   const fullName = `${customer.firstName} ${customer.lastName}`.trim();
-  const isVip = customer.lifecycleSegment === "vip";
-  const customerSince = new Date(customer.customerSince).getFullYear();
+  const isVip = customer.lifecycleStage === "vip";
+  const enrolledYear = new Date(customer.enrolledAt).getFullYear();
 
   return (
     <header className="flex items-start gap-4">
@@ -53,7 +53,7 @@ export function CustomerHeader({ customer, isLoading }: CustomerHeaderProps) {
         </div>
 
         <p className="mt-0.5 text-[13px] text-muted-foreground">
-          Clienta desde {customerSince}
+          Clienta desde {enrolledYear}
         </p>
 
         <div className="mt-3 flex items-center gap-1.5">

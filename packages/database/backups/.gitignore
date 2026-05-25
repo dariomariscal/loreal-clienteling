@@ -1,0 +1,5 @@
+# Local DB dumps and snapshots. Never commit — may contain customer PII
+# and are easy to regenerate from a live DB.
+*.sql
+*.dump
+!.gitignore

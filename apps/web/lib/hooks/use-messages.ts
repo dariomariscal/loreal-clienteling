@@ -1,38 +1,38 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { Communication } from "./use-customer-detail";
-import type { CreateCommunication } from "@loreal/contracts";
+import type { Message } from "./use-customer-detail";
+import type { CreateMessage } from "@loreal/contracts";
 
 // ── Query keys ─────────────────────────────────────────────────────
 
-const commKeys = {
-  all: ["communications"] as const,
+const messageKeys = {
+  all: ["messages"] as const,
 };
 
 // ── Queries ────────────────────────────────────────────────────────
 
-export function useCommunications() {
+export function useMessages() {
   return useQuery({
-    queryKey: commKeys.all,
-    queryFn: () => api.get<Communication[]>("/communications"),
+    queryKey: messageKeys.all,
+    queryFn: () => api.get<Message[]>("/messages"),
   });
 }
 
 // ── Mutations ──────────────────────────────────────────────────────
 
-export function useCreateCommunication() {
+export function useCreateMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateCommunication) =>
-      api.post<Communication>("/communications", data),
+    mutationFn: (data: CreateMessage) =>
+      api.post<Message>("/messages", data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: commKeys.all });
+      qc.invalidateQueries({ queryKey: messageKeys.all });
       qc.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 }
 
-export function useUpdateCommunicationTracking() {
+export function useUpdateMessageTracking() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -43,7 +43,7 @@ export function useUpdateCommunicationTracking() {
       deliveredAt?: string;
       readAt?: string;
       respondedAt?: string;
-    }) => api.patch<Communication>(`/communications/${id}/tracking`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: commKeys.all }),
+    }) => api.patch<Message>(`/messages/${id}/tracking`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: messageKeys.all }),
   });
 }

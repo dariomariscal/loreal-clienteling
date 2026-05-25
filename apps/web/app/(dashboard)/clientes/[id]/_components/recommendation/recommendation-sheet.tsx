@@ -45,7 +45,7 @@ export function RecommendationSheet({
     removeLine,
     selectedIds,
   } = useLookDraft();
-  const [visitReason, setVisitReason] = React.useState<string | null>(null);
+  const [visitPurpose, setVisitPurpose] = React.useState<string | null>(null);
   const [submitState, setSubmitState] = React.useState<
     "idle" | "submitting" | "error"
   >("idle");
@@ -55,7 +55,7 @@ export function RecommendationSheet({
   React.useEffect(() => {
     if (open) {
       reset();
-      setVisitReason(null);
+      setVisitPurpose(null);
       setSubmitState("idle");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,7 +75,7 @@ export function RecommendationSheet({
             customerId,
             productId: l.product.id,
             source: "manual",
-            ...(visitReason ? { visitReason } : {}),
+            ...(visitPurpose ? { visitPurpose } : {}),
             ...(l.notes.trim() ? { notes: l.notes.trim() } : {}),
           }),
         ),
@@ -134,14 +134,14 @@ export function RecommendationSheet({
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {VISIT_REASONS.map((r) => {
-                    const active = visitReason === r.value;
+                    const active = visitPurpose === r.value;
                     const Glyph = r.Glyph;
                     return (
                       <button
                         key={r.value}
                         type="button"
                         onClick={() =>
-                          setVisitReason(active ? null : r.value)
+                          setVisitPurpose(active ? null : r.value)
                         }
                         disabled={isSubmitting}
                         className={cn(

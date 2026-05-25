@@ -33,7 +33,7 @@ interface ScheduleScreenProps {
 export function ScheduleScreen({ user }: ScheduleScreenProps) {
   const range = React.useMemo(() => getRange(30), []);
   const calendar = useAppointmentCalendar(range.from, range.to, {
-    baUserId: user.id,
+    staffUserId: user.id,
   });
 
   const grouped = React.useMemo(
@@ -65,7 +65,7 @@ export function ScheduleScreen({ user }: ScheduleScreenProps) {
       <NewAppointmentSheet
         open={isNewApptOpen}
         onOpenChange={setIsNewApptOpen}
-        baUserId={user.id}
+        staffUserId={user.id}
       />
 
       <div className="px-8 pt-8 pb-20">
@@ -87,10 +87,10 @@ export function ScheduleScreen({ user }: ScheduleScreenProps) {
                         <AppointmentRow
                           customerId={row.appointment.customerId}
                           customerName={row.appointment.customerName}
-                          scheduledAt={row.appointment.scheduledAt}
+                          startTime={row.appointment.startTime}
                           durationMinutes={row.appointment.durationMinutes}
-                          eventTypeName={row.appointment.eventTypeName}
-                          eventTypeColor={row.appointment.eventTypeColor}
+                          serviceTypeName={row.appointment.serviceTypeName}
+                          serviceTypeColor={row.appointment.serviceTypeColor}
                           isVirtual={row.appointment.isVirtual}
                           status={mapStatus(row.appointment.status)}
                           emphasis={row.emphasis}
@@ -169,7 +169,7 @@ interface ScheduleGroup {
 
 function groupByDay(appts: CalendarAppointment[]): ScheduleGroup[] {
   const sorted = [...appts].sort((a, b) =>
-    a.scheduledAt.localeCompare(b.scheduledAt),
+    a.startTime.localeCompare(b.startTime),
   );
 
   const now = new Date();
@@ -191,7 +191,7 @@ function groupByDay(appts: CalendarAppointment[]): ScheduleGroup[] {
   };
 
   for (const a of sorted) {
-    const d = new Date(a.scheduledAt);
+    const d = new Date(a.startTime);
     const row: ScheduleRow = { appointment: a, emphasis: "default" };
     if (d >= today && d < tomorrow) buckets.today.items.push(row);
     else if (d >= tomorrow && d < dayAfterTomorrow)
@@ -203,8 +203,8 @@ function groupByDay(appts: CalendarAppointment[]): ScheduleGroup[] {
   return Object.values(buckets).filter((g) => g.items.length > 0);
 }
 
-// Mark the appointment that is currently happening (between scheduledAt
-// and scheduledAt + duration) and the next one after that as "current"
+// Mark the appointment that is currently happening (between startTime
+// and startTime + duration) and the next one after that as "current"
 // and "next". Only applies to "Hoy"; the rest stay default.
 function flagCurrentAndNext(groups: ScheduleGroup[]): ScheduleGroup[] {
   const todayGroup = groups.find((g) => g.key === "today");
@@ -216,7 +216,7 @@ function flagCurrentAndNext(groups: ScheduleGroup[]): ScheduleGroup[] {
 
   for (let i = 0; i < todayGroup.items.length; i++) {
     const a = todayGroup.items[i].appointment;
-    const start = new Date(a.scheduledAt).getTime();
+    const start = new Date(a.startTime).getTime();
     const end = start + a.durationMinutes * 60_000;
     if (start <= now && now < end) {
       todayGroup.items[i] = { ...todayGroup.items[i], emphasis: "current" };

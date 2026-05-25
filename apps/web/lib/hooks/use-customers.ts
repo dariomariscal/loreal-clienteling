@@ -11,15 +11,15 @@ export interface Customer {
   email: string | null;
   phone: string | null;
   gender: string | null;
-  birthDate: string | null;
-  registeredAtStoreId: string;
-  registeredByUserId: string;
-  lastBaUserId: string | null;
-  lifecycleSegment: string;
-  customerSince: string;
-  lastContactAt: string | null;
-  lastTransactionAt: string | null;
-  inactive: boolean;
+  birthday: string | null;
+  signupStoreId: string;
+  createdByUserId: string;
+  assignedToUserId: string | null;
+  lifecycleStage: string;
+  enrolledAt: string;
+  lastInteractionAt: string | null;
+  lastOrderAt: string | null;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,9 +44,9 @@ interface PaginatedCustomers {
 export function useCustomers(params?: {
   page?: string;
   limit?: string;
-  segment?: string;
+  stage?: string;
   storeId?: string;
-  baUserId?: string;
+  assignedToUserId?: string;
   birthdayWithinDays?: string;
   dateFrom?: string;
   dateTo?: string;

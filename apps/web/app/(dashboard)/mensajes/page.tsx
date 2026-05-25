@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { ROUTES } from "@/lib/constants";
-import { SeguimientoPage } from "./_components/seguimiento-page";
+import { MessagesPage } from "./_components/messages-page";
 
-export default async function SeguimientoRoute() {
+export default async function MessagesRoute() {
   const session = await getSession();
   if (!session?.user) redirect(ROUTES.SIGN_IN);
 
-  return <SeguimientoPage user={session.user} />;
+  return <MessagesPage user={session.user} />;
 }

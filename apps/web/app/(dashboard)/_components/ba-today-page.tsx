@@ -135,15 +135,15 @@ export function BaTodayPage({ user }: BaTodayPageProps) {
 
       {(data?.pendingFollowups.length ?? 0) > 0 && (
         <Section
-          title="Seguimientos pendientes"
+          title="Mensajes pendientes"
           count={data?.pendingFollowups.length}
-          href="/seguimiento"
+          href="/mensajes"
           loading={isLoading}
-          emptyTitle="Sin seguimientos"
-          emptyDescription="Estás al día con tus tareas de seguimiento."
+          emptyTitle="Sin mensajes pendientes"
+          emptyDescription="Estás al día con tus mensajes pendientes."
         >
           {(data?.pendingFollowups ?? []).slice(0, 5).map((f) => (
-            <FollowupRow key={f.id} followup={f} />
+            <CampaignRow key={f.id} campaign={f} />
           ))}
         </Section>
       )}
@@ -280,7 +280,7 @@ function Section({
 // ── Rows ──────────────────────────────────────────────────────────
 
 function AppointmentRow({ appointment }: { appointment: TodayAppointment }) {
-  const start = new Date(appointment.scheduledAt);
+  const start = new Date(appointment.startTime);
   const end = new Date(
     start.getTime() + appointment.durationMinutes * 60_000,
   );
@@ -292,7 +292,7 @@ function AppointmentRow({ appointment }: { appointment: TodayAppointment }) {
     hour: "2-digit",
     minute: "2-digit",
   });
-  const accent = appointment.eventTypeColor ?? "var(--accent)";
+  const accent = appointment.serviceTypeColor ?? "var(--accent)";
 
   return (
     <li>
@@ -318,11 +318,11 @@ function AppointmentRow({ appointment }: { appointment: TodayAppointment }) {
             {appointment.customerName}
           </p>
           <p className="truncate text-[12px] text-muted-foreground">
-            {appointment.eventTypeName ?? "Cita"}
+            {appointment.serviceTypeName ?? "Cita"}
             {appointment.isVirtual ? " · Virtual" : ""}
           </p>
         </div>
-        {appointment.customerSegment === "vip" && (
+        {appointment.customerLifecycleStage === "vip" && (
           <Badge variant="success" size="sm">
             VIP
           </Badge>
@@ -350,7 +350,7 @@ function BirthdayRow({ birthday }: { birthday: TodayBirthday }) {
             {label}
           </p>
         </div>
-        {birthday.lifecycleSegment === "vip" && (
+        {birthday.lifecycleStage === "vip" && (
           <Badge variant="success" size="sm">
             VIP
           </Badge>
@@ -361,7 +361,7 @@ function BirthdayRow({ birthday }: { birthday: TodayBirthday }) {
 }
 
 function AtRiskRow({ customer }: { customer: TodayAtRiskCustomer }) {
-  const days = customer.daysSinceLastPurchase;
+  const days = customer.daysSinceLastOrder;
   return (
     <li>
       <Link
@@ -388,7 +388,7 @@ function AtRiskRow({ customer }: { customer: TodayAtRiskCustomer }) {
 }
 
 function NewCustomerRow({ customer }: { customer: TodayNewCustomer }) {
-  const since = new Date(customer.customerSince);
+  const since = new Date(customer.enrolledAt);
   return (
     <li>
       <Link
@@ -416,12 +416,12 @@ function NewCustomerRow({ customer }: { customer: TodayNewCustomer }) {
   );
 }
 
-function FollowupRow({ followup }: { followup: TodayPendingFollowup }) {
-  const Glyph = followupGlyph(followup.followupType);
+function CampaignRow({ campaign }: { campaign: TodayPendingFollowup }) {
+  const Glyph = followupGlyph(campaign.campaignType);
   return (
     <li>
       <Link
-        href={`/clientes/${followup.customerId}?tab=overview`}
+        href={`/clientes/${campaign.customerId}?tab=overview`}
         className="group/row flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/30"
       >
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
@@ -429,10 +429,10 @@ function FollowupRow({ followup }: { followup: TodayPendingFollowup }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-foreground">
-            {followup.customerName}
+            {campaign.customerName}
           </p>
           <p className="truncate text-[12px] text-muted-foreground">
-            {followup.body}
+            {campaign.body}
           </p>
         </div>
       </Link>
@@ -463,8 +463,8 @@ function followupGlyph(type: string | null): GlyphComponent {
       return FollowupReplenishmentGlyph;
     case "special_event":
       return FollowupSpecialEventGlyph;
-    case "3_months":
-    case "6_months":
+    case "post_purchase":
+    case "appointment_reminder":
       return FollowupCheckInGlyph;
     default:
       return FollowupGeneralGlyph;

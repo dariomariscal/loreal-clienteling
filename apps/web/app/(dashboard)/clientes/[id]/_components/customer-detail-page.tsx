@@ -30,12 +30,12 @@ import {
   type QuickActionId,
 } from "./customer-quick-actions";
 import { BeautySection } from "./beauty/beauty-section";
-import { PurchasesSection } from "./purchases-section";
+import { OrdersSection } from "./orders-section";
 import { RecommendationsSection } from "./recommendations-section";
 import { AppointmentsSection } from "./appointments-section";
 import { NotesSection } from "./notes-section";
 import { NoteSheet } from "./note-sheet";
-import { PurchaseSheet } from "./purchase/purchase-sheet";
+import { OrderSheet } from "./order/order-sheet";
 import { AppointmentSheet } from "./appointment/appointment-sheet";
 import { RecommendationSheet } from "./recommendation/recommendation-sheet";
 import { MessageSheet } from "./message/message-sheet";
@@ -175,9 +175,9 @@ export function CustomerDetailPage({
         </TabsContent>
 
         <TabsContent value="compras">
-          <PurchasesSection
+          <OrdersSection
             customerId={customerId}
-            onNewPurchase={
+            onNewOrder={
               can(role, "purchase.create")
                 ? () => setOpenSheet("purchase")
                 : undefined
@@ -226,7 +226,7 @@ export function CustomerDetailPage({
         customerName={`${customer.firstName} ${customer.lastName}`}
       />
 
-      <PurchaseSheet
+      <OrderSheet
         open={openSheet === "purchase"}
         onOpenChange={(open) => !open && setOpenSheet(null)}
         customerId={customerId}
@@ -238,8 +238,8 @@ export function CustomerDetailPage({
         onOpenChange={(open) => !open && setOpenSheet(null)}
         customerId={customerId}
         customerName={`${customer.firstName} ${customer.lastName}`}
-        customerSegment={customer.lifecycleSegment}
-        baUserId={user.id}
+        customerLifecycleStage={customer.lifecycleStage}
+        staffUserId={user.id}
       />
 
       <RecommendationSheet

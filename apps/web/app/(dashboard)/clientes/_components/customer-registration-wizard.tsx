@@ -87,8 +87,8 @@ export function CustomerRegistrationWizard({
         email: basicsValues.email || undefined,
         phone: basicsValues.phone || undefined,
         gender: basicsValues.gender || undefined,
-        birthDate: basicsValues.birthDate
-          ? new Date(basicsValues.birthDate)
+        birthday: basicsValues.birthday
+          ? new Date(basicsValues.birthday)
           : undefined,
       },
       consents: {

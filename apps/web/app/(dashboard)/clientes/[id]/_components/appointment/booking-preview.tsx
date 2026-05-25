@@ -1,15 +1,15 @@
 "use client";
 
-import type { AppointmentEventType } from "@/lib/hooks";
+import type { ServiceType } from "@/lib/hooks";
 
 export function BookingPreview({
-  eventType,
+  serviceType,
   startsAt,
   durationMinutes,
   customerName,
   accent,
 }: {
-  eventType: AppointmentEventType;
+  serviceType: ServiceType;
   startsAt: string;
   durationMinutes: number;
   customerName: string;
@@ -48,7 +48,7 @@ export function BookingPreview({
         {startLabel} – {endLabel}
       </p>
       <p className="mt-1 text-sm text-foreground">
-        {eventType.displayName}{" "}
+        {serviceType.displayName}{" "}
         <span className="text-muted-foreground">· {customerName}</span>
       </p>
     </div>

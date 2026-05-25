@@ -12,7 +12,6 @@ import {
   CONCERN_LABELS,
   FRAGRANCE_LABELS,
   INTEREST_LABELS,
-  ROUTINE_LABELS,
   SKIN_TONE_SWATCH,
   SUBTONE_GRADIENT,
   SUBTONE_LABELS,
@@ -52,7 +51,7 @@ export function BeautySection({ customerId, customerName, role }: BeautySectionP
     !!(
       profile.skinType ||
       profile.skinTone ||
-      profile.skinSubtone ||
+      profile.undertone ||
       (profile.skinConcerns && profile.skinConcerns.length > 0)
     );
 
@@ -89,7 +88,7 @@ export function BeautySection({ customerId, customerName, role }: BeautySectionP
   const updatedAt = profile?.updatedAt ? new Date(profile.updatedAt) : null;
   const shades = profile?.shades ?? [];
   const concerns = profile?.skinConcerns ?? [];
-  const fragrances = profile?.fragrancePreferences ?? [];
+  const fragrances = profile?.fragranceFamilies ?? [];
   const interests = profile?.interests ?? [];
   const preferred = profile?.preferredIngredients ?? [];
   const avoided = profile?.avoidedIngredients ?? [];
@@ -109,12 +108,12 @@ export function BeautySection({ customerId, customerName, role }: BeautySectionP
                   }}
                   aria-hidden
                 />
-                {profile.skinSubtone && (
+                {profile.undertone && (
                   <span
                     className="absolute -bottom-1 -right-1 block size-9 rounded-full border-4 border-card"
                     style={{
                       background:
-                        SUBTONE_GRADIENT[profile.skinSubtone] ??
+                        SUBTONE_GRADIENT[profile.undertone] ??
                         SUBTONE_GRADIENT.neutral,
                     }}
                     aria-hidden
@@ -134,9 +133,9 @@ export function BeautySection({ customerId, customerName, role }: BeautySectionP
             <h2 className="font-heading text-2xl leading-tight tracking-tight text-foreground">
               {composeHeadline(profile)}
             </h2>
-            {profile?.skinSubtone && (
+            {profile?.undertone && (
               <p className="text-sm text-muted-foreground">
-                {SUBTONE_LABELS[profile.skinSubtone]}
+                {SUBTONE_LABELS[profile.undertone]}
               </p>
             )}
             {updatedAt && (
@@ -228,8 +227,7 @@ export function BeautySection({ customerId, customerName, role }: BeautySectionP
         )}
       </section>
 
-      {(profile?.routineType ||
-        fragrances.length > 0 ||
+      {(fragrances.length > 0 ||
         interests.length > 0 ||
         preferred.length > 0 ||
         avoided.length > 0) && (
@@ -241,18 +239,6 @@ export function BeautySection({ customerId, customerName, role }: BeautySectionP
           </header>
 
           <div className="space-y-5 p-5">
-            {profile?.routineType && (
-              <PrefRow label="Rutina">
-                <Chip
-                  Glyph={ROUTINE_LABELS[profile.routineType]?.Glyph}
-                  label={
-                    ROUTINE_LABELS[profile.routineType]?.label ??
-                    profile.routineType
-                  }
-                />
-              </PrefRow>
-            )}
-
             {interests.length > 0 && (
               <PrefRow label="Categorías favoritas">
                 {interests.map((i) => (
@@ -267,7 +253,7 @@ export function BeautySection({ customerId, customerName, role }: BeautySectionP
 
             {fragrances.length > 0 && (
               <PrefRow label="Fragancias">
-                {fragrances.map((f) => (
+                {fragrances.map((f: string) => (
                   <Chip
                     key={f}
                     Glyph={FRAGRANCE_LABELS[f]?.Glyph}

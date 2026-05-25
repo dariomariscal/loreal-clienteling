@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useCreateCustomerNote } from "@/lib/hooks";
+import { useCreateNote } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -68,7 +68,7 @@ export function NoteSheet({
   const [isPrivate, setIsPrivate] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
-  const createNote = useCreateCustomerNote();
+  const createNote = useCreateNote();
 
   // Reset on open and focus the editor so the BA can start typing right away.
   React.useEffect(() => {
@@ -106,7 +106,7 @@ export function NoteSheet({
       {
         customerId,
         body: content.slice(0, 500),
-        private: isPrivate,
+        isPrivate,
       },
       {
         onSuccess: () => onOpenChange(false),

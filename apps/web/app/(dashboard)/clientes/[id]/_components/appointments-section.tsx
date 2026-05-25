@@ -4,8 +4,8 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import {
-  useAppointmentEventTypes,
-  type AppointmentEventType,
+  useServiceTypes,
+  type ServiceType,
 } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,10 +16,10 @@ import { cn } from "@/lib/utils";
 interface Appointment {
   id: string;
   customerId: string;
-  baUserId: string;
+  staffUserId: string;
   storeId: string;
-  eventTypeId: string;
-  scheduledAt: string;
+  serviceTypeId: string;
+  startTime: string;
   durationMinutes: number;
   status: string;
   comments: string | null;
@@ -63,10 +63,10 @@ export function AppointmentsSection({
     queryFn: () => api.get<Appointment[]>("/appointments"),
     enabled: !!customerId,
   });
-  const { data: eventTypes = [] } = useAppointmentEventTypes();
-  const eventTypeMap = React.useMemo(
-    () => new Map(eventTypes.map((t) => [t.id, t])),
-    [eventTypes],
+  const { data: serviceTypes = [] } = useServiceTypes();
+  const serviceTypeMap = React.useMemo(
+    () => new Map(serviceTypes.map((t) => [t.id, t])),
+    [serviceTypes],
   );
 
   const appointments = allAppointments.filter(
@@ -103,16 +103,16 @@ export function AppointmentsSection({
 
   const now = Date.now();
   const upcoming = appointments
-    .filter((a) => new Date(a.scheduledAt).getTime() >= now)
+    .filter((a) => new Date(a.startTime).getTime() >= now)
     .sort(
       (a, b) =>
-        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
     );
   const past = appointments
-    .filter((a) => new Date(a.scheduledAt).getTime() < now)
+    .filter((a) => new Date(a.startTime).getTime() < now)
     .sort(
       (a, b) =>
-        new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime(),
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
     );
 
   return (
@@ -130,10 +130,10 @@ export function AppointmentsSection({
       </div>
 
       {upcoming.length > 0 && (
-        <Group label="Próximas" appointments={upcoming} typeMap={eventTypeMap} />
+        <Group label="Próximas" appointments={upcoming} typeMap={serviceTypeMap} />
       )}
       {past.length > 0 && (
-        <Group label="Historial" appointments={past} typeMap={eventTypeMap} muted />
+        <Group label="Historial" appointments={past} typeMap={serviceTypeMap} muted />
       )}
     </div>
   );
@@ -147,7 +147,7 @@ function Group({
 }: {
   label: string;
   appointments: Appointment[];
-  typeMap: Map<string, AppointmentEventType>;
+  typeMap: Map<string, ServiceType>;
   muted?: boolean;
 }) {
   return (
@@ -160,7 +160,7 @@ function Group({
           <AppointmentCard
             key={appt.id}
             appointment={appt}
-            eventType={typeMap.get(appt.eventTypeId) ?? null}
+            serviceType={typeMap.get(appt.serviceTypeId) ?? null}
             muted={muted}
           />
         ))}
@@ -171,15 +171,15 @@ function Group({
 
 function AppointmentCard({
   appointment,
-  eventType,
+  serviceType,
   muted,
 }: {
   appointment: Appointment;
-  eventType: AppointmentEventType | null;
+  serviceType: ServiceType | null;
   muted?: boolean;
 }) {
-  const accent = eventType?.color ?? "var(--accent)";
-  const start = new Date(appointment.scheduledAt);
+  const accent = serviceType?.color ?? "var(--accent)";
+  const start = new Date(appointment.startTime);
   const end = new Date(
     start.getTime() + appointment.durationMinutes * 60_000,
   );
@@ -221,7 +221,7 @@ function AppointmentCard({
             {startLabel} – {endLabel}
           </p>
           <p className="text-sm text-foreground">
-            {eventType?.displayName ?? appointment.eventTypeId}
+            {serviceType?.displayName ?? appointment.serviceTypeId}
             {appointment.isVirtual && (
               <span className="ml-2 text-xs text-muted-foreground">
                 · Virtual

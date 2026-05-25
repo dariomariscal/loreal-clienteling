@@ -290,16 +290,16 @@ export function AgendaPage({ user }: AgendaPageProps) {
                     <span className="font-heading text-lg text-foreground">
                       {sheet.appointment.customerName ?? "Sin nombre"}
                     </span>
-                    {sheet.appointment.customerSegment && (
+                    {sheet.appointment.customerLifecycleStage && (
                       <Badge
                         variant={
-                          SEGMENT_VARIANT[sheet.appointment.customerSegment] ??
+                          SEGMENT_VARIANT[sheet.appointment.customerLifecycleStage] ??
                           "secondary"
                         }
                         size="sm"
                       >
-                        {SEGMENT_LABEL[sheet.appointment.customerSegment] ??
-                          sheet.appointment.customerSegment}
+                        {SEGMENT_LABEL[sheet.appointment.customerLifecycleStage] ??
+                          sheet.appointment.customerLifecycleStage}
                       </Badge>
                     )}
                   </div>
@@ -321,21 +321,21 @@ export function AgendaPage({ user }: AgendaPageProps) {
                 <dl className="space-y-3 text-sm">
                   <Row label="Tipo de evento">
                     <div className="flex items-center gap-2">
-                      {sheet.appointment.eventTypeColor && (
+                      {sheet.appointment.serviceTypeColor && (
                         <span
                           className="inline-block size-2.5 rounded-full"
                           style={{
-                            backgroundColor: sheet.appointment.eventTypeColor,
+                            backgroundColor: sheet.appointment.serviceTypeColor,
                           }}
                         />
                       )}
-                      <span>{sheet.appointment.eventTypeName ?? "Evento"}</span>
+                      <span>{sheet.appointment.serviceTypeName ?? "Evento"}</span>
                     </div>
                   </Row>
 
                   <Row label="Fecha y hora">
                     <span className="first-letter:uppercase">
-                      {new Date(sheet.appointment.scheduledAt).toLocaleDateString(
+                      {new Date(sheet.appointment.startTime).toLocaleDateString(
                         "es-MX",
                         {
                           weekday: "long",
@@ -353,7 +353,7 @@ export function AgendaPage({ user }: AgendaPageProps) {
                   </Row>
 
                   <Row label="Beauty Advisor">
-                    <span>{sheet.appointment.baName ?? "Sin asignar"}</span>
+                    <span>{sheet.appointment.staffName ?? "Sin asignar"}</span>
                   </Row>
 
                   <Row label="Tienda">
@@ -379,13 +379,13 @@ export function AgendaPage({ user }: AgendaPageProps) {
                     </Row>
                   )}
 
-                  {sheet.appointment.comments && (
+                  {sheet.appointment.notes && (
                     <div>
                       <dt className="mb-1 text-muted-foreground">
                         Comentarios
                       </dt>
                       <dd className="rounded-xl bg-muted/30 p-3 text-sm">
-                        {sheet.appointment.comments}
+                        {sheet.appointment.notes}
                       </dd>
                     </div>
                   )}
@@ -444,7 +444,7 @@ export function AgendaPage({ user }: AgendaPageProps) {
       <AppointmentSheet
         open={sheet?.mode === "create"}
         onOpenChange={(open) => !open && setSheet(null)}
-        baUserId={user.id}
+        staffUserId={user.id}
         defaultStartsAt={
           sheet?.mode === "create" ? sheet.defaultStartsAt : null
         }

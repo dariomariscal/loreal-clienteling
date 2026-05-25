@@ -11,7 +11,7 @@ import {
   ActivityTimeline,
   NewAppointmentSheet,
   NextStepCard,
-  PurchaseRow,
+  OrderRow,
   type ActivityItem,
   type ActivityKind,
 } from "@/components/ba";
@@ -20,15 +20,20 @@ import { BackGlyph, MessageGlyph, MoreGlyph } from "@/components/ui/glyphs";
 import {
   useCustomer,
   useCustomerActivity,
-  useCustomerPurchases,
+  useCustomerOrders,
   useAppointments,
+  type Order,
+  type OrderLineItem,
 } from "@/lib/hooks";
 import {
   useCustomerSummary,
   useRegenerateCustomerSummary,
-  useDailyOpportunities,
+  useDailySuggestedActions,
 } from "@/lib/hooks/use-ai";
-import type { CustomerActivityType } from "@loreal/contracts";
+import type {
+  CustomerActivityType,
+  SuggestedActionWithCustomer,
+} from "@loreal/contracts";
 import type { SessionUser } from "@/lib/auth";
 
 interface CustomerProfileScreenProps {
@@ -57,14 +62,17 @@ export function CustomerProfileScreen({
   const customer = useCustomer(customerId);
   const summary = useCustomerSummary(customerId);
   const regenerate = useRegenerateCustomerSummary();
-  const opportunities = useDailyOpportunities(undefined, 20);
-  const purchases = useCustomerPurchases(customerId);
+  const suggestedActions = useDailySuggestedActions(undefined, 20);
+  const orders = useCustomerOrders(customerId);
   const activity = useCustomerActivity(customerId);
   const upcoming = useAppointments(new Date().toISOString());
 
   const nextStep = React.useMemo(
-    () => opportunities.data?.find((o) => o.customerId === customerId),
-    [opportunities.data, customerId],
+    () =>
+      suggestedActions.data?.find(
+        (o: SuggestedActionWithCustomer) => o.customerId === customerId,
+      ),
+    [suggestedActions.data, customerId],
   );
 
   const upcomingForCustomer = (upcoming.data ?? []).filter(
@@ -114,7 +122,7 @@ export function CustomerProfileScreen({
       <NewAppointmentSheet
         open={isNewApptOpen}
         onOpenChange={setIsNewApptOpen}
-        baUserId={user.id}
+        staffUserId={user.id}
         customerId={customerId}
       />
 
@@ -135,8 +143,8 @@ export function CustomerProfileScreen({
           {/* ── Next step — the ONE accent card ──────────────────────── */}
           {nextStep ? (
             <NextStepCard
-              title={nextStep.suggestedAction}
-              rationale={nextStep.summary}
+              title={nextStep.recommendedAction}
+              rationale={nextStep.description}
               actionLabel="Ver borrador"
               onAction={() => router.push(`/ba/customers/${customerId}/messages`)}
             />
@@ -147,22 +155,22 @@ export function CustomerProfileScreen({
             <NotesSection customerId={customerId} actorUserId={user.id} />
           </Section>
 
-          {/* ── Purchases — list rows ────────────────────────────────── */}
+          {/* ── Orders — list rows ───────────────────────────────────── */}
           <Section label="Compras">
-            {purchases.isLoading ? (
+            {orders.isLoading ? (
               <ListSkeleton />
-            ) : (purchases.data?.length ?? 0) === 0 ? (
+            ) : (orders.data?.length ?? 0) === 0 ? (
               <p className="text-[13px] text-muted-foreground">
                 Aún no hay compras registradas.
               </p>
             ) : (
               <ul className="divide-y divide-border/30">
-                {purchases.data!.slice(0, 5).map((p) =>
-                  (p.items ?? []).map((item) => (
-                    <PurchaseRow
+                {orders.data!.slice(0, 5).map((p: Order) =>
+                  (p.items ?? []).map((item: OrderLineItem) => (
+                    <OrderRow
                       key={item.id}
                       productName={item.sku}
-                      purchasedAt={p.purchasedAt}
+                      processedAt={p.processedAt}
                       amount={Number(item.unitPrice)}
                       quantity={item.quantity}
                     />
@@ -208,7 +216,7 @@ export function CustomerProfileScreen({
                     className="flex items-center gap-3.5 px-4 py-3"
                   >
                     <span className="font-mono text-[13px] tabular-nums text-foreground">
-                      {new Date(a.scheduledAt).toLocaleString("es-MX", {
+                      {new Date(a.startTime).toLocaleString("es-MX", {
                         weekday: "short",
                         day: "numeric",
                         month: "short",
@@ -305,16 +313,18 @@ function mergeActivityEvents(pages: Array<{ events: unknown[] }>): ActivityItem[
 
 function mapKind(type: CustomerActivityType): ActivityKind {
   switch (type) {
-    case "purchase":
+    case "order":
       return "purchase";
     case "appointment":
       return "appointment";
     case "note":
       return "note";
-    case "communication":
+    case "message":
       return "message";
     case "recommendation":
     case "customer_registered":
+      return "ai";
+    default:
       return "ai";
   }
 }

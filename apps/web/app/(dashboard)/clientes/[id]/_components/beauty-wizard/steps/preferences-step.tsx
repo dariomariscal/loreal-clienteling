@@ -5,14 +5,12 @@ import {
   COMMON_PREFERRED,
   FRAGRANCES,
   INTERESTS,
-  ROUTINE_TYPES,
 } from "../constants";
 import type { Draft } from "../use-beauty-draft";
 import { ChipToggle, Heading, IngredientPicker, SubSection } from "../ui";
 
 type Props = {
   draft: Draft;
-  onRoutine: (v: string) => void;
   onToggleInterest: (v: string) => void;
   onToggleFragrance: (v: string) => void;
   onTogglePreferred: (v: string) => void;
@@ -23,7 +21,6 @@ type Props = {
 
 export function PreferencesStep({
   draft,
-  onRoutine,
   onToggleInterest,
   onToggleFragrance,
   onTogglePreferred,
@@ -52,26 +49,12 @@ export function PreferencesStep({
         </ul>
       </SubSection>
 
-      <SubSection title="Rutina">
-        <ul className="flex flex-wrap gap-1.5">
-          {ROUTINE_TYPES.map((r) => (
-            <ChipToggle
-              key={r.value}
-              active={draft.routineType === r.value}
-              Glyph={r.Glyph}
-              label={r.label}
-              onClick={() => onRoutine(r.value)}
-            />
-          ))}
-        </ul>
-      </SubSection>
-
       <SubSection title="Familias de fragancia">
         <ul className="flex flex-wrap gap-1.5">
           {FRAGRANCES.map((f) => (
             <ChipToggle
               key={f.value}
-              active={draft.fragrancePreferences.includes(f.value)}
+              active={draft.fragranceFamilies.includes(f.value)}
               Glyph={f.Glyph}
               label={f.label}
               onClick={() => onToggleFragrance(f.value)}

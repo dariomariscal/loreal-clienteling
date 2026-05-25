@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import {
-  useCommunications,
-  useCreateCommunication,
-  type Communication,
+  useMessages,
+  useCreateMessage,
+  type Message,
 } from "@/lib/hooks";
 import { can } from "@/lib/permissions";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -20,8 +20,8 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import type { CommunicationFormData } from "./communication-form";
-import { CommunicationForm } from "./communication-form";
+import type { MessageFormData } from "./message-form";
+import { MessageForm } from "./message-form";
 
 // ── Label maps ─────────────────────────────────────────────────────
 
@@ -37,32 +37,36 @@ const CHANNEL_VARIANT: Record<string, "default" | "info" | "success"> = {
   email: "info",
 };
 
-const FOLLOWUP_LABEL: Record<string, string> = {
-  "3_months": "3 meses",
-  "6_months": "6 meses",
+const CAMPAIGN_LABEL: Record<string, string> = {
   birthday: "Cumpleaños",
   replenishment: "Reposición",
+  win_back: "Recuperación",
+  new_launch: "Nuevo lanzamiento",
+  post_purchase: "Post-compra",
+  appointment_reminder: "Recordatorio de cita",
+  abandoned_cart: "Carrito abandonado",
   special_event: "Evento especial",
+  manual: "Manual",
   custom: "Personalizado",
 };
 
 // ── Types ──────────────────────────────────────────────────────────
 
-type DialogState = null | "create" | { mode: "detail"; comm: Communication };
+type DialogState = null | "create" | { mode: "detail"; message: Message };
 
 // ── Component ──────────────────────────────────────────────────────
 
-interface SeguimientoPageProps {
+interface MessagesPageProps {
   user: { role?: string | null };
 }
 
-export function SeguimientoPage({ user }: SeguimientoPageProps) {
+export function MessagesPage({ user }: MessagesPageProps) {
   const role = user.role ?? "ba";
-  const { data: comms = [], isLoading } = useCommunications();
-  const createComm = useCreateCommunication();
+  const { data: messages = [], isLoading } = useMessages();
+  const createMessage = useCreateMessage();
   const [dialog, setDialog] = useState<DialogState>(null);
 
-  const columns: Column<Communication>[] = [
+  const columns: Column<Message>[] = [
     {
       key: "sentAt",
       label: "Fecha",
@@ -86,18 +90,18 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
       },
     },
     {
-      key: "followupType",
+      key: "campaignType",
       label: "Tipo",
       render: (v) => (
         <Badge variant="secondary" size="sm">
-          {FOLLOWUP_LABEL[v as string] ?? (v as string)}
+          {CAMPAIGN_LABEL[v as string] ?? (v as string)}
         </Badge>
       ),
     },
     {
       key: "deliveredAt",
       label: "Estado",
-      render: (_: unknown, row: Communication) => {
+      render: (_: unknown, row: Message) => {
         if (row.respondedAt)
           return (
             <Badge variant="success" size="sm">
@@ -125,8 +129,8 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
     },
   ];
 
-  function handleCreate(data: CommunicationFormData) {
-    createComm.mutate(data as any, {
+  function handleCreate(data: MessageFormData) {
+    createMessage.mutate(data as any, {
       onSuccess: () => setDialog(null),
     });
   }
@@ -134,12 +138,12 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
-        title="Seguimiento"
-        description="Comunicaciones y seguimiento de clientas"
+        title="Mensajes"
+        description="Mensajes con clientas"
         action={
           can(role, "communication.create") ? (
             <Button onClick={() => setDialog("create")}>
-              Nuevo seguimiento
+              Nuevo mensaje
             </Button>
           ) : undefined
         }
@@ -147,13 +151,13 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
 
       <DataTable
         columns={columns}
-        data={comms}
+        data={messages}
         isLoading={isLoading}
         onRowClick={(row) =>
-          setDialog({ mode: "detail", comm: row })
+          setDialog({ mode: "detail", message: row })
         }
-        emptyTitle="Sin seguimientos"
-        emptyDescription="No hay comunicaciones registradas"
+        emptyTitle="Sin mensajes"
+        emptyDescription="No hay mensajes registrados"
       />
 
       {/* Create Dialog */}
@@ -163,26 +167,26 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
       >
         <DialogContent size="lg">
           <DialogHeader>
-            <DialogTitle>Nuevo seguimiento</DialogTitle>
+            <DialogTitle>Nuevo mensaje</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <CommunicationForm
+            <MessageForm
               onSubmit={handleCreate}
-              isPending={createComm.isPending}
+              isPending={createMessage.isPending}
             />
           </DialogBody>
           <DialogFooter>
             <DialogClose>
-              <Button variant="outline" disabled={createComm.isPending}>
+              <Button variant="outline" disabled={createMessage.isPending}>
                 Cancelar
               </Button>
             </DialogClose>
             <Button
               type="submit"
-              form="communication-form"
-              disabled={createComm.isPending}
+              form="message-form"
+              disabled={createMessage.isPending}
             >
-              {createComm.isPending ? "Enviando..." : "Enviar"}
+              {createMessage.isPending ? "Enviando..." : "Enviar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -205,27 +209,27 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
                   <dd>
                     <Badge
                       variant={
-                        CHANNEL_VARIANT[dialog.comm.channel] ?? "secondary"
+                        CHANNEL_VARIANT[dialog.message.channel] ?? "secondary"
                       }
                     >
-                      {CHANNEL_LABEL[dialog.comm.channel] ??
-                        dialog.comm.channel}
+                      {CHANNEL_LABEL[dialog.message.channel] ??
+                        dialog.message.channel}
                     </Badge>
                   </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Tipo</dt>
                   <dd>
-                    {dialog.comm.followupType
-                      ? (FOLLOWUP_LABEL[dialog.comm.followupType] ??
-                        dialog.comm.followupType)
+                    {dialog.message.campaignType
+                      ? (CAMPAIGN_LABEL[dialog.message.campaignType] ??
+                        dialog.message.campaignType)
                       : "—"}
                   </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Enviado</dt>
                   <dd>
-                    {new Date(dialog.comm.sentAt).toLocaleDateString("es-MX", {
+                    {new Date(dialog.message.sentAt).toLocaleDateString("es-MX", {
                       day: "numeric",
                       month: "long",
                       year: "numeric",
@@ -234,16 +238,16 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
                     })}
                   </dd>
                 </div>
-                {dialog.comm.subject && (
+                {dialog.message.subject && (
                   <div>
                     <dt className="mb-1 text-muted-foreground">Asunto</dt>
-                    <dd className="font-medium">{dialog.comm.subject}</dd>
+                    <dd className="font-medium">{dialog.message.subject}</dd>
                   </div>
                 )}
                 <div>
                   <dt className="mb-1 text-muted-foreground">Mensaje</dt>
                   <dd className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm">
-                    {dialog.comm.body}
+                    {dialog.message.body}
                   </dd>
                 </div>
                 <div className="border-t border-border/60 pt-3">
@@ -252,17 +256,17 @@ export function SeguimientoPage({ user }: SeguimientoPageProps) {
                     <Badge variant="secondary" size="sm">
                       Enviado
                     </Badge>
-                    {dialog.comm.deliveredAt && (
+                    {dialog.message.deliveredAt && (
                       <Badge variant="default" size="sm">
                         Entregado
                       </Badge>
                     )}
-                    {dialog.comm.readAt && (
+                    {dialog.message.readAt && (
                       <Badge variant="info" size="sm">
                         Leído
                       </Badge>
                     )}
-                    {dialog.comm.respondedAt && (
+                    {dialog.message.respondedAt && (
                       <Badge variant="success" size="sm">
                         Respondido
                       </Badge>

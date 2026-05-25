@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { NoteItem, VoiceNoteRecorder } from "@/components/ba";
 import {
   useCustomerNotes,
-  useCreateCustomerNote,
+  useCreateNote,
 } from "@/lib/hooks";
 import { useExtractNoteFromAudio } from "@/lib/hooks/use-ai";
 
@@ -25,7 +25,7 @@ interface NotesSectionProps {
 // escribir, aparece un texto gris muy sutil: 'Guardado'".
 export function NotesSection({ customerId, actorUserId }: NotesSectionProps) {
   const notes = useCustomerNotes(customerId);
-  const createNote = useCreateCustomerNote();
+  const createNote = useCreateNote();
   const extractFromAudio = useExtractNoteFromAudio();
 
   const [draft, setDraft] = React.useState("");
@@ -47,7 +47,7 @@ export function NotesSection({ customerId, actorUserId }: NotesSectionProps) {
         await createNote.mutateAsync({
           customerId,
           body: draft.trim(),
-          private: false,
+          isPrivate: false,
         });
         setSaveState("saved");
         setDraft("");
@@ -129,7 +129,7 @@ export function NotesSection({ customerId, actorUserId }: NotesSectionProps) {
               key={note.id}
               body={note.body}
               createdAt={note.createdAt}
-              author={note.authorUserId === actorUserId ? undefined : "Equipo"}
+              author={note.createdByUserId === actorUserId ? undefined : "Equipo"}
             />
           ))}
         </div>

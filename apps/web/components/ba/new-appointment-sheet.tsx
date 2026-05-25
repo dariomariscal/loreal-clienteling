@@ -15,7 +15,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  useAppointmentEventTypes,
+  useServiceTypes,
   useAvailabilityDays,
   useAvailabilitySlots,
   useCreateAppointment,
@@ -34,7 +34,7 @@ const DEFAULT_DURATION = 60;
 interface NewAppointmentSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  baUserId: string;
+  staffUserId: string;
   /** When provided, the customer picker is hidden and the customer is fixed. */
   customerId?: string;
   /** Optional ISO instant from a clicked slot — preselects the day, never the time. */
@@ -54,7 +54,7 @@ interface NewAppointmentSheetProps {
 export function NewAppointmentSheet({
   open,
   onOpenChange,
-  baUserId,
+  staffUserId,
   customerId: providedCustomerId,
   defaultStartsAt,
 }: NewAppointmentSheetProps) {
@@ -73,23 +73,23 @@ export function NewAppointmentSheet({
   const customerName = customer
     ? `${customer.firstName} ${customer.lastName}`.trim()
     : "";
-  const customerSegment = customer?.lifecycleSegment ?? null;
+  const customerLifecycleStage = customer?.lifecycleStage ?? null;
 
   // ── Form state ──
-  const [eventTypeId, setEventTypeId] = React.useState<string | null>(null);
+  const [serviceTypeId, setServiceTypeId] = React.useState<string | null>(null);
   const [date, setDate] = React.useState<string | null>(null);
   const [slotStartsAt, setSlotStartsAt] = React.useState<string | null>(null);
   const [isVirtual, setIsVirtual] = React.useState(false);
-  const [videoLink, setVideoLink] = React.useState("");
+  const [meetingUrl, setMeetingUrl] = React.useState("");
   const [comments, setComments] = React.useState("");
 
   // ── Data ──
-  const eventTypes = useAppointmentEventTypes();
+  const serviceTypes = useServiceTypes();
   const createAppointment = useCreateAppointment();
 
   const selectedType = React.useMemo(
-    () => eventTypes.data?.find((t) => t.id === eventTypeId) ?? null,
-    [eventTypes.data, eventTypeId],
+    () => serviceTypes.data?.find((t) => t.id === serviceTypeId) ?? null,
+    [serviceTypes.data, serviceTypeId],
   );
 
   const durationMinutes =
@@ -107,7 +107,7 @@ export function NewAppointmentSheet({
   }, []);
 
   const availabilityDays = useAvailabilityDays({
-    baUserId,
+    staffUserId,
     from: dayRange.from,
     to: dayRange.to,
     durationMinutes,
@@ -115,7 +115,7 @@ export function NewAppointmentSheet({
   });
 
   const availabilitySlots = useAvailabilitySlots({
-    baUserId,
+    staffUserId,
     date: date ?? "",
     durationMinutes,
     enabled: !!date && !!selectedType && open,
@@ -131,36 +131,36 @@ export function NewAppointmentSheet({
     setPickedCustomer(null);
     setDate(defaultStartsAt ? toISODate(new Date(defaultStartsAt)) : null);
     setSlotStartsAt(null);
-    setEventTypeId(null);
+    setServiceTypeId(null);
     setIsVirtual(false);
-    setVideoLink("");
+    setMeetingUrl("");
     setComments("");
     createAppointment.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultStartsAt]);
 
   // VIP default — preselect vip_cabin if the customer is VIP and the
-  // event types have loaded. Only runs while the user hasn't picked
+  // service types have loaded. Only runs while the user hasn't picked
   // anything yet, so it never overrides an explicit choice.
   React.useEffect(() => {
     if (!open) return;
-    if (eventTypeId !== null) return;
-    if (customerSegment !== "vip") return;
-    const vipFirst = eventTypes.data?.find((t) => t.code === "vip_cabin");
-    if (vipFirst) setEventTypeId(vipFirst.id);
+    if (serviceTypeId !== null) return;
+    if (customerLifecycleStage !== "vip") return;
+    const vipFirst = serviceTypes.data?.find((t) => t.code === "vip_cabin");
+    if (vipFirst) setServiceTypeId(vipFirst.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, customerSegment, eventTypes.data]);
+  }, [open, customerLifecycleStage, serviceTypes.data]);
 
   // Slot is downstream of service and day — clear it when either changes.
   React.useEffect(() => {
     setSlotStartsAt(null);
-  }, [date, eventTypeId]);
+  }, [date, serviceTypeId]);
 
   // ── Computed ──
   const recommendedId = React.useMemo(() => {
-    if (customerSegment !== "vip") return null;
-    return eventTypes.data?.find((t) => t.code === "vip_cabin")?.id ?? null;
-  }, [customerSegment, eventTypes.data]);
+    if (customerLifecycleStage !== "vip") return null;
+    return serviceTypes.data?.find((t) => t.code === "vip_cabin")?.id ?? null;
+  }, [customerLifecycleStage, serviceTypes.data]);
 
   const canConfirm =
     !!customerId &&
@@ -174,14 +174,14 @@ export function NewAppointmentSheet({
     createAppointment.mutate(
       {
         customerId,
-        eventTypeId: selectedType.id,
-        scheduledAt: new Date(slotStartsAt),
+        serviceTypeId: selectedType.id,
+        startTime: new Date(slotStartsAt),
         durationMinutes,
         isVirtual,
-        ...(isVirtual && videoLink.trim()
-          ? { videoLink: videoLink.trim() }
+        ...(isVirtual && meetingUrl.trim()
+          ? { meetingUrl: meetingUrl.trim() }
           : {}),
-        ...(comments.trim() ? { comments: comments.trim() } : {}),
+        ...(comments.trim() ? { notes: comments.trim() } : {}),
       },
       { onSuccess: () => onOpenChange(false) },
     );
@@ -195,7 +195,7 @@ export function NewAppointmentSheet({
   }
 
   const needsCustomerPick = !providedCustomerId;
-  const isVip = customerSegment === "vip";
+  const isVip = customerLifecycleStage === "vip";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -224,11 +224,11 @@ export function NewAppointmentSheet({
           {customerId ? (
             <Section label="Servicio">
               <ServiceGrid
-                eventTypes={eventTypes.data ?? []}
-                selectedId={eventTypeId}
+                serviceTypes={serviceTypes.data ?? []}
+                selectedId={serviceTypeId}
                 recommendedId={recommendedId}
-                onSelect={setEventTypeId}
-                isLoading={eventTypes.isLoading}
+                onSelect={setServiceTypeId}
+                isLoading={serviceTypes.isLoading}
               />
             </Section>
           ) : null}
@@ -273,8 +273,8 @@ export function NewAppointmentSheet({
                 <VirtualToggle
                   checked={isVirtual}
                   onChange={setIsVirtual}
-                  videoLink={videoLink}
-                  onVideoLinkChange={setVideoLink}
+                  meetingUrl={meetingUrl}
+                  onMeetingUrlChange={setMeetingUrl}
                 />
               </Section>
 
@@ -383,13 +383,13 @@ function PickedCustomerInline({
 function VirtualToggle({
   checked,
   onChange,
-  videoLink,
-  onVideoLinkChange,
+  meetingUrl,
+  onMeetingUrlChange,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
-  videoLink: string;
-  onVideoLinkChange: (next: string) => void;
+  meetingUrl: string;
+  onMeetingUrlChange: (next: string) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -416,8 +416,8 @@ function VirtualToggle({
       {checked ? (
         <input
           type="url"
-          value={videoLink}
-          onChange={(e) => onVideoLinkChange(e.target.value)}
+          value={meetingUrl}
+          onChange={(e) => onMeetingUrlChange(e.target.value)}
           placeholder="Pega aquí el link de la videollamada (opcional)"
           className={cn(
             "w-full rounded-lg border border-border/50 bg-card px-3 py-2 text-[13px] text-foreground outline-none transition-colors",

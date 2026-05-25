@@ -4,11 +4,11 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { PackageGlyph } from "@/components/ui/glyphs";
 
-interface PurchaseRowProps {
+interface OrderRowProps {
   productName: string;
   imageUrl?: string | null;
   brandName?: string;
-  purchasedAt: Date | string;
+  processedAt: Date | string;
   amount: number;
   quantity?: number;
   className?: string;
@@ -16,22 +16,22 @@ interface PurchaseRowProps {
 
 // VISUAL DEVICE: list row with thumbnail. Apple Music style.
 //
-// NN/g rule: lists for homogeneous, scannable content. Purchase history
+// NN/g rule: lists for homogeneous, scannable content. Order history
 // is the canonical example — same shape, same priority, scanned by date
 // or price. Price uses tabular-nums to align vertically without extra
 // effort.
 //
 // The thumbnail is visual-first because, as the UX vision says, "las
 // consultoras piensan en visual, no en SKUs". Brand name as secondary.
-export function PurchaseRow({
+export function OrderRow({
   productName,
   imageUrl,
   brandName,
-  purchasedAt,
+  processedAt,
   amount,
   quantity,
   className,
-}: PurchaseRowProps) {
+}: OrderRowProps) {
   return (
     <li
       className={cn(
@@ -45,7 +45,7 @@ export function PurchaseRow({
         <p className="truncate text-[14px] text-foreground">{productName}</p>
         <p className="truncate text-[12px] text-muted-foreground">
           {brandName ? <>{brandName} · </> : null}
-          {formatPurchaseDate(purchasedAt)}
+          {formatOrderDate(processedAt)}
           {quantity && quantity > 1 ? <> · ×{quantity}</> : null}
         </p>
       </div>
@@ -91,7 +91,7 @@ function formatPrice(amount: number): string {
   }).format(amount);
 }
 
-function formatPurchaseDate(value: Date | string): string {
+function formatOrderDate(value: Date | string): string {
   const date = typeof value === "string" ? new Date(value) : value;
   const days = Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
   if (days < 30) return `hace ${days}d`;

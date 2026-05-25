@@ -63,7 +63,7 @@ export function BeautyWizardSheet({
         customerId,
         skinType: draft.skinType ?? undefined,
         skinTone: draft.skinTone ?? undefined,
-        skinSubtone: draft.skinSubtone ?? undefined,
+        undertone: draft.undertone ?? undefined,
         skinConcerns:
           draft.skinConcerns.length > 0 ? draft.skinConcerns : undefined,
         preferredIngredients:
@@ -74,11 +74,10 @@ export function BeautyWizardSheet({
           draft.avoidedIngredients.length > 0
             ? draft.avoidedIngredients
             : undefined,
-        fragrancePreferences:
-          draft.fragrancePreferences.length > 0
-            ? draft.fragrancePreferences
+        fragranceFamilies:
+          draft.fragranceFamilies.length > 0
+            ? draft.fragranceFamilies
             : undefined,
-        routineType: draft.routineType ?? undefined,
         interests: draft.interests.length > 0 ? draft.interests : undefined,
       },
       {
@@ -129,7 +128,7 @@ export function BeautyWizardSheet({
           {step.key === "subtone" && (
             <SkinSubtoneStep
               draft={draft}
-              onSelect={(v) => patch({ skinSubtone: v })}
+              onSelect={(v) => patch({ undertone: v })}
             />
           )}
           {step.key === "concerns" && (
@@ -141,10 +140,9 @@ export function BeautyWizardSheet({
           {step.key === "preferences" && (
             <PreferencesStep
               draft={draft}
-              onRoutine={(v) => patch({ routineType: v })}
               onToggleInterest={(v) => toggleArray("interests", v)}
               onToggleFragrance={(v) =>
-                toggleArray("fragrancePreferences", v)
+                toggleArray("fragranceFamilies", v)
               }
               onTogglePreferred={(v) =>
                 toggleArray("preferredIngredients", v)

@@ -9,8 +9,8 @@ export interface MessageTemplate {
   name: string;
   channel: string;
   body: string;
-  followupType: string;
-  active: boolean;
+  campaignType: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,7 +26,7 @@ const templateKeys = {
 export function useTemplates() {
   return useQuery({
     queryKey: templateKeys.all,
-    queryFn: () => api.get<MessageTemplate[]>("/communications/templates"),
+    queryFn: () => api.get<MessageTemplate[]>("/messages/templates"),
   });
 }
 
@@ -40,8 +40,8 @@ export function useCreateTemplate() {
       name: string;
       channel: string;
       body: string;
-      followupType: string;
-    }) => api.post<MessageTemplate>("/communications/templates", data),
+      campaignType: string;
+    }) => api.post<MessageTemplate>("/messages/templates", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: templateKeys.all }),
   });
 }
@@ -49,8 +49,8 @@ export function useCreateTemplate() {
 export function useUpdateTemplate() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string } & Partial<Pick<MessageTemplate, "name" | "channel" | "body" | "followupType" | "active">>) =>
-      api.patch<MessageTemplate>(`/communications/templates/${id}`, data),
+    mutationFn: ({ id, ...data }: { id: string } & Partial<Pick<MessageTemplate, "name" | "channel" | "body" | "campaignType" | "isActive">>) =>
+      api.patch<MessageTemplate>(`/messages/templates/${id}`, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: templateKeys.all }),
   });
 }

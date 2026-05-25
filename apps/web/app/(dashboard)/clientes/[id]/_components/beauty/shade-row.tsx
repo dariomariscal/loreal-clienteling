@@ -1,10 +1,10 @@
 "use client";
 
-import type { Shade } from "@/lib/hooks/use-customer-detail";
+import type { ShadeMatch } from "@/lib/hooks/use-customer-detail";
 import { cn } from "@/lib/utils";
 import { SHADE_CATEGORY_LABELS } from "./constants";
 
-export function ShadeRow({ shade }: { shade: Shade }) {
+export function ShadeRow({ shade }: { shade: ShadeMatch }) {
   const captured = new Date(shade.capturedAt);
   const swatchHex = shade.swatchHex;
 
@@ -23,7 +23,7 @@ export function ShadeRow({ shade }: { shade: Shade }) {
           {SHADE_CATEGORY_LABELS[shade.category] ?? shade.category}
         </p>
         <p className="truncate font-heading text-[13px] text-foreground">
-          {shade.productName ?? shade.shadeCode}
+          {shade.productTitle ?? shade.shadeCode}
         </p>
         <p className="truncate text-[11px] text-muted-foreground">
           {shade.shadeCode}

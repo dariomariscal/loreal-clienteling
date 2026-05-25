@@ -8,9 +8,9 @@ import { api } from "@/lib/api-client";
 import type {
   CustomerMetrics,
   CustomerActivityResponse,
-  CustomerNote,
-  CreateCustomerNote,
-  UpdateCustomerNote,
+  Note,
+  CreateNote,
+  UpdateNote,
   AvailabilityDay,
   AvailabilitySlot,
 } from "@loreal/contracts";
@@ -22,7 +22,7 @@ const profileKeys = {
   activity: (id: string) => ["customers", id, "activity"] as const,
   notes: (id: string) => ["customers", id, "notes"] as const,
   availability: (
-    baUserId: string,
+    staffUserId: string,
     from: string,
     to: string,
     durationMinutes: number,
@@ -31,13 +31,13 @@ const profileKeys = {
       "appointments",
       "availability",
       "days",
-      baUserId,
+      staffUserId,
       from,
       to,
       durationMinutes,
     ] as const,
   availabilitySlots: (
-    baUserId: string,
+    staffUserId: string,
     date: string,
     durationMinutes: number,
   ) =>
@@ -45,7 +45,7 @@ const profileKeys = {
       "appointments",
       "availability",
       "slots",
-      baUserId,
+      staffUserId,
       date,
       durationMinutes,
     ] as const,
@@ -96,19 +96,19 @@ export function useCustomerNotes(customerId: string) {
   return useQuery({
     queryKey: profileKeys.notes(customerId),
     queryFn: () =>
-      api.get<CustomerNote[]>(`/customers/${customerId}/notes`),
+      api.get<Note[]>(`/customers/${customerId}/notes`),
     enabled: !!customerId,
   });
 }
 
-export function useCreateCustomerNote() {
+export function useCreateNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
       customerId,
       ...data
-    }: { customerId: string } & CreateCustomerNote) =>
-      api.post<CustomerNote>(`/customers/${customerId}/notes`, data),
+    }: { customerId: string } & CreateNote) =>
+      api.post<Note>(`/customers/${customerId}/notes`, data),
     onSuccess: (_, { customerId }) => {
       qc.invalidateQueries({ queryKey: profileKeys.notes(customerId) });
       // A new note also belongs in the activity timeline.
@@ -117,25 +117,25 @@ export function useCreateCustomerNote() {
   });
 }
 
-export function useUpdateCustomerNote() {
+export function useUpdateNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
       id,
       customerId: _customerId,
       ...data
-    }: { id: string; customerId: string } & UpdateCustomerNote) =>
-      api.patch<CustomerNote>(`/customer-notes/${id}`, data),
+    }: { id: string; customerId: string } & UpdateNote) =>
+      api.patch<Note>(`/notes/${id}`, data),
     onSuccess: (_, { customerId }) =>
       qc.invalidateQueries({ queryKey: profileKeys.notes(customerId) }),
   });
 }
 
-export function useDeleteCustomerNote() {
+export function useDeleteNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id }: { id: string; customerId: string }) =>
-      api.delete(`/customer-notes/${id}`),
+      api.delete(`/notes/${id}`),
     onSuccess: (_, { customerId }) =>
       qc.invalidateQueries({ queryKey: profileKeys.notes(customerId) }),
   });
@@ -144,7 +144,7 @@ export function useDeleteCustomerNote() {
 // ── Appointment availability ───────────────────────────────────────
 
 export function useAvailabilityDays(params: {
-  baUserId: string;
+  staffUserId: string;
   from: string;
   to: string;
   durationMinutes: number;
@@ -152,21 +152,21 @@ export function useAvailabilityDays(params: {
 }) {
   return useQuery({
     queryKey: profileKeys.availability(
-      params.baUserId,
+      params.staffUserId,
       params.from,
       params.to,
       params.durationMinutes,
     ),
     queryFn: () =>
       api.get<AvailabilityDay[]>("/appointments/availability", {
-        baUserId: params.baUserId,
+        staffUserId: params.staffUserId,
         from: params.from,
         to: params.to,
         durationMinutes: String(params.durationMinutes),
       }),
     enabled:
       params.enabled !== false &&
-      !!params.baUserId &&
+      !!params.staffUserId &&
       !!params.from &&
       !!params.to &&
       params.durationMinutes > 0,
@@ -174,26 +174,26 @@ export function useAvailabilityDays(params: {
 }
 
 export function useAvailabilitySlots(params: {
-  baUserId: string;
+  staffUserId: string;
   date: string;
   durationMinutes: number;
   enabled?: boolean;
 }) {
   return useQuery({
     queryKey: profileKeys.availabilitySlots(
-      params.baUserId,
+      params.staffUserId,
       params.date,
       params.durationMinutes,
     ),
     queryFn: () =>
       api.get<AvailabilitySlot[]>("/appointments/availability/slots", {
-        baUserId: params.baUserId,
+        staffUserId: params.staffUserId,
         date: params.date,
         durationMinutes: String(params.durationMinutes),
       }),
     enabled:
       params.enabled !== false &&
-      !!params.baUserId &&
+      !!params.staffUserId &&
       !!params.date &&
       params.durationMinutes > 0,
   });

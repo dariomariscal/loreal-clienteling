@@ -7,17 +7,18 @@ import type { CreateAppointment, UpdateAppointment } from "@loreal/contracts";
 export interface Appointment {
   id: string;
   customerId: string;
-  baUserId: string;
+  staffUserId: string;
   storeId: string;
-  eventTypeId: string;
-  scheduledAt: string;
+  serviceTypeId: string;
+  startTime: string;
+  endTime: string;
   durationMinutes: number;
   status: string;
-  comments: string | null;
+  notes: string | null;
   reminderSentAt: string | null;
   confirmationSentAt: string | null;
   isVirtual: boolean;
-  videoLink: string | null;
+  meetingUrl: string | null;
   rescheduledFromAppointmentId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -26,10 +27,10 @@ export interface Appointment {
 // ── Query keys ─────────────────────────────────────────────────────
 
 const appointmentKeys = {
-  all: (from?: string, to?: string, baUserId?: string) =>
-    ["appointments", from, to, baUserId] as const,
-  calendar: (from: string, to: string, baUserId?: string, storeView?: boolean) =>
-    ["appointments", "calendar", from, to, baUserId, storeView] as const,
+  all: (from?: string, to?: string, staffUserId?: string) =>
+    ["appointments", from, to, staffUserId] as const,
+  calendar: (from: string, to: string, staffUserId?: string, storeView?: boolean) =>
+    ["appointments", "calendar", from, to, staffUserId, storeView] as const,
   detail: (id: string) => ["appointments", id] as const,
 };
 
@@ -38,35 +39,35 @@ const appointmentKeys = {
 export function useAppointments(
   from?: string,
   to?: string,
-  options?: { baUserId?: string },
+  options?: { staffUserId?: string },
 ) {
   const params: Record<string, string> = {};
   if (from) params.from = from;
   if (to) params.to = to;
-  if (options?.baUserId) params.baUserId = options.baUserId;
+  if (options?.staffUserId) params.staffUserId = options.staffUserId;
 
   return useQuery({
-    queryKey: appointmentKeys.all(from, to, options?.baUserId),
+    queryKey: appointmentKeys.all(from, to, options?.staffUserId),
     queryFn: () => api.get<Appointment[]>("/appointments", params),
   });
 }
 
 export interface CalendarAppointment {
   id: string;
-  scheduledAt: string;
+  startTime: string;
   durationMinutes: number;
-  eventTypeId: string;
-  eventTypeName: string | null;
-  eventTypeColor: string | null;
+  serviceTypeId: string;
+  serviceTypeName: string | null;
+  serviceTypeColor: string | null;
   status: string;
-  comments: string | null;
+  notes: string | null;
   isVirtual: boolean;
   customerId: string;
   customerName: string;
   customerPhone: string | null;
-  customerSegment: string | null;
-  baUserId: string;
-  baName: string;
+  customerLifecycleStage: string | null;
+  staffUserId: string;
+  staffName: string;
   storeId: string;
   storeName: string;
 }
@@ -74,14 +75,14 @@ export interface CalendarAppointment {
 export function useAppointmentCalendar(
   from: string,
   to: string,
-  options?: { baUserId?: string; storeView?: boolean },
+  options?: { staffUserId?: string; storeView?: boolean },
 ) {
   const params: Record<string, string> = { from, to };
-  if (options?.baUserId) params.baUserId = options.baUserId;
+  if (options?.staffUserId) params.staffUserId = options.staffUserId;
   if (options?.storeView) params.storeView = "true";
 
   return useQuery({
-    queryKey: appointmentKeys.calendar(from, to, options?.baUserId, options?.storeView),
+    queryKey: appointmentKeys.calendar(from, to, options?.staffUserId, options?.storeView),
     queryFn: () => api.get<CalendarAppointment[]>("/appointments/calendar", params),
     enabled: !!from && !!to,
   });

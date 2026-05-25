@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  type CreateCommunication,
+  type CreateMessage,
   COMMUNICATION_CHANNELS,
-  FOLLOWUP_TYPES,
+  CAMPAIGN_TYPES,
 } from "@loreal/contracts";
-import { createCommunicationSchema } from "@/lib/schemas/communications";
+import { createMessageSchema } from "@/lib/schemas/messages";
 import { useCustomerSearch, useTemplates, type Customer } from "@/lib/hooks";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,26 +34,30 @@ const CHANNEL_LABELS: Record<string, string> = {
   email: "Email",
 };
 
-const FOLLOWUP_LABELS: Record<string, string> = {
-  "3_months": "3 meses",
-  "6_months": "6 meses",
+const CAMPAIGN_LABELS: Record<string, string> = {
   birthday: "Cumpleaños",
   replenishment: "Reposición",
+  win_back: "Recuperación",
+  new_launch: "Nuevo lanzamiento",
+  post_purchase: "Post-compra",
+  appointment_reminder: "Recordatorio de cita",
+  abandoned_cart: "Carrito abandonado",
   special_event: "Evento especial",
+  manual: "Manual",
   custom: "Personalizado",
 };
 
-export type CommunicationFormData = CreateCommunication;
+export type MessageFormData = CreateMessage;
 
-interface CommunicationFormProps {
-  onSubmit: (data: CreateCommunication) => void;
+interface MessageFormProps {
+  onSubmit: (data: CreateMessage) => void;
   isPending: boolean;
 }
 
-export function CommunicationForm({
+export function MessageForm({
   onSubmit,
   isPending,
-}: CommunicationFormProps) {
+}: MessageFormProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -61,12 +65,12 @@ export function CommunicationForm({
   const { data: searchResults = [] } = useCustomerSearch(searchQuery);
   const { data: templates = [] } = useTemplates();
 
-  const form = useForm<CreateCommunication>({
-    resolver: zodResolver(createCommunicationSchema),
+  const form = useForm<CreateMessage>({
+    resolver: zodResolver(createMessageSchema),
     defaultValues: {
       customerId: "",
       channel: COMMUNICATION_CHANNELS[0],
-      followupType: FOLLOWUP_TYPES[0],
+      campaignType: CAMPAIGN_TYPES[0],
       subject: "",
       body: "",
     },
@@ -78,7 +82,7 @@ export function CommunicationForm({
     if (tpl) form.setValue("body", tpl.body);
   }
 
-  function handleSubmit(data: CreateCommunication) {
+  function handleSubmit(data: CreateMessage) {
     onSubmit({
       ...data,
       subject: data.subject || undefined,
@@ -87,7 +91,7 @@ export function CommunicationForm({
 
   return (
     <Form {...form}>
-      <form id="communication-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <form id="message-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <div className="relative space-y-2">
           <FormField
             control={form.control}
@@ -170,22 +174,22 @@ export function CommunicationForm({
 
           <FormField
             control={form.control}
-            name="followupType"
+            name="campaignType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tipo de seguimiento</FormLabel>
+                <FormLabel>Campaña</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger disabled={isPending}>
                       <SelectValue placeholder="Seleccionar tipo">
-                        {field.value ? FOLLOWUP_LABELS[field.value] ?? field.value : undefined}
+                        {field.value ? CAMPAIGN_LABELS[field.value] ?? field.value : undefined}
                       </SelectValue>
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {FOLLOWUP_TYPES.map((ft) => (
+                    {CAMPAIGN_TYPES.map((ft: string) => (
                       <SelectItem key={ft} value={ft}>
-                        {FOLLOWUP_LABELS[ft] ?? ft}
+                        {CAMPAIGN_LABELS[ft] ?? ft}
                       </SelectItem>
                     ))}
                   </SelectContent>

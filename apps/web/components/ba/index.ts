@@ -8,7 +8,7 @@ export { CustomerSummaryCard } from "./customer-summary-card";
 export { AIContextBlock } from "./ai-context-block";
 export { NextStepCard } from "./next-step-card";
 export { NoteItem } from "./note-item";
-export { PurchaseRow } from "./purchase-row";
+export { OrderRow } from "./order-row";
 export { ActivityTimeline } from "./activity-timeline";
 export type { ActivityItem, ActivityKind } from "./activity-timeline";
 export { MessageBubble } from "./message-bubble";

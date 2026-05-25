@@ -11,7 +11,7 @@ import {
   ServiceProductFollowupGlyph,
   ServiceCustomGlyph,
 } from "@/components/ui/glyphs";
-import type { AppointmentEventType } from "@/lib/hooks";
+import type { ServiceType } from "@/lib/hooks";
 
 type GlyphComponent = React.ComponentType<{ className?: string }>;
 
@@ -25,7 +25,7 @@ const GLYPH_BY_CODE: Record<string, GlyphComponent> = {
 };
 
 interface ServiceGridProps {
-  eventTypes: AppointmentEventType[];
+  serviceTypes: ServiceType[];
   selectedId: string | null;
   recommendedId?: string | null;
   onSelect: (id: string) => void;
@@ -40,7 +40,7 @@ interface ServiceGridProps {
 // whole sheet: a sparkle dot in the top-right corner. No "Recomendado"
 // badge — restraint over explanation.
 export function ServiceGrid({
-  eventTypes,
+  serviceTypes,
   selectedId,
   recommendedId,
   onSelect,
@@ -56,8 +56,8 @@ export function ServiceGrid({
     );
   }
 
-  const active = eventTypes
-    .filter((t) => t.active)
+  const active = serviceTypes
+    .filter((t) => t.isActive)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (

@@ -7,7 +7,7 @@ import {
   useCustomerSearch,
   type Customer,
 } from "@/lib/hooks";
-import { LIFECYCLE_SEGMENTS } from "@loreal/contracts";
+import { LIFECYCLE_STAGES } from "@loreal/contracts";
 import { can } from "@/lib/permissions";
 import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -72,8 +72,8 @@ export function CustomersPage({ user }: CustomersPageProps) {
       : {
           page: page.toString(),
           limit: limit.toString(),
-          ...(segment ? { segment } : {}),
-          ...(view === "mine" ? { baUserId: user.id } : {}),
+          ...(segment ? { stage: segment } : {}),
+          ...(view === "mine" ? { assignedToUserId: user.id } : {}),
         },
   );
 
@@ -106,7 +106,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
     { key: "email", label: "Email" },
     { key: "phone", label: "Teléfono" },
     {
-      key: "lifecycleSegment",
+      key: "lifecycleStage",
       label: "Segmento",
       render: (v) => {
         const seg = v as string;
@@ -118,7 +118,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
       },
     },
     {
-      key: "lastTransactionAt",
+      key: "lastOrderAt",
       label: "Última compra",
       render: (v) => {
         if (!v) return "—";
@@ -218,7 +218,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Todos</SelectItem>
-              {LIFECYCLE_SEGMENTS.map((seg) => (
+              {LIFECYCLE_STAGES.map((seg: string) => (
                 <SelectItem key={seg} value={seg}>
                   {SEGMENT_LABEL[seg] ?? seg}
                 </SelectItem>

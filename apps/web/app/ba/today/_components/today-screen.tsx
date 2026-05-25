@@ -4,9 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { ViewHeader } from "../../_components/view-header";
 import { CustomerSummaryCard, TimePill } from "@/components/ba";
-import { useDailyOpportunities } from "@/lib/hooks/use-ai";
+import { useDailySuggestedActions } from "@/lib/hooks/use-ai";
 import { useAppointmentCalendar } from "@/lib/hooks";
 import type { SessionUser } from "@/lib/auth";
+import type { SuggestedActionWithCustomer } from "@loreal/contracts";
 import { AppointmentGlyph } from "@/components/ui/glyphs";
 
 interface TodayScreenProps {
@@ -26,14 +27,14 @@ export function TodayScreen({ user }: TodayScreenProps) {
   const firstName = user.fullName.split(" ")[0] ?? "";
   const greeting = useGreeting();
 
-  const opportunities = useDailyOpportunities(undefined, 5);
+  const opportunities = useDailySuggestedActions(undefined, 5);
   const appointments = useAppointmentCalendar(dateRange.from, dateRange.to, {
-    baUserId: user.id,
+    staffUserId: user.id,
   });
 
   const apptItems = (appointments.data ?? [])
     .slice()
-    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
     <>
@@ -57,15 +58,15 @@ export function TodayScreen({ user }: TodayScreenProps) {
               <EmptyOpportunities />
             ) : (
               <ul className="space-y-2.5">
-                {opportunities.data!.map((o) => (
+                {opportunities.data!.map((o: SuggestedActionWithCustomer) => (
                   <li key={o.id}>
                     <CustomerSummaryCard
                       customerId={o.customerId}
                       firstName={o.customer.firstName}
                       lastName={o.customer.lastName}
-                      rationale={o.summary}
-                      suggestedAction={o.suggestedAction}
-                      reason={o.reason}
+                      rationale={o.description}
+                      suggestedAction={o.recommendedAction}
+                      reason={o.triggerType}
                     />
                   </li>
                 ))}
@@ -93,13 +94,13 @@ export function TodayScreen({ user }: TodayScreenProps) {
                       href={`/ba/customers/${a.customerId}`}
                       className="flex items-center gap-3.5 px-4 py-3 transition-colors hover:bg-muted/40"
                     >
-                      <TimePill iso={a.scheduledAt} color={a.eventTypeColor} />
+                      <TimePill iso={a.startTime} color={a.serviceTypeColor} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] text-foreground">
                           {a.customerName}
                         </p>
                         <p className="truncate text-[12px] text-muted-foreground">
-                          {a.eventTypeName ?? "Cita"}
+                          {a.serviceTypeName ?? "Cita"}
                           {a.isVirtual ? " · virtual" : ""}
                         </p>
                       </div>

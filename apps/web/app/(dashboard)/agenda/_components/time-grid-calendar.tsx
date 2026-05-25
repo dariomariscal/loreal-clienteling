@@ -107,7 +107,7 @@ export function TimeGridCalendar({
               key={day.toISOString()}
               day={day}
               appointments={appointments.filter((a) =>
-                sameDay(new Date(a.scheduledAt), day),
+                sameDay(new Date(a.startTime), day),
               )}
               onAppointmentClick={onAppointmentClick}
               onSlotClick={onSlotClick}
@@ -307,11 +307,11 @@ function AppointmentBlock({
   onClick: () => void;
   showBa?: boolean;
 }) {
-  const start = new Date(appointment.scheduledAt);
+  const start = new Date(appointment.startTime);
   const minutesFromTop = minutesFromDayStart(start);
   const top = minutesFromTop * (HOUR_HEIGHT / 60);
   const height = appointment.durationMinutes * (HOUR_HEIGHT / 60);
-  const accent = appointment.eventTypeColor ?? "var(--accent)";
+  const accent = appointment.serviceTypeColor ?? "var(--accent)";
   const startLabel = start.toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
@@ -359,8 +359,8 @@ function AppointmentBlock({
       </p>
       {height >= 50 && (
         <p className="ml-1 line-clamp-1 text-[10px] text-muted-foreground">
-          {appointment.eventTypeName ?? "Cita"}
-          {showBa && appointment.baName ? ` · ${appointment.baName}` : ""}
+          {appointment.serviceTypeName ?? "Cita"}
+          {showBa && appointment.staffName ? ` · ${appointment.staffName}` : ""}
         </p>
       )}
     </button>

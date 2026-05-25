@@ -85,7 +85,7 @@ export function RecommendationsSection({
   // Group by recommendedAt rounded to the minute — recs created together in
   // a single Look Builder submission share the same "consultation" feel.
   const groups = groupByConsultation(recommendations);
-  const converted = recommendations.filter((r) => r.convertedToPurchase).length;
+  const converted = recommendations.filter((r) => r.isConverted).length;
   const rate = recommendations.length > 0
     ? Math.round((converted / recommendations.length) * 100)
     : 0;
@@ -140,7 +140,7 @@ export function RecommendationsSection({
 interface ConsultationGroup {
   key: string;
   recommendedAt: string;
-  visitReason: string | null;
+  visitPurpose: string | null;
   source: string;
   items: Recommendation[];
 }
@@ -151,10 +151,10 @@ function groupByConsultation(
   const buckets = new Map<string, ConsultationGroup>();
 
   for (const rec of recs) {
-    // Bucket by minute + source + visitReason — manual batches submitted
+    // Bucket by minute + source + visitPurpose — manual batches submitted
     // together land in the same bucket; AI suggestions stay separate.
     const minute = rec.recommendedAt.slice(0, 16);
-    const key = `${minute}|${rec.source}|${rec.visitReason ?? ""}`;
+    const key = `${minute}|${rec.source}|${rec.visitPurpose ?? ""}`;
     const existing = buckets.get(key);
     if (existing) {
       existing.items.push(rec);
@@ -162,7 +162,7 @@ function groupByConsultation(
       buckets.set(key, {
         key,
         recommendedAt: rec.recommendedAt,
-        visitReason: rec.visitReason,
+        visitPurpose: rec.visitPurpose,
         source: rec.source,
         items: [rec],
       });
@@ -184,7 +184,7 @@ function ConsultationCard({
   productMap: Map<string, Product>;
 }) {
   const date = new Date(group.recommendedAt);
-  const converted = group.items.filter((i) => i.convertedToPurchase).length;
+  const converted = group.items.filter((i) => i.isConverted).length;
 
   return (
     <li className="overflow-hidden rounded-2xl border border-border/60 bg-card">
@@ -206,8 +206,8 @@ function ConsultationCard({
           </p>
           <p className="text-[11px] text-muted-foreground">
             {group.items.length} {group.items.length === 1 ? "producto" : "productos"}
-            {group.visitReason
-              ? ` · ${VISIT_REASON_LABEL[group.visitReason] ?? group.visitReason}`
+            {group.visitPurpose
+              ? ` · ${VISIT_REASON_LABEL[group.visitPurpose] ?? group.visitPurpose}`
               : ""}
             {converted > 0
               ? ` · ${converted} convertida${converted === 1 ? "" : "s"}`
@@ -240,7 +240,7 @@ function RecommendationRow({
   product: Product | undefined;
 }) {
   const image = product?.images?.[0];
-  const converted = recommendation.convertedToPurchase;
+  const converted = recommendation.isConverted;
 
   return (
     <li className="flex gap-3 px-4 py-3">

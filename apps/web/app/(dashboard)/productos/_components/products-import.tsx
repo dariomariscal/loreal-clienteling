@@ -249,13 +249,13 @@ function rowToProduct(
   const brand = brandByCode.get(raw.brandCode.toUpperCase())!;
   return {
     sku: raw.sku,
-    name: raw.name,
+    title: raw.name,
     brandId: brand.id,
     category: raw.category,
     subcategory: raw.subcategory || undefined,
     description: raw.description || undefined,
     price: Number(raw.price),
-    estimatedDurationDays: raw.estimatedDurationDays
+    replenishmentDays: raw.estimatedDurationDays
       ? Number(raw.estimatedDurationDays)
       : undefined,
   };

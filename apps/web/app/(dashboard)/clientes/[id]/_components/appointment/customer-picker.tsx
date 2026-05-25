@@ -21,10 +21,10 @@ const ROW_PX = 56;
 const PRELOAD_LIMIT = "30";
 
 export function CustomerPicker({
-  baUserId,
+  staffUserId,
   onPick,
 }: {
-  baUserId: string;
+  staffUserId: string;
   onPick: (c: Customer) => void;
 }) {
   const [query, setQuery] = React.useState("");
@@ -39,7 +39,7 @@ export function CustomerPicker({
 
   const { data: preload, isLoading: preloadLoading } = useCustomers({
     limit: PRELOAD_LIMIT,
-    sortBy: "lastContactAt",
+    sortBy: "lastInteractionAt",
     sortOrder: "desc",
   });
 
@@ -55,11 +55,11 @@ export function CustomerPicker({
     const mine: Customer[] = [];
     const others: Customer[] = [];
     for (const c of customers) {
-      if (c.lastBaUserId === baUserId) mine.push(c);
+      if (c.assignedToUserId === staffUserId) mine.push(c);
       else others.push(c);
     }
     return { mine, others };
-  }, [customers, baUserId]);
+  }, [customers, staffUserId]);
 
   function handlePick(c: Customer) {
     if (!c.id) return;
@@ -173,7 +173,7 @@ function ResultsSection({
                   </p>
                 )}
               </div>
-              {c.lifecycleSegment === "vip" && (
+              {c.lifecycleStage === "vip" && (
                 <Badge variant="success" size="sm">
                   VIP
                 </Badge>
@@ -209,7 +209,7 @@ export function PickedCustomerCard({
           </p>
         )}
       </div>
-      {customer.lifecycleSegment === "vip" && (
+      {customer.lifecycleStage === "vip" && (
         <Badge variant="success" size="sm">
           VIP
         </Badge>

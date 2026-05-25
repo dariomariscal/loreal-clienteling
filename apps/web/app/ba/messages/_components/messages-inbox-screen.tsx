@@ -8,8 +8,8 @@ import {
   type CommunicationChannel,
 } from "@/components/ba";
 import { SearchGlyph } from "@/components/ui/glyphs";
-import { useCommunications, useCustomers } from "@/lib/hooks";
-import type { Communication } from "@/lib/hooks/use-customer-detail";
+import { useMessages, useCustomers } from "@/lib/hooks";
+import type { Message } from "@/lib/hooks/use-customer-detail";
 import type { SessionUser } from "@/lib/auth";
 import { InboxFilterChips, type InboxFilter } from "./inbox-filter-chips";
 
@@ -40,7 +40,7 @@ interface Thread {
 // endpoint. The shape leaves room for a future server-side endpoint
 // without changing the row contract.
 export function MessagesInboxScreen({ user: _user }: MessagesInboxScreenProps) {
-  const comms = useCommunications();
+  const messages = useMessages();
   const customers = useCustomers({ limit: "200" });
   const [filter, setFilter] = React.useState<InboxFilter>("all");
   const [query, setQuery] = React.useState("");
@@ -50,15 +50,15 @@ export function MessagesInboxScreen({ user: _user }: MessagesInboxScreenProps) {
     for (const c of customers.data?.data ?? []) {
       map.set(c.id, {
         name: `${c.firstName} ${c.lastName}`.trim(),
-        isVip: c.lifecycleSegment === "vip",
+        isVip: c.lifecycleStage === "vip",
       });
     }
     return map;
   }, [customers.data]);
 
   const threads = React.useMemo<Thread[]>(
-    () => collapseToThreads(comms.data ?? [], customerById),
-    [comms.data, customerById],
+    () => collapseToThreads(messages.data ?? [], customerById),
+    [messages.data, customerById],
   );
 
   const counts = React.useMemo(
@@ -106,7 +106,7 @@ export function MessagesInboxScreen({ user: _user }: MessagesInboxScreenProps) {
 
           {/* List */}
           <div className="pt-4">
-            {comms.isLoading || customers.isLoading ? (
+            {messages.isLoading || customers.isLoading ? (
               <ListSkeleton />
             ) : filtered.length === 0 ? (
               <EmptyState filter={filter} hasQuery={query.length > 0} />
@@ -194,12 +194,12 @@ function ListSkeleton() {
 // ── Domain logic ────────────────────────────────────────────────────
 
 function collapseToThreads(
-  comms: Communication[],
+  messages: Message[],
   customerById: Map<string, { name: string; isVip: boolean }>,
 ): Thread[] {
-  const latestByCustomer = new Map<string, Communication>();
+  const latestByCustomer = new Map<string, Message>();
 
-  for (const m of comms) {
+  for (const m of messages) {
     const prev = latestByCustomer.get(m.customerId);
     if (!prev || m.sentAt > prev.sentAt) {
       latestByCustomer.set(m.customerId, m);

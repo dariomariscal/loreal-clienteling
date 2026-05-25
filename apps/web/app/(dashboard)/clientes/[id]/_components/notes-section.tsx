@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useCustomerNotes, useDeleteCustomerNote } from "@/lib/hooks";
-import type { CustomerNote } from "@loreal/contracts";
+import { useCustomerNotes, useDeleteNote } from "@/lib/hooks";
+import type { Note } from "@loreal/contracts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,10 +88,10 @@ function NoteCard({
   note,
   customerId,
 }: {
-  note: CustomerNote;
+  note: Note;
   customerId: string;
 }) {
-  const deleteNote = useDeleteCustomerNote();
+  const deleteNote = useDeleteNote();
   const [confirmDelete, setConfirmDelete] = React.useState(false);
 
   function handleDelete() {
@@ -113,7 +113,7 @@ function NoteCard({
       className={cn(
         "group relative rounded-2xl border border-border/60 bg-card p-4 transition-shadow duration-200",
         "hover:shadow-sm",
-        note.private && "bg-muted/40",
+        note.isPrivate && "bg-muted/40",
       )}
     >
       <div className="flex items-start gap-3">
@@ -132,7 +132,7 @@ function NoteCard({
           </p>
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground/70">
             <time>{formatRelative(note.createdAt)}</time>
-            {note.private && (
+            {note.isPrivate && (
               <span className="inline-flex items-center gap-1">
                 <LockIcon className="size-3" /> Privada
               </span>

@@ -1,23 +1,23 @@
 "use client";
 
-import type { AppointmentEventType } from "@/lib/hooks";
+import type { ServiceType } from "@/lib/hooks";
 import { ServiceCustomGlyph } from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
 import { DEFAULT_DURATION, EVENT_TYPE_GLYPH } from "./constants";
 
 export function ServiceCard({
-  type,
+  serviceType,
   selected,
   recommended,
   onSelect,
 }: {
-  type: AppointmentEventType;
+  serviceType: ServiceType;
   selected: boolean;
   recommended: boolean;
   onSelect: () => void;
 }) {
-  const Glyph = EVENT_TYPE_GLYPH[type.code] ?? ServiceCustomGlyph;
-  const color = type.color ?? "var(--accent)";
+  const Glyph = EVENT_TYPE_GLYPH[serviceType.code] ?? ServiceCustomGlyph;
+  const color = serviceType.color ?? "var(--accent)";
 
   return (
     <button
@@ -43,11 +43,11 @@ export function ServiceCard({
         <Glyph className="size-4" />
       </span>
       <p className="line-clamp-2 font-heading text-[13px] leading-tight text-foreground">
-        {type.displayName}
+        {serviceType.displayName}
       </p>
       <p className="text-[11px] text-muted-foreground">
-        {type.durationMinutes
-          ? `${type.durationMinutes} min`
+        {serviceType.durationMinutes
+          ? `${serviceType.durationMinutes} min`
           : `${DEFAULT_DURATION} min`}
       </p>
     </button>

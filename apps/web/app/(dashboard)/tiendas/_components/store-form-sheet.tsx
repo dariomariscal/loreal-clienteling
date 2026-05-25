@@ -62,7 +62,7 @@ export function StoreFormSheet({
       ? {
           code: store.code,
           displayName: store.displayName,
-          chain: store.chain,
+          banner: store.banner,
           address: store.address ?? undefined,
           city: store.city ?? undefined,
           state: store.state ?? undefined,

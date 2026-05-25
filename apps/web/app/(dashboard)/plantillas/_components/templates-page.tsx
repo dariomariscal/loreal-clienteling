@@ -16,9 +16,17 @@ import { TemplateForm } from "./template-form";
 type DialogState = null | { mode: "create" } | { mode: "edit"; template: MessageTemplate };
 
 const CHANNEL_LABEL: Record<string, string> = { whatsapp: "WhatsApp", sms: "SMS", email: "Email" };
-const FOLLOWUP_LABEL: Record<string, string> = {
-  "3_months": "3 meses", "6_months": "6 meses", birthday: "Cumpleaños",
-  replenishment: "Reposición", special_event: "Evento", custom: "Personalizado",
+const CAMPAIGN_LABEL: Record<string, string> = {
+  birthday: "Cumpleaños",
+  replenishment: "Reposición",
+  win_back: "Recuperación",
+  new_launch: "Nuevo lanzamiento",
+  post_purchase: "Post-compra",
+  appointment_reminder: "Recordatorio de cita",
+  abandoned_cart: "Carrito abandonado",
+  special_event: "Evento especial",
+  manual: "Manual",
+  custom: "Personalizado",
 };
 
 interface TemplatesPageProps {
@@ -43,9 +51,9 @@ export function TemplatesPage({ user }: TemplatesPageProps) {
       render: (v) => <Badge variant="info">{CHANNEL_LABEL[v as string] ?? (v as string)}</Badge>,
     },
     {
-      key: "followupType",
+      key: "campaignType",
       label: "Tipo",
-      render: (v) => <Badge variant="secondary">{FOLLOWUP_LABEL[v as string] ?? (v as string)}</Badge>,
+      render: (v) => <Badge variant="secondary">{CAMPAIGN_LABEL[v as string] ?? (v as string)}</Badge>,
     },
     {
       key: "brandId",

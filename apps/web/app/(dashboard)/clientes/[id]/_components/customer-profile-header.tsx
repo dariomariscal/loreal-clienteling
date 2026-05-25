@@ -44,9 +44,9 @@ export function CustomerProfileHeader({
   onOpenActions,
 }: CustomerProfileHeaderProps) {
   const fullName = `${customer.firstName} ${customer.lastName}`;
-  const segmentVariant = SEGMENT_VARIANT[customer.lifecycleSegment] ?? "default";
+  const segmentVariant = SEGMENT_VARIANT[customer.lifecycleStage] ?? "default";
   const segmentLabel =
-    SEGMENT_LABEL[customer.lifecycleSegment] ?? customer.lifecycleSegment;
+    SEGMENT_LABEL[customer.lifecycleStage] ?? customer.lifecycleStage;
 
   return (
     <header className="flex flex-col gap-4">
@@ -89,9 +89,9 @@ export function CustomerProfileHeader({
             phone={customer.phone}
           />
           <MetaLine
-            customerSince={customer.customerSince}
-            lastContactAt={customer.lastContactAt}
-            lastTransactionAt={customer.lastTransactionAt}
+            enrolledAt={customer.enrolledAt}
+            lastInteractionAt={customer.lastInteractionAt}
+            lastOrderAt={customer.lastOrderAt}
           />
         </div>
       </div>
@@ -115,16 +115,16 @@ function ContactLine({
 }
 
 function MetaLine({
-  customerSince,
-  lastContactAt,
-  lastTransactionAt,
+  enrolledAt,
+  lastInteractionAt,
+  lastOrderAt,
 }: {
-  customerSince: string;
-  lastContactAt: string | null;
-  lastTransactionAt: string | null;
+  enrolledAt: string;
+  lastInteractionAt: string | null;
+  lastOrderAt: string | null;
 }) {
-  const since = formatSince(customerSince);
-  const lastVisit = pickLastVisit(lastContactAt, lastTransactionAt);
+  const since = formatSince(enrolledAt);
+  const lastVisit = pickLastVisit(lastInteractionAt, lastOrderAt);
 
   return (
     <p className="mt-1 text-xs text-muted-foreground">
@@ -144,10 +144,10 @@ function formatSince(iso: string): string {
 }
 
 function pickLastVisit(
-  contactAt: string | null,
-  transactionAt: string | null,
+  interactionAt: string | null,
+  orderAt: string | null,
 ): string | null {
-  const candidates = [contactAt, transactionAt]
+  const candidates = [interactionAt, orderAt]
     .filter((d): d is string => Boolean(d))
     .map((d) => new Date(d));
   if (candidates.length === 0) return null;

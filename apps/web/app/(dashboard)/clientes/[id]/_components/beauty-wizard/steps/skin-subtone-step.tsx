@@ -19,7 +19,7 @@ export function SkinSubtoneStep({ draft, onSelect }: Props) {
       />
       <ul className="grid gap-2 sm:grid-cols-3">
         {SKIN_SUBTONES.map((s) => {
-          const active = draft.skinSubtone === s.value;
+          const active = draft.undertone === s.value;
           return (
             <li key={s.value}>
               <button

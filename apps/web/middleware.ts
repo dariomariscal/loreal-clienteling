@@ -16,7 +16,7 @@ const isAdminSurfaceRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/clientes(.*)",
   "/agenda(.*)",
-  "/seguimiento(.*)",
+  "/mensajes(.*)",
   "/productos(.*)",
   "/marcas(.*)",
   "/zonas(.*)",

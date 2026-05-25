@@ -88,7 +88,7 @@ const STORE_ICON_SVG = `
 interface StorePoint {
   id: string;
   name: string;
-  chain: string;
+  banner: string;
   color: string;
   lat: number;
   lng: number;
@@ -105,7 +105,7 @@ function buildStorePoints(stores: Store[], zones: Zone[]): StorePoint[] {
     points.push({
       id: s.id,
       name: s.displayName,
-      chain: s.chain,
+      banner: s.banner,
       lat,
       lng,
       color: s.zoneId ? zoneColorById.get(s.zoneId) ?? "#1F2937" : "#9CA3AF",
@@ -338,7 +338,7 @@ export function ZonesMap({
       }).setHTML(
         `<div style="font-family: inherit; font-size: 12px; padding: 4px 6px;">
           <div style="font-weight: 500;">${point.name}</div>
-          <div style="color: #6B7280; text-transform: capitalize;">${point.chain}</div>
+          <div style="color: #6B7280; text-transform: capitalize;">${point.banner}</div>
         </div>`,
       );
       const marker = new mapboxgl.Marker({ element: el, anchor: "center" })

@@ -10,7 +10,7 @@ export interface Store {
   id: string;
   code: string;
   displayName: string;
-  chain: string;
+  banner: string;
   /** Derived server-side from address. Null until a zone covers the store's municipality. */
   zoneId: string | null;
   address: string | null;

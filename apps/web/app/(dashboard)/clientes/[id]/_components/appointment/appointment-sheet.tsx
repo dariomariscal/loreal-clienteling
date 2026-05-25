@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import {
-  useAppointmentEventTypes,
+  useServiceTypes,
   useAvailabilityDays,
   useAvailabilitySlots,
   useCreateAppointment,
@@ -39,8 +39,8 @@ interface AppointmentSheetProps {
   /** When provided, skips the client picker step and pre-fills the customer. */
   customerId?: string;
   customerName?: string;
-  customerSegment?: string | null;
-  baUserId: string;
+  customerLifecycleStage?: string | null;
+  staffUserId: string;
   /**
    * Optional ISO string from a clicked empty slot on the agenda — we use it
    * to pre-select the day chip, but never the time (BAs expect to confirm).
@@ -53,8 +53,8 @@ export function AppointmentSheet({
   onOpenChange,
   customerId: providedCustomerId,
   customerName: providedCustomerName,
-  customerSegment: providedCustomerSegment,
-  baUserId,
+  customerLifecycleStage: providedCustomerLifecycleStage,
+  staffUserId,
   defaultStartsAt,
 }: AppointmentSheetProps) {
   const [pickedCustomer, setPickedCustomer] = React.useState<Customer | null>(
@@ -66,18 +66,18 @@ export function AppointmentSheet({
     (pickedCustomer
       ? `${pickedCustomer.firstName} ${pickedCustomer.lastName}`
       : "");
-  const customerSegment =
-    providedCustomerSegment ?? pickedCustomer?.lifecycleSegment ?? null;
+  const customerLifecycleStage =
+    providedCustomerLifecycleStage ?? pickedCustomer?.lifecycleStage ?? null;
   const needsCustomerPick = !providedCustomerId;
 
-  const [eventTypeId, setEventTypeId] = React.useState<string | null>(null);
+  const [serviceTypeId, setServiceTypeId] = React.useState<string | null>(null);
   const [date, setDate] = React.useState<string | null>(null);
   const [slotStartsAt, setSlotStartsAt] = React.useState<string | null>(null);
   const [isVirtual, setIsVirtual] = React.useState(false);
-  const [comments, setComments] = React.useState("");
+  const [notes, setNotes] = React.useState("");
 
-  const { data: eventTypes = [], isLoading: typesLoading } =
-    useAppointmentEventTypes();
+  const { data: serviceTypes = [], isLoading: typesLoading } =
+    useServiceTypes();
   const createAppointment = useCreateAppointment();
 
   // Reset the form whenever the sheet opens. We intentionally exclude the
@@ -94,27 +94,27 @@ export function AppointmentSheet({
     }
     setSlotStartsAt(null);
     setIsVirtual(false);
-    setComments("");
+    setNotes("");
     createAppointment.reset();
-    setEventTypeId(null);
+    setServiceTypeId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultStartsAt]);
 
-  // Default to VIP cabin once we know the customer is VIP and the event
+  // Default to VIP cabin once we know the customer is VIP and the service
   // types have loaded. Runs separately so picking a client doesn't reset
   // the rest of the form.
   React.useEffect(() => {
-    if (!open || eventTypes.length === 0) return;
-    if (eventTypeId !== null) return;
-    if (customerSegment !== "vip") return;
-    const vipFirst = eventTypes.find((t) => t.code === "vip_cabin");
-    if (vipFirst) setEventTypeId(vipFirst.id);
+    if (!open || serviceTypes.length === 0) return;
+    if (serviceTypeId !== null) return;
+    if (customerLifecycleStage !== "vip") return;
+    const vipFirst = serviceTypes.find((t) => t.code === "vip_cabin");
+    if (vipFirst) setServiceTypeId(vipFirst.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, customerSegment, eventTypes.length]);
+  }, [open, customerLifecycleStage, serviceTypes.length]);
 
   const selectedType = React.useMemo(
-    () => eventTypes.find((t) => t.id === eventTypeId) ?? null,
-    [eventTypes, eventTypeId],
+    () => serviceTypes.find((t) => t.id === serviceTypeId) ?? null,
+    [serviceTypes, serviceTypeId],
   );
 
   const durationMinutes =
@@ -132,7 +132,7 @@ export function AppointmentSheet({
 
   const { data: availabilityDays = [], isLoading: daysLoading } =
     useAvailabilityDays({
-      baUserId,
+      staffUserId,
       from: dayRange.from,
       to: dayRange.to,
       durationMinutes,
@@ -141,7 +141,7 @@ export function AppointmentSheet({
 
   const { data: availabilitySlots = [], isLoading: slotsLoading } =
     useAvailabilitySlots({
-      baUserId,
+      staffUserId,
       date: date ?? "",
       durationMinutes,
       enabled: !!date && !!selectedType && open,
@@ -155,7 +155,7 @@ export function AppointmentSheet({
 
   React.useEffect(() => {
     setSlotStartsAt(null);
-  }, [eventTypeId]);
+  }, [serviceTypeId]);
 
   const days = React.useMemo(
     () => buildDayStrip(dayRange.from, DAY_RANGE, availabilityDays),
@@ -173,11 +173,11 @@ export function AppointmentSheet({
     createAppointment.mutate(
       {
         customerId,
-        eventTypeId: selectedType.id,
-        scheduledAt: new Date(slotStartsAt),
+        serviceTypeId: selectedType.id,
+        startTime: new Date(slotStartsAt),
         durationMinutes,
         isVirtual,
-        ...(comments.trim() ? { comments: comments.trim() } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
       },
       { onSuccess: () => onOpenChange(false) },
     );
@@ -194,7 +194,7 @@ export function AppointmentSheet({
             {customerName ? (
               <>
                 Para <span className="text-foreground">{customerName}</span>
-                {customerSegment === "vip" && (
+                {customerLifecycleStage === "vip" && (
                   <Badge variant="success" size="sm" className="ml-2">
                     VIP
                   </Badge>
@@ -216,7 +216,7 @@ export function AppointmentSheet({
                 />
               ) : (
                 <CustomerPicker
-                  baUserId={baUserId}
+                  staffUserId={staffUserId}
                   onPick={setPickedCustomer}
                 />
               )}
@@ -235,18 +235,18 @@ export function AppointmentSheet({
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {eventTypes
-                  .filter((t) => t.active)
+                {serviceTypes
+                  .filter((t) => t.isActive)
                   .sort((a, b) => a.sortOrder - b.sortOrder)
                   .map((t) => (
                     <ServiceCard
                       key={t.id}
-                      type={t}
-                      selected={t.id === eventTypeId}
+                      serviceType={t}
+                      selected={t.id === serviceTypeId}
                       recommended={
-                        customerSegment === "vip" && t.code === "vip_cabin"
+                        customerLifecycleStage === "vip" && t.code === "vip_cabin"
                       }
-                      onSelect={() => setEventTypeId(t.id)}
+                      onSelect={() => setServiceTypeId(t.id)}
                     />
                   ))}
               </div>
@@ -315,7 +315,7 @@ export function AppointmentSheet({
                 Vista previa
               </p>
               <BookingPreview
-                eventType={selectedType}
+                serviceType={selectedType}
                 startsAt={slotStartsAt}
                 durationMinutes={durationMinutes}
                 customerName={customerName}
@@ -342,15 +342,15 @@ export function AppointmentSheet({
 
               <div className="space-y-1.5">
                 <label
-                  htmlFor="appt-comments"
+                  htmlFor="appt-notes"
                   className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground"
                 >
                   Comentarios (opcional)
                 </label>
                 <textarea
-                  id="appt-comments"
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
+                  id="appt-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
                   rows={2}
                   maxLength={1000}
                   placeholder="Preferencias, motivo, recordatorios…"

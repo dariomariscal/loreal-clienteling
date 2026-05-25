@@ -51,7 +51,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { label: "Productos", href: "/productos", icon: BoxIcon, roles: ["ba", "manager", "supervisor", "admin"] },
       { label: "Reportes", href: "/reportes", icon: ChartIcon, roles: ["manager", "supervisor", "admin"] },
-      { label: "Seguimiento", href: "/seguimiento", icon: MegaphoneIcon, roles: ["ba", "manager", "admin"] },
+      { label: "Mensajes", href: "/mensajes", icon: MegaphoneIcon, roles: ["ba", "manager", "admin"] },
     ],
   },
   {

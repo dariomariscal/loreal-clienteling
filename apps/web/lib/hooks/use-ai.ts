@@ -3,7 +3,7 @@ import { api, getAuthToken } from "@/lib/api-client";
 import { API_URL } from "@/lib/constants";
 import type {
   CustomerAiSummary,
-  CustomerOpportunityWithCustomer,
+  SuggestedActionWithCustomer,
   ExtractedNote,
   MessageSuggestion,
   SemanticSearchResult,
@@ -13,8 +13,8 @@ import type {
 
 const aiKeys = {
   summary: (customerId: string) => ["ai", "summary", customerId] as const,
-  opportunities: (forDate: string, limit: number) =>
-    ["ai", "opportunities", forDate, limit] as const,
+  suggestedActions: (dueDate: string, limit: number) =>
+    ["ai", "suggested-actions", dueDate, limit] as const,
   search: (query: string, limit: number) => ["ai", "search", query, limit] as const,
 };
 
@@ -42,35 +42,35 @@ export function useRegenerateCustomerSummary() {
   });
 }
 
-// ── Daily opportunities ────────────────────────────────────────────
+// ── Daily suggested actions ────────────────────────────────────────
 
-export function useDailyOpportunities(forDate?: string, limit = 5) {
-  const date = forDate ?? new Date().toISOString().slice(0, 10);
+export function useDailySuggestedActions(dueDate?: string, limit = 5) {
+  const date = dueDate ?? new Date().toISOString().slice(0, 10);
   return useQuery({
-    queryKey: aiKeys.opportunities(date, limit),
+    queryKey: aiKeys.suggestedActions(date, limit),
     queryFn: () =>
-      api.get<CustomerOpportunityWithCustomer[]>("/opportunities/daily", {
-        forDate: date,
+      api.get<SuggestedActionWithCustomer[]>("/suggested-actions/daily", {
+        dueDate: date,
         limit: String(limit),
       }),
   });
 }
 
-export function useDismissOpportunity() {
+export function useDismissSuggestedAction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (opportunityId: string) =>
-      api.post(`/opportunities/${opportunityId}/dismiss`, {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai", "opportunities"] }),
+    mutationFn: (suggestedActionId: string) =>
+      api.post(`/suggested-actions/${suggestedActionId}/dismiss`, {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai", "suggested-actions"] }),
   });
 }
 
-export function useMarkOpportunityActed() {
+export function useCompleteSuggestedAction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (opportunityId: string) =>
-      api.post(`/opportunities/${opportunityId}/mark-acted`, {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai", "opportunities"] }),
+    mutationFn: (suggestedActionId: string) =>
+      api.post(`/suggested-actions/${suggestedActionId}/complete`, {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai", "suggested-actions"] }),
   });
 }
 
@@ -116,7 +116,7 @@ interface NoteExtractionResult {
 export function useExtractNoteFromText() {
   return useMutation({
     mutationFn: (input: ExtractFromTextInput) =>
-      api.post<NoteExtractionResult>("/customer-notes/extract", input),
+      api.post<NoteExtractionResult>("/notes/extract", input),
   });
 }
 
@@ -139,7 +139,7 @@ export function useExtractNoteFromAudio() {
       if (input.customerId) form.append("customerId", input.customerId);
       if (input.language) form.append("language", input.language);
 
-      const res = await fetch(`${API_URL}/customer-notes/extract/audio`, {
+      const res = await fetch(`${API_URL}/notes/extract/audio`, {
         method: "POST",
         body: form,
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
