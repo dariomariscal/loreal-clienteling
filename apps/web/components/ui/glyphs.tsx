@@ -969,7 +969,7 @@ export function EyeOffGlyph(props: GlyphProps) {
   );
 }
 
-// ── Channel glyphs (overlay on avatars in /ba/messages) ─────────────
+// ── Channel glyphs (overlay on avatars in message lists) ────────────
 // Each one is a single-color monoline mark sized for a 14px overlay
 // circle. Color is applied via `text-*` from the caller — these stay
 // monochrome to avoid the platform-logo-zoo effect.
