@@ -44,14 +44,12 @@ function formatDayHeader(date: Date): string {
 
 export function MessageThread({
   messages,
-  accent,
   customerName,
   loading,
   channel,
   hasConsent,
 }: {
   messages: Message[];
-  accent: string;
   customerName: string;
   loading: boolean;
   channel: ChannelValue;
@@ -87,7 +85,6 @@ export function MessageThread({
               key={g.day}
               day={g.day}
               messages={g.messages}
-              accent={accent}
               customerName={customerName}
             />
           ))}
@@ -100,12 +97,10 @@ export function MessageThread({
 function DayGroup({
   day,
   messages,
-  accent,
   customerName,
 }: {
   day: string;
   messages: Message[];
-  accent: string;
   customerName: string;
 }) {
   return (
@@ -114,7 +109,7 @@ function DayGroup({
         {day}
       </p>
       {messages.map((m) => (
-        <Bubble key={m.id} message={m} accent={accent} customerName={customerName} />
+        <Bubble key={m.id} message={m} customerName={customerName} />
       ))}
     </div>
   );
@@ -122,34 +117,46 @@ function DayGroup({
 
 function Bubble({
   message,
-  accent,
 }: {
   message: Message;
-  accent: string;
   customerName: string;
 }) {
   const time = new Date(message.sentAt).toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
   });
+  const outbound = message.direction === "outbound";
 
   return (
-    <div className="flex justify-end">
-      <div className="flex max-w-[78%] flex-col items-end gap-0.5">
+    <div className={cn("flex", outbound ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "flex max-w-[78%] flex-col gap-0.5",
+          outbound ? "items-end" : "items-start",
+        )}
+      >
         {message.subject && (
           <p className="px-3 text-[10px] font-medium text-muted-foreground">
             {message.subject}
           </p>
         )}
         <div
-          className="rounded-2xl px-3.5 py-2 text-sm leading-snug text-white shadow-sm"
-          style={{ backgroundColor: accent }}
+          className={cn(
+            "rounded-2xl px-3.5 py-2 text-sm leading-snug shadow-sm",
+            outbound
+              ? "bg-foreground text-background"
+              : "bg-muted text-foreground",
+          )}
         >
           <p className="whitespace-pre-wrap">{message.body}</p>
         </div>
         <div className="flex items-center gap-1.5 px-2 text-[10px] text-muted-foreground">
-          <DeliveryStatus message={message} />
-          <span>·</span>
+          {outbound ? (
+            <>
+              <DeliveryStatus message={message} />
+              <span>·</span>
+            </>
+          ) : null}
           <time>{time}</time>
         </div>
       </div>

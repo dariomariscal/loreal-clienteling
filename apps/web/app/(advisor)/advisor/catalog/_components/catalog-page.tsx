@@ -22,10 +22,10 @@ export function CatalogPage() {
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
           <div>
             <h1 className="font-[var(--font-heading)] text-3xl tracking-tight text-foreground">
-              Catalog
+              Catálogo
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Browse and add products to a recommendation
+              Explora y añade productos a una recomendación
             </p>
           </div>
           <div className="relative max-w-md">
@@ -36,7 +36,7 @@ export function CatalogPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products"
+              placeholder="Buscar productos"
               className="pl-9"
             />
           </div>
@@ -50,7 +50,7 @@ export function CatalogPage() {
           ) : !data || data.length === 0 ? (
             <AdvisorEmptyState
               icon={<PackageGlyph className="size-6" />}
-              title="No products found"
+              title="No se encontraron productos"
             />
           ) : (
             <ul className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 xl:grid-cols-4">

@@ -197,7 +197,6 @@ export function MessageSheet({
 
         <MessageThread
           messages={channelMessages}
-          accent={channelMeta.accent}
           customerName={customerName}
           loading={messagesLoading}
           channel={channel}
@@ -274,7 +273,6 @@ export function MessageSheet({
               disabled={!canSend}
               size="icon-lg"
               className="shrink-0 rounded-full"
-              style={canSend ? { backgroundColor: channelMeta.accent } : undefined}
             >
               {createMessage.isPending ? (
                 <span className="text-[10px]">…</span>

@@ -160,7 +160,10 @@ export function CustomerProfileShell({ customerId, user }: Props) {
                 </TabsContent>
 
                 <TabsContent value="notas">
-                  <NotesSection customerId={customerId} />
+                  <NotesSection
+                    customerId={customerId}
+                    onAddNote={() => handleQuickAction("note")}
+                  />
                 </TabsContent>
               </div>
             </div>

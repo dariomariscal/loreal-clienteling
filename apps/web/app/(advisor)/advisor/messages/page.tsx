@@ -3,7 +3,7 @@ import { ConversationList } from "./_components/conversation-list";
 import { AdvisorEmptyState } from "@/components/advisor/advisor-empty-state";
 import { MessageGlyph } from "@/components/ui/glyphs";
 
-export const metadata = { title: "Messages" };
+export const metadata = { title: "Mensajes" };
 
 export default function MessagesPage() {
   return (
@@ -13,7 +13,7 @@ export default function MessagesPage() {
         <div className="flex h-full items-center justify-center">
           <AdvisorEmptyState
             icon={<MessageGlyph className="size-8" />}
-            title="Select a conversation"
+            title="Selecciona una conversación"
           />
         </div>
       }

@@ -35,8 +35,8 @@ export function CustomerIdentityPanel({ customer, onAction }: Props) {
   const { data: metrics } = useCustomerMetrics(customer.id);
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-y-auto bg-[color:var(--ba-sidebar)] text-[color:var(--ba-sidebar-foreground)]">
-      <div className="flex flex-col items-center px-6 pt-10 text-center">
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[color:var(--ba-sidebar)] text-[color:var(--ba-sidebar-foreground)]">
+      <div className="shrink-0 flex flex-col items-center px-6 pt-10 text-center">
         <CustomerAvatar
           firstName={customer.firstName}
           lastName={customer.lastName}
@@ -60,7 +60,14 @@ export function CustomerIdentityPanel({ customer, onAction }: Props) {
         </div>
       </div>
 
-      <dl className="mt-8 flex-1 space-y-6 px-6 pb-6 text-left">
+      <dl
+        className="ba-identity-scroll mt-8 min-h-0 flex-1 space-y-6 overflow-y-auto px-6 pb-6 text-left"
+        style={{
+          scrollbarColor:
+            "color-mix(in oklab, var(--ba-accent) 55%, transparent) transparent",
+          scrollbarWidth: "thin",
+        }}
+      >
         <Field label="Idioma">
           {languageLabel(customer.preferredLanguage)}
         </Field>
@@ -90,7 +97,7 @@ export function CustomerIdentityPanel({ customer, onAction }: Props) {
         ) : null}
       </dl>
 
-      <div className="border-t border-[color:var(--ba-sidebar-border)] px-4 py-4">
+      <div className="shrink-0 border-t border-[color:var(--ba-sidebar-border)] px-4 py-4">
         <CustomerQuickActions customer={customer} onAction={onAction} />
       </div>
     </aside>

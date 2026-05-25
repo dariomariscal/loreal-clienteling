@@ -58,11 +58,11 @@ export function ConversationThread({ customerId }: Props) {
           <p className="truncate text-sm font-medium text-foreground">
             {customer.data
               ? `${customer.data.firstName} ${customer.data.lastName}`
-              : "Loading…"}
+              : "Cargando…"}
           </p>
           <p className="truncate text-xs text-muted-foreground">
             {customer.data?.preferredChannel
-              ? `Prefers ${customer.data.preferredChannel}`
+              ? `Prefiere ${customer.data.preferredChannel}`
               : ""}
           </p>
         </div>
@@ -71,7 +71,7 @@ export function ConversationThread({ customerId }: Props) {
       <ol className="flex-1 space-y-2 overflow-y-auto px-8 py-6">
         {sortedMessages.length === 0 ? (
           <li className="text-center text-sm text-muted-foreground">
-            No messages yet — start the conversation.
+            Aún no hay mensajes — inicia la conversación.
           </li>
         ) : (
           sortedMessages.map((m) => {
@@ -127,7 +127,7 @@ export function ConversationThread({ customerId }: Props) {
         <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder={`Send via ${channel}…`}
+          placeholder={`Enviar por ${channel}…`}
           rows={3}
         />
         <div className="mt-2 flex justify-end">
@@ -135,7 +135,7 @@ export function ConversationThread({ customerId }: Props) {
             onClick={handleSend}
             disabled={createMessage.isPending || !body.trim()}
           >
-            Send
+            Enviar
           </Button>
         </div>
       </footer>

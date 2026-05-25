@@ -30,15 +30,15 @@ type NavItem = {
 };
 
 const PRIMARY_NAV: NavItem[] = [
-  { href: "/advisor/today", label: "Today", icon: RoutineMorningGlyph },
-  { href: "/advisor/customers", label: "My Clients", icon: UserGlyph },
-  { href: "/advisor/messages", label: "Messages", icon: MessageGlyph },
-  { href: "/advisor/appointments", label: "Appointments", icon: AppointmentGlyph },
-  { href: "/advisor/tasks", label: "Tasks", icon: CheckGlyph, badgeKey: "tasks" },
+  { href: "/advisor/today", label: "Hoy", icon: RoutineMorningGlyph },
+  { href: "/advisor/customers", label: "Mis clientas", icon: UserGlyph },
+  { href: "/advisor/messages", label: "Mensajes", icon: MessageGlyph },
+  { href: "/advisor/appointments", label: "Citas", icon: AppointmentGlyph },
+  { href: "/advisor/tasks", label: "Tareas", icon: CheckGlyph, badgeKey: "tasks" },
 ];
 
 const SECONDARY_NAV: NavItem[] = [
-  { href: "/advisor/catalog", label: "Catalog", icon: PackageGlyph },
+  { href: "/advisor/catalog", label: "Catálogo", icon: PackageGlyph },
 ];
 
 interface Props {
@@ -98,13 +98,13 @@ export function AdvisorNav({ user, onNavigate }: Props) {
       <div className="mt-auto border-t border-[color:var(--ba-sidebar-border)] px-3 py-3">
         <div className="flex items-center gap-3 px-2 py-2">
           <CustomerAvatar
-            firstName={user.fullName || "Beauty Advisor"}
+            firstName={user.fullName || "Asesora de belleza"}
             avatarUrl={user.imageUrl}
             size="sm"
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-[color:var(--ba-sidebar-foreground)]">
-              {user.fullName || "Beauty Advisor"}
+              {user.fullName || "Asesora de belleza"}
             </p>
             <p className="truncate text-xs text-[color:var(--ba-sidebar-muted)]">
               {user.email}
@@ -117,7 +117,7 @@ export function AdvisorNav({ user, onNavigate }: Props) {
           className="mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-[color:var(--ba-sidebar-foreground)] transition-colors hover:bg-[color:var(--ba-sidebar-active)]"
         >
           <SignOutGlyph className="size-4 opacity-80" aria-hidden />
-          Sign out
+          Cerrar sesión
         </button>
       </div>
     </div>

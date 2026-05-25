@@ -2,7 +2,7 @@ import { ThreeColumnLayout } from "@/components/advisor/three-column-layout";
 import { ConversationList } from "../_components/conversation-list";
 import { ConversationThread } from "./_components/conversation-thread";
 
-export const metadata = { title: "Conversation" };
+export const metadata = { title: "Conversación" };
 
 export default async function MessageThreadPage({
   params,

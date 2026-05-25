@@ -39,21 +39,21 @@ export function TasksPage() {
       <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-10 py-10 lg:px-12">
         <header className="mb-10">
           <h1 className="font-[var(--font-heading)] text-3xl tracking-tight text-foreground">
-            Tasks
+            Tareas
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Follow-ups, birthdays and replenishments
+            Seguimientos, cumpleaños y reposiciones
           </p>
         </header>
 
-        <SectionCard title="Pending">
+        <SectionCard title="Pendientes">
           {isLoading ? (
-            <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+            <p className="px-4 py-6 text-sm text-muted-foreground">Cargando…</p>
           ) : !data || data.length === 0 ? (
             <AdvisorEmptyState
               icon={<CheckGlyph className="size-6" />}
-              title="All caught up"
-              description="No pending tasks right now."
+              title="Todo al día"
+              description="No tienes tareas pendientes ahora mismo."
             />
           ) : (
             <ul className="divide-y divide-border">
@@ -96,7 +96,7 @@ export function TasksPage() {
                         variant="ghost"
                         onClick={() => complete.mutate(task.id)}
                         disabled={complete.isPending}
-                        aria-label="Mark as done"
+                        aria-label="Marcar como hecha"
                       >
                         <CheckGlyph className="size-4" />
                       </Button>
@@ -105,7 +105,7 @@ export function TasksPage() {
                         variant="ghost"
                         onClick={() => dismiss.mutate(task.id)}
                         disabled={dismiss.isPending}
-                        aria-label="Dismiss"
+                        aria-label="Descartar"
                       >
                         <CloseGlyph className="size-4" />
                       </Button>

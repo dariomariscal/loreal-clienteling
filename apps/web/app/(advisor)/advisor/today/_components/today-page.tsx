@@ -39,7 +39,7 @@ export function TodayPage() {
 
         <div className="flex flex-col gap-6">
           <SectionCard
-            title={`Appointments today${
+            title={`Citas de hoy${
               data?.appointmentsToday.length
                 ? ` (${data.appointmentsToday.length})`
                 : ""
@@ -62,7 +62,7 @@ export function TodayPage() {
                         {appt.customerName}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {appt.serviceTypeName ?? "Service"} ·{" "}
+                        {appt.serviceTypeName ?? "Servicio"} ·{" "}
                         {appt.durationMinutes} min
                         {appt.isVirtual ? " · virtual" : ""}
                       </p>
@@ -78,13 +78,13 @@ export function TodayPage() {
             ) : (
               <AdvisorEmptyState
                 icon={<AppointmentGlyph className="size-6" />}
-                title="No appointments today"
-                description="Your day is open — a good moment for follow-ups."
+                title="Sin citas hoy"
+                description="Tienes el día libre — un buen momento para dar seguimiento."
               />
             )}
           </SectionCard>
 
-          <SectionCard title="Priority follow-ups">
+          <SectionCard title="Seguimientos prioritarios">
             {isLoading ? (
               <SectionSkeleton rows={3} />
             ) : data &&
@@ -99,10 +99,10 @@ export function TodayPage() {
                     title={`${c.firstName} ${c.lastName}`}
                     hint={
                       c.daysUntil === 0
-                        ? "Birthday today"
+                        ? "Cumpleaños hoy"
                         : c.daysUntil === 1
-                          ? "Birthday tomorrow"
-                          : `Birthday in ${c.daysUntil} days`
+                          ? "Cumpleaños mañana"
+                          : `Cumpleaños en ${c.daysUntil} días`
                     }
                     customer={c}
                   />
@@ -114,8 +114,8 @@ export function TodayPage() {
                     title={`${c.firstName} ${c.lastName}`}
                     hint={
                       c.daysSinceLastOrder
-                        ? `${c.daysSinceLastOrder} days since last order`
-                        : "No recent activity"
+                        ? `${c.daysSinceLastOrder} días desde la última compra`
+                        : "Sin actividad reciente"
                     }
                     customer={c}
                   />
@@ -125,7 +125,7 @@ export function TodayPage() {
                     key={`fup-${f.id}`}
                     icon={<FollowupReplenishmentGlyph className="size-4" />}
                     title={f.customerName}
-                    hint={f.campaignType ?? `via ${f.channel}`}
+                    hint={f.campaignType ?? `vía ${f.channel}`}
                     customer={{
                       id: f.customerId,
                       firstName: f.customerName.split(" ")[0] ?? "",
@@ -137,13 +137,13 @@ export function TodayPage() {
             ) : (
               <AdvisorEmptyState
                 icon={<FollowupCheckInGlyph className="size-6" />}
-                title="No pending follow-ups"
+                title="Sin seguimientos pendientes"
               />
             )}
           </SectionCard>
 
           {data && data.newCustomersThisWeek.length > 0 ? (
-            <SectionCard title="New this week">
+            <SectionCard title="Nuevas esta semana">
               <ul className="divide-y divide-border">
                 {data.newCustomersThisWeek.map((c) => (
                   <li
@@ -160,7 +160,7 @@ export function TodayPage() {
                         {c.firstName} {c.lastName}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        Enrolled {format(new Date(c.enrolledAt), "d MMM")}
+                        Se unió el {format(new Date(c.enrolledAt), "d MMM", { locale: es })}
                       </p>
                     </div>
                   </li>
@@ -221,7 +221,7 @@ function SectionSkeleton({ rows }: { rows: number }) {
 
 function greetFor(date: Date): string {
   const h = date.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 19) return "Good afternoon";
-  return "Good evening";
+  if (h < 12) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
 }

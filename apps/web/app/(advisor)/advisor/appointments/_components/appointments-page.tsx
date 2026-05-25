@@ -29,20 +29,20 @@ export function AppointmentsPage() {
       <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-10 py-10 lg:px-12">
         <header className="mb-10">
           <h1 className="font-[var(--font-heading)] text-3xl tracking-tight text-foreground">
-            Appointments
+            Citas
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Next 14 days
+            Próximos 14 días
           </p>
         </header>
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : groups.length === 0 ? (
           <AdvisorEmptyState
             icon={<AppointmentGlyph className="size-6" />}
-            title="No appointments scheduled"
-            description="Your next two weeks are open."
+            title="Sin citas agendadas"
+            description="Tus próximas dos semanas están libres."
           />
         ) : (
           <div className="flex flex-col gap-6">
@@ -77,7 +77,7 @@ function AppointmentRow({
           {appointment.customerName}
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          {appointment.serviceTypeName ?? "Service"} ·{" "}
+          {appointment.serviceTypeName ?? "Servicio"} ·{" "}
           {appointment.durationMinutes} min
           {appointment.isVirtual ? " · virtual" : ""}
         </p>
@@ -123,8 +123,8 @@ function groupByDay(items: CalendarAppointment[]): DayGroup[] {
 }
 
 function dayLabel(day: Date): string {
-  if (isToday(day)) return "Today";
-  if (isTomorrow(day)) return "Tomorrow";
-  if (isSameDay(day, new Date())) return "Today";
+  if (isToday(day)) return "Hoy";
+  if (isTomorrow(day)) return "Mañana";
+  if (isSameDay(day, new Date())) return "Hoy";
   return format(day, "EEEE d 'de' MMMM", { locale: es });
 }

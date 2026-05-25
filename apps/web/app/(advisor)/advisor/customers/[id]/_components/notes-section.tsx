@@ -14,13 +14,18 @@ import {
 
 interface Props {
   customerId: string;
+  /** When provided, the "Añadir" button delegates to the parent (usually to
+   * open the full NoteSheet). Without it, falls back to the inline composer. */
+  onAddNote?: () => void;
 }
 
-export function NotesSection({ customerId }: Props) {
+export function NotesSection({ customerId, onAddNote }: Props) {
   const { data, isLoading } = useCustomerNotes(customerId);
   const createNote = useCreateNote();
   const [draft, setDraft] = useState("");
   const [composing, setComposing] = useState(false);
+
+  const useInlineComposer = !onAddNote;
 
   async function handleSave() {
     const body = draft.trim();
@@ -34,19 +39,26 @@ export function NotesSection({ customerId }: Props) {
     <SectionCard
       title="Tus notas"
       action={
-        !composing ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setComposing(true)}
-          >
+        useInlineComposer ? (
+          !composing ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setComposing(true)}
+            >
+              <PlusGlyph className="size-4" />
+              Añadir
+            </Button>
+          ) : null
+        ) : (
+          <Button size="sm" variant="ghost" onClick={onAddNote}>
             <PlusGlyph className="size-4" />
             Añadir
           </Button>
-        ) : null
+        )
       }
     >
-      {composing ? (
+      {useInlineComposer && composing ? (
         <div className="flex flex-col gap-2 px-4 pt-2 pb-4">
           <Textarea
             value={draft}

@@ -29,7 +29,6 @@ export function ChannelTabs({
                 ? "bg-foreground text-background"
                 : "bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground",
             )}
-            style={active ? { backgroundColor: c.accent } : undefined}
           >
             <ChannelIcon channel={c.value} className="size-4" />
             <span className="font-medium">{c.label}</span>
@@ -38,7 +37,7 @@ export function ChannelTabs({
                 "size-1.5 rounded-full",
                 consent
                   ? active
-                    ? "bg-white/80"
+                    ? "bg-background/70"
                     : "bg-success"
                   : "bg-destructive/60",
               )}

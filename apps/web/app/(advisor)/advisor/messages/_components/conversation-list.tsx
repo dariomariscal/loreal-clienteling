@@ -29,7 +29,7 @@ export function ConversationList({ activeCustomerId }: Props) {
     <div className="flex h-full flex-col">
       <header className="border-b border-border px-4 py-4">
         <h2 className="font-[var(--font-heading)] text-base text-foreground">
-          Inbox
+          Bandeja
         </h2>
       </header>
       <div className="flex-1 overflow-y-auto">
@@ -37,8 +37,8 @@ export function ConversationList({ activeCustomerId }: Props) {
           <ListSkeleton />
         ) : conversations.length === 0 ? (
           <AdvisorEmptyState
-            title="No conversations yet"
-            description="Reach out to a client to start a thread."
+            title="Aún no hay conversaciones"
+            description="Escríbele a una clienta para empezar."
           />
         ) : (
           <ul className="divide-y divide-border">
@@ -85,7 +85,7 @@ function ConversationRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-sm font-medium text-foreground">
-            {lastMessage.toAddress ?? lastMessage.fromAddress ?? "Client"}
+            {lastMessage.toAddress ?? lastMessage.fromAddress ?? "Clienta"}
           </p>
           <span className="shrink-0 text-xs text-muted-foreground">
             {formatDistanceToNowStrict(new Date(lastMessage.sentAt), {
@@ -94,7 +94,7 @@ function ConversationRow({
           </span>
         </div>
         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-          {lastMessage.direction === "outbound" ? "Sent: " : ""}
+          {lastMessage.direction === "outbound" ? "Enviado: " : ""}
           {lastMessage.body}
         </p>
       </div>
