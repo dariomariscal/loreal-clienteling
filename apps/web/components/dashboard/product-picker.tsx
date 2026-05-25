@@ -51,6 +51,19 @@ export function ProductPicker({
     return () => clearTimeout(t);
   }, [search]);
 
+  // Only autofocus the search input on pointer-fine devices (mouse + physical
+  // keyboard). On touch-primary devices (iPad, phones) autofocusing the input
+  // pops the on-screen keyboard the moment the sheet opens, covering the grid
+  // and forcing the advisor to dismiss the keyboard before seeing products.
+  // Lazy initializer so the value is available on the first client render —
+  // a useEffect would arrive a frame too late, after React has already
+  // committed the input without `autoFocus`.
+  const [autoFocusSearch] = React.useState(() =>
+    typeof window === "undefined"
+      ? false
+      : window.matchMedia("(pointer: fine)").matches,
+  );
+
   const lexicalQuery = useProducts(
     {
       limit: String(limit),
@@ -110,7 +123,7 @@ export function ProductPicker({
                 : "Buscar por nombre, SKU o referencia"
             }
             className="pl-9"
-            autoFocus
+            autoFocus={autoFocusSearch}
           />
         </div>
         <button
