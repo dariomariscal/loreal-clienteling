@@ -45,7 +45,6 @@ TRUNCATE TABLE
   notes,
   customer_routines,
   customer_media,
-  skin_diagnostics,
   recommendations,
   samples,
   wishlist_items,

@@ -14,7 +14,6 @@ export { customers } from "./customers";
 export { beautyProfiles, shadeMatches } from "./beauty-profiles";
 export { customerRoutines } from "./customer-routines";
 export { customerMedia } from "./customer-media";
-export { skinDiagnostics } from "./skin-diagnostics";
 export { notes } from "./notes";
 
 // Catalog & inventory

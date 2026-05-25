@@ -15,23 +15,38 @@ const BATCH_SIZE = 50;
 type ProductRow = {
   id: string;
   sku: string;
-  name: string;
+  title: string;
   category: string;
   subcategory: string | null;
+  product_type: string | null;
+  format_type: string | null;
   description: string | null;
   ingredients: string[] | null;
-  sales_argument: string | null;
+  tags: string[] | null;
+  claims: string[] | null;
+  target_concerns: string[] | null;
+  talking_points: string | null;
 };
 
 function buildEmbeddingInput(p: ProductRow): string {
   const ingredients = p.ingredients?.length
     ? `Ingredientes: ${p.ingredients.join(", ")}.`
     : "";
+  const tags = p.tags?.length ? `Tags: ${p.tags.join(", ")}.` : "";
+  const claims = p.claims?.length ? `Claims: ${p.claims.join(", ")}.` : "";
+  const concerns = p.target_concerns?.length
+    ? `Concerns: ${p.target_concerns.join(", ")}.`
+    : "";
+  const typeLine = [p.product_type, p.format_type].filter(Boolean).join(" / ");
   return [
-    `${p.name} (SKU ${p.sku}).`,
+    `${p.title} (SKU ${p.sku}).`,
     `Categoría: ${p.category}${p.subcategory ? ` / ${p.subcategory}` : ""}.`,
+    typeLine ? `Tipo: ${typeLine}.` : "",
     p.description ?? "",
-    p.sales_argument ?? "",
+    p.talking_points ?? "",
+    concerns,
+    claims,
+    tags,
     ingredients,
   ]
     .filter(Boolean)
@@ -65,16 +80,20 @@ async function main() {
   try {
     const { rows: products } = await pool.query<ProductRow>(
       onlyMissing
-        ? `SELECT p.id, p.sku, p.name, p.category, p.subcategory,
-                  p.description, p.ingredients, p.sales_argument
+        ? `SELECT p.id, p.sku, p.title, p.category, p.subcategory,
+                  p.product_type, p.format_type, p.description,
+                  p.ingredients, p.tags, p.claims, p.target_concerns,
+                  p.talking_points
              FROM products p
              LEFT JOIN product_embeddings pe ON pe.product_id = p.id
-            WHERE p.active = true AND pe.product_id IS NULL
+            WHERE p.status = 'active' AND pe.product_id IS NULL
             ORDER BY p.sku`
-        : `SELECT id, sku, name, category, subcategory,
-                  description, ingredients, sales_argument
+        : `SELECT id, sku, title, category, subcategory,
+                  product_type, format_type, description,
+                  ingredients, tags, claims, target_concerns,
+                  talking_points
              FROM products
-            WHERE active = true
+            WHERE status = 'active'
             ORDER BY sku`,
     );
 
