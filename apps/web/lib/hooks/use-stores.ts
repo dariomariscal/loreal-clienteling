@@ -21,11 +21,12 @@ export interface Store {
   /** INEGI 5-digit code, derived by trigger from lat/lng. */
   municipalityId: string | null;
   postcode: string | null;
-  lat: number | null;
-  lng: number | null;
+  /** Numeric columns arrive as strings from Drizzle to preserve precision. */
+  lat: string | null;
+  lng: string | null;
   phone: string | null;
   hours: StoreHours | null;
-  active: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

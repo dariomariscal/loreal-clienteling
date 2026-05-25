@@ -6,7 +6,7 @@ import {
   useAvailabilityDays,
   useAvailabilitySlots,
   useCreateAppointment,
-  type Customer,
+  type CustomerListItem,
 } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,9 +57,8 @@ export function AppointmentSheet({
   staffUserId,
   defaultStartsAt,
 }: AppointmentSheetProps) {
-  const [pickedCustomer, setPickedCustomer] = React.useState<Customer | null>(
-    null,
-  );
+  const [pickedCustomer, setPickedCustomer] =
+    React.useState<CustomerListItem | null>(null);
   const customerId = providedCustomerId ?? pickedCustomer?.id ?? null;
   const customerName =
     providedCustomerName ??

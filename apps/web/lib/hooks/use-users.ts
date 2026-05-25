@@ -14,10 +14,10 @@ export interface User {
   zoneName: string | null;
   brandId: string | null;
   brandName: string | null;
-  active: boolean;
+  isActive: boolean;
   invitationStatus: string | null;
   invitedAt: string | null;
-  lastLoginAt: string | null;
+  lastSignInAt: string | null;
   createdAt: string;
 }
 

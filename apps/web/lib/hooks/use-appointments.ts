@@ -4,6 +4,19 @@ import type { CreateAppointment, UpdateAppointment } from "@loreal/contracts";
 
 // ── Types ──────────────────────────────────────────────────────────
 
+export interface AppointmentPreForm {
+  goals?: string[];
+  concerns?: string[];
+  allergies?: string[];
+  notes?: string;
+}
+
+export interface AppointmentServiceOutcome {
+  productsUsed?: string[];
+  satisfactionScore?: number;
+  notes?: string;
+}
+
 export interface Appointment {
   id: string;
   customerId: string;
@@ -15,6 +28,8 @@ export interface Appointment {
   durationMinutes: number;
   status: string;
   notes: string | null;
+  preForm: AppointmentPreForm | null;
+  serviceOutcome: AppointmentServiceOutcome | null;
   reminderSentAt: string | null;
   confirmationSentAt: string | null;
   isVirtual: boolean;

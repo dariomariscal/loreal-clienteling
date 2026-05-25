@@ -169,9 +169,9 @@ export function CustomerProfileScreen({
                   (p.items ?? []).map((item: OrderLineItem) => (
                     <OrderRow
                       key={item.id}
-                      productName={item.sku}
+                      productName={item.title}
                       processedAt={p.processedAt}
-                      amount={Number(item.unitPrice)}
+                      amount={Number(item.price)}
                       quantity={item.quantity}
                     />
                   )),

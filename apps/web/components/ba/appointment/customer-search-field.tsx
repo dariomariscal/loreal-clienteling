@@ -4,11 +4,11 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { SearchGlyph, CloseGlyph } from "@/components/ui/glyphs";
-import { useCustomerSearch, type Customer } from "@/lib/hooks";
+import { useCustomerSearch, type CustomerListItem } from "@/lib/hooks";
 
 interface CustomerSearchFieldProps {
-  value: Customer | null;
-  onChange: (customer: Customer | null) => void;
+  value: CustomerListItem | null;
+  onChange: (customer: CustomerListItem | null) => void;
   autoFocus?: boolean;
 }
 

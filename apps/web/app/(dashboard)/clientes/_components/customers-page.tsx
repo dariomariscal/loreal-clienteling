@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   useCustomers,
   useCustomerSearch,
-  type Customer,
+  type CustomerListItem,
 } from "@/lib/hooks";
 import { LIFECYCLE_STAGES } from "@loreal/contracts";
 import { can } from "@/lib/permissions";
@@ -87,9 +87,9 @@ export function CustomersPage({ user }: CustomersPageProps) {
     : (customersQuery.data?.total ?? 0);
   const isLoading = isSearching ? searchQuery.isLoading : customersQuery.isLoading;
 
-  const [editing, setEditing] = useState<Customer | null>(null);
+  const [editing, setEditing] = useState<CustomerListItem | null>(null);
 
-  const columns: Column<Customer>[] = [
+  const columns: Column<CustomerListItem>[] = [
     {
       key: "firstName",
       label: "Nombre",
@@ -135,7 +135,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
             key: "actions" as const,
             label: "",
             className: "w-10",
-            render: (_: unknown, row: Customer) => (
+            render: (_: unknown, row: CustomerListItem) => (
               <Button
                 variant="ghost"
                 size="icon-xs"

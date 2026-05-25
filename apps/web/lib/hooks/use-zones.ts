@@ -10,8 +10,6 @@ export interface Zone {
   displayName: string;
   color: string;
   icon: string;
-  /** Legacy text field — kept nullable for backwards compatibility. */
-  region: string | null;
   municipalityIds: string[];
   createdAt: string;
   updatedAt: string;

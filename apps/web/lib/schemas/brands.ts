@@ -16,5 +16,7 @@ export const upsertBrandConfigSchema = z.object({
   accentColor: z.string().max(20).optional(),
   logoUrl: z.string().url().max(500).optional().or(z.literal("")),
   fontFamily: z.string().max(100).optional(),
-  virtualTryonEnabled: z.boolean().optional(),
+  isVirtualTryonEnabled: z.boolean().optional(),
+  vipThresholdAmount: z.coerce.number().positive().optional(),
+  vipThresholdPeriodMonths: z.coerce.number().int().positive().optional(),
 });

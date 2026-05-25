@@ -139,7 +139,7 @@ export function UsersPage({ user }: UsersPageProps) {
       render: (_, row) => row.brandName ?? brandMap[row.brandId ?? ""] ?? "—",
     },
     {
-      key: "active",
+      key: "isActive",
       label: "Estado",
       render: (v, row) => {
         if (row.invitationStatus === "pending") {

@@ -3,7 +3,7 @@
 import {
   useCreateCustomer,
   useUpdateCustomer,
-  type Customer,
+  type CustomerListItem,
 } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,7 @@ import { CustomerForm } from "./customer-form";
 interface CustomerFormSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  customer?: Customer;
+  customer?: CustomerListItem;
 }
 
 export function CustomerFormSheet({

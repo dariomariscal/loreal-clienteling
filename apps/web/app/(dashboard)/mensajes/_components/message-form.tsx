@@ -9,7 +9,11 @@ import {
   CAMPAIGN_TYPES,
 } from "@loreal/contracts";
 import { createMessageSchema } from "@/lib/schemas/messages";
-import { useCustomerSearch, useTemplates, type Customer } from "@/lib/hooks";
+import {
+  useCustomerSearch,
+  useTemplates,
+  type CustomerListItem,
+} from "@/lib/hooks";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -59,7 +63,7 @@ export function MessageForm({
   isPending,
 }: MessageFormProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null);
   const [showResults, setShowResults] = useState(false);
 
   const { data: searchResults = [] } = useCustomerSearch(searchQuery);

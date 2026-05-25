@@ -14,7 +14,7 @@ import {
 import { useCustomerSearch } from "@/lib/hooks";
 import { useSemanticSearch } from "@/lib/hooks/use-ai";
 import { useProductSemanticSearch } from "@/lib/hooks/use-products";
-import type { Customer } from "@/lib/hooks/use-customers";
+import type { CustomerListItem } from "@/lib/hooks/use-customers";
 import type {
   ProductSemanticSearchResult,
   SemanticSearchResult,
@@ -230,7 +230,7 @@ function LexicalResultRow({
   customer,
   onSelect,
 }: {
-  customer: Customer;
+  customer: CustomerListItem;
   onSelect: () => void;
 }) {
   const lastContactLabel = formatDaysAgo(customer.lastInteractionAt);

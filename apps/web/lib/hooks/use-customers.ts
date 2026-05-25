@@ -4,7 +4,50 @@ import type { CreateCustomer, UpdateCustomer } from "@loreal/contracts";
 
 // ── Types ──────────────────────────────────────────────────────────
 
+/**
+ * Full customer row as returned by `GET /customers/:id`. Mirrors the `customers`
+ * table in `@loreal/database` — Drizzle returns numeric columns as strings to
+ * preserve precision.
+ */
 export interface Customer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  avatarUrl: string | null;
+  gender: string | null;
+  birthday: string | null;
+  preferredLanguage: string;
+  preferredChannel: string | null;
+  acceptsMarketingEmail: boolean;
+  acceptsMarketingSms: boolean;
+  acceptsMarketingWhatsapp: boolean;
+  taxId: string | null;
+  signupStoreId: string;
+  createdByUserId: string;
+  assignedToUserId: string | null;
+  enrolledAt: string;
+  lastInteractionAt: string | null;
+  lastOrderAt: string | null;
+  totalSpent: string;
+  ordersCount: number;
+  averageOrderValue: string;
+  loyaltyTier: string | null;
+  loyaltyPoints: number;
+  lifecycleStage: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Narrow projection used by `GET /customers` (list) and `/customers/search`.
+ * The list endpoint adds `assignedToName`, `ltv` and `orderCount` from joined
+ * subqueries; it does not include `isActive`, `createdByUserId`, timestamps,
+ * or the lifetime/loyalty denormalizations.
+ */
+export interface CustomerListItem {
   id: string;
   firstName: string;
   lastName: string;
@@ -12,16 +55,15 @@ export interface Customer {
   phone: string | null;
   gender: string | null;
   birthday: string | null;
-  signupStoreId: string;
-  createdByUserId: string;
-  assignedToUserId: string | null;
   lifecycleStage: string;
   enrolledAt: string;
   lastInteractionAt: string | null;
   lastOrderAt: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  signupStoreId: string;
+  assignedToUserId: string | null;
+  assignedToName: string | null;
+  ltv: string | null;
+  orderCount: number | null;
 }
 
 // ── Query keys ─────────────────────────────────────────────────────
@@ -35,7 +77,7 @@ const customerKeys = {
 // ── Queries ────────────────────────────────────────────────────────
 
 interface PaginatedCustomers {
-  data: Customer[];
+  data: CustomerListItem[];
   total: number;
   page: number;
   limit: number;
@@ -69,7 +111,8 @@ export function useCustomers(params?: {
 export function useCustomerSearch(query: string, type: string = "name") {
   return useQuery({
     queryKey: customerKeys.search(query, type),
-    queryFn: () => api.get<Customer[]>("/customers/search", { query, type }),
+    queryFn: () =>
+      api.get<CustomerListItem[]>("/customers/search", { query, type }),
     enabled: query.length >= 2,
   });
 }

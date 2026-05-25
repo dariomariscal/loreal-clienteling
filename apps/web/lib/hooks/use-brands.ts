@@ -24,9 +24,12 @@ export interface BrandConfig {
   accentColor: string | null;
   logoUrl: string | null;
   fontFamily: string | null;
-  messageTemplates: unknown;
   replenishmentRules: unknown;
-  virtualTryonEnabled: boolean;
+  isVirtualTryonEnabled: boolean;
+  vipThresholdAmount: string | null;
+  vipThresholdPeriodMonths: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface BrandWithConfig extends Brand {

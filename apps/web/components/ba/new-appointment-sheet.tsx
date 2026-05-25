@@ -20,7 +20,7 @@ import {
   useAvailabilitySlots,
   useCreateAppointment,
   useCustomer,
-  type Customer,
+  type CustomerListItem,
 } from "@/lib/hooks";
 import { ServiceGrid } from "./appointment/service-grid";
 import { DayStrip } from "./appointment/day-strip";
@@ -62,11 +62,16 @@ export function NewAppointmentSheet({
   // When customerId is provided externally we fetch it to display the
   // picked card; otherwise the BA picks via search.
   const providedCustomer = useCustomer(providedCustomerId ?? "");
-  const [pickedCustomer, setPickedCustomer] = React.useState<Customer | null>(
-    null,
-  );
+  const [pickedCustomer, setPickedCustomer] =
+    React.useState<CustomerListItem | null>(null);
 
-  const customer = providedCustomerId
+  // The two sources have different shapes (full row vs list projection) but
+  // downstream only reads id/firstName/lastName/lifecycleStage, so we expose
+  // them through a narrow shared shape.
+  const customer: Pick<
+    CustomerListItem,
+    "id" | "firstName" | "lastName" | "lifecycleStage"
+  > | null = providedCustomerId
     ? providedCustomer.data ?? null
     : pickedCustomer;
   const customerId = customer?.id ?? null;

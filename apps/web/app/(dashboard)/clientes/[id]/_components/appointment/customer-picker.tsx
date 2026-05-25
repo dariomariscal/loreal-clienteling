@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   useCustomers,
   useCustomerSearch,
-  type Customer,
+  type CustomerListItem,
 } from "@/lib/hooks";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,7 @@ export function CustomerPicker({
   onPick,
 }: {
   staffUserId: string;
-  onPick: (c: Customer) => void;
+  onPick: (c: CustomerListItem) => void;
 }) {
   const [query, setQuery] = React.useState("");
   const [debounced, setDebounced] = React.useState("");
@@ -46,14 +46,14 @@ export function CustomerPicker({
   const { data: searchResults = [], isLoading: searchLoading } =
     useCustomerSearch(debounced);
 
-  const customers: Customer[] = isSearching
+  const customers: CustomerListItem[] = isSearching
     ? searchResults
     : preload?.data ?? [];
   const isLoading = isSearching ? searchLoading : preloadLoading;
 
   const { mine, others } = React.useMemo(() => {
-    const mine: Customer[] = [];
-    const others: Customer[] = [];
+    const mine: CustomerListItem[] = [];
+    const others: CustomerListItem[] = [];
     for (const c of customers) {
       if (c.assignedToUserId === staffUserId) mine.push(c);
       else others.push(c);
@@ -61,7 +61,7 @@ export function CustomerPicker({
     return { mine, others };
   }, [customers, staffUserId]);
 
-  function handlePick(c: Customer) {
+  function handlePick(c: CustomerListItem) {
     if (!c.id) return;
     setQuery("");
     setDebounced("");
@@ -141,8 +141,8 @@ function ResultsSection({
   highlight,
 }: {
   title: string;
-  customers: Customer[];
-  onPick: (c: Customer) => void;
+  customers: CustomerListItem[];
+  onPick: (c: CustomerListItem) => void;
   highlight?: boolean;
 }) {
   return (
@@ -190,7 +190,7 @@ export function PickedCustomerCard({
   customer,
   onChange,
 }: {
-  customer: Customer;
+  customer: CustomerListItem;
   onChange: () => void;
 }) {
   return (

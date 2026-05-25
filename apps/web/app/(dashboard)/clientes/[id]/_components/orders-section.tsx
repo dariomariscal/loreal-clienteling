@@ -173,10 +173,16 @@ function OrderReceipt({ order }: { order: Order }) {
             })}
           </span>
           <Badge
-            variant={SOURCE_VARIANT[order.sourceName] ?? "secondary"}
+            variant={
+              order.sourceName
+                ? (SOURCE_VARIANT[order.sourceName] ?? "secondary")
+                : "secondary"
+            }
             size="sm"
           >
-            {SOURCE_LABEL[order.sourceName] ?? order.sourceName}
+            {order.sourceName
+              ? (SOURCE_LABEL[order.sourceName] ?? order.sourceName)
+              : "—"}
           </Badge>
         </div>
       </div>
@@ -193,12 +199,12 @@ function OrderReceipt({ order }: { order: Order }) {
                 <span className="tabular-nums text-foreground">
                   {it.quantity}×
                 </span>{" "}
-                <span className="text-foreground">{it.sku}</span>
+                <span className="text-foreground">{it.title}</span>
               </span>
               <span className="tabular-nums">
                 $
                 {(
-                  Number(it.unitPrice) * (it.quantity ?? 1)
+                  Number(it.price) * (it.quantity ?? 1)
                 ).toLocaleString("es-MX", {
                   minimumFractionDigits: 2,
                 })}

@@ -40,15 +40,26 @@ export interface ShadeMatch {
 
 export interface Order {
   id: string;
+  orderNumber: string;
   customerId: string;
   storeId: string;
-  processedAt: string;
-  totalPrice: string;
+  channel: string;
+  sourceName: string | null;
   externalOrderId: string | null;
-  sourceName: string;
+  currency: string;
+  /** Numeric columns arrive as strings from Drizzle to preserve precision. */
+  subtotalPrice: string;
+  totalTax: string;
+  totalDiscounts: string;
+  totalShipping: string;
+  totalPrice: string;
+  financialStatus: string;
+  fulfillmentStatus: string;
   attributedUserId: string | null;
   attributionSource: string | null;
+  processedAt: string;
   createdAt: string;
+  updatedAt: string;
   items?: OrderLineItem[];
 }
 
@@ -57,8 +68,11 @@ export interface OrderLineItem {
   orderId: string;
   productId: string;
   sku: string;
+  title: string;
+  variantTitle: string | null;
   quantity: number;
-  unitPrice: string;
+  price: string;
+  totalDiscount: string;
 }
 
 export interface Recommendation {
@@ -126,10 +140,17 @@ export interface Consent {
   id: string;
   customerId: string;
   type: string;
-  version: string | null;
+  version: string;
   acceptedAt: string;
   revokedAt: string | null;
-  source: string | null;
+  source: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  /** Object-storage URL for the signature PNG. Only set for privacy_notice consents. */
+  signatureUrl: string | null;
+  /** Set when a double-opt-in channel (e.g. WhatsApp) confirms the consent. */
+  confirmedAt: string | null;
+  createdAt: string;
 }
 
 // ── Query keys ─────────────────────────────────────────────────────
