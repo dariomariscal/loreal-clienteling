@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
 import { Avatar } from "@/components/ui/avatar";
 import {
   AppointmentGlyph,
@@ -29,8 +31,15 @@ interface BaSidebarProps {
 
 export function BaSidebar({ user }: BaSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { signOut } = useClerk();
   const commandSearch = useCommandSearch();
   const [isNewCustomerOpen, setIsNewCustomerOpen] = React.useState(false);
+
+  async function handleSignOut() {
+    await signOut({ redirectUrl: ROUTES.SIGN_IN });
+    router.refresh();
+  }
 
   return (
     <aside
@@ -102,7 +111,7 @@ export function BaSidebar({ user }: BaSidebarProps) {
         <RecentCustomersList />
       </div>
 
-      {/* New customer — sticks to the bottom, accent-only, restraint */}
+      {/* New customer + sign out — sticks to the bottom, accent-only, restraint */}
       <div className="border-t border-[var(--ba-sidebar-border)] p-2">
         <button
           type="button"
@@ -115,6 +124,19 @@ export function BaSidebar({ user }: BaSidebarProps) {
         >
           <UserPlusGlyph className="size-4 text-[var(--ba-sidebar-muted)]" />
           <span>Nueva clienta</span>
+        </button>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          aria-label="Cerrar sesión"
+          className={cn(
+            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px]",
+            "text-[var(--ba-sidebar-foreground)] transition-colors",
+            "hover:bg-[var(--ba-sidebar-active)]",
+          )}
+        >
+          <SignOutGlyph className="size-4 text-[var(--ba-sidebar-muted)]" />
+          <span>Cerrar sesión</span>
         </button>
       </div>
 
@@ -177,6 +199,25 @@ function HomeGlyphInline(props: React.SVGProps<SVGSVGElement>) {
       {...props}
     >
       <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8.5Z" />
+    </svg>
+  );
+}
+
+function SignOutGlyph(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+      <path d="m10 8-4 4 4 4" />
+      <path d="M6 12h12" />
     </svg>
   );
 }
