@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { ValidationPipe } from "@nestjs/common";
+import { BadRequestException, Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
@@ -20,12 +20,31 @@ async function bootstrap() {
     rawBody: true,
   });
 
+  const validationLogger = new Logger("ValidationPipe");
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
       transformOptions: { enableImplicitConversion: true },
+      exceptionFactory: (errors) => {
+        validationLogger.warn(
+          `Validation failed: ${JSON.stringify(
+            errors.map((e) => ({
+              property: e.property,
+              value: e.value,
+              constraints: e.constraints,
+              children: e.children?.map((c) => ({
+                property: c.property,
+                value: c.value,
+                constraints: c.constraints,
+                children: c.children,
+              })),
+            })),
+          )}`,
+        );
+        return new BadRequestException(errors);
+      },
     }),
   );
 

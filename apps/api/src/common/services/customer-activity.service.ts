@@ -23,6 +23,14 @@ function loyaltyTierForSpend(totalSpent: number): string | null {
   return null;
 }
 
+// drizzle's `sql<Date | null>` is only a type hint — node-postgres returns
+// timestamp aggregates (max(), etc.) as strings unless a parser is attached.
+// Coerce defensively before handing to domain code that expects Date.
+function toDate(value: Date | string | null | undefined): Date | null {
+  if (value == null) return null;
+  return value instanceof Date ? value : new Date(value);
+}
+
 /**
  * Single owner of the denormalized customer fields:
  *   - lastInteractionAt: bumped on any BA→customer touch
@@ -113,12 +121,15 @@ export class CustomerActivityService {
       tx,
     );
 
+    const lastOrderAt = toDate(agg?.lastOrderAt);
+    const lastMessageAt = toDate(msgAgg?.lastMessageAt);
+
     const segment = calculateSegment({
-      enrolledAt: customer.enrolledAt,
+      enrolledAt: toDate(customer.enrolledAt) ?? now,
       orderCount12Months: agg?.ordersCount12m ?? 0,
       totalSpending12Months: agg?.totalSpent12m ?? 0,
-      lastOrderAt: agg?.lastOrderAt ?? null,
-      lastMessageAt: msgAgg?.lastMessageAt ?? null,
+      lastOrderAt,
+      lastMessageAt,
       vipSpendingThreshold: threshold,
       now,
     });
@@ -129,7 +140,7 @@ export class CustomerActivityService {
         totalSpent: totalSpentNum.toFixed(2),
         ordersCount,
         averageOrderValue: averageOrderValue.toFixed(2),
-        lastOrderAt: agg?.lastOrderAt ?? null,
+        lastOrderAt,
         loyaltyPoints,
         loyaltyTier,
         lifecycleStage: segment.stage,
