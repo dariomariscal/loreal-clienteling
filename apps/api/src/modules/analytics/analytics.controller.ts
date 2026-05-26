@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Inject, Res, BadRequestException } from "@nestjs/common";
+import { Controller, Get, Query, Param, Inject, Res, BadRequestException } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
@@ -183,6 +183,83 @@ export class AnalyticsController {
   @Roles(["counter_manager", "area_manager", "admin"])
   getRetention(@Session() session: UserSession) {
     return this.analyticsService.getRetention(session.user);
+  }
+
+  @Get("zone-overview")
+  @Roles(["area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getZoneOverview(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.getZoneOverview(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("stores-ranking")
+  @Roles(["area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getStoresRanking(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.getStoresRanking(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("counter-managers-ranking")
+  @Roles(["area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getCounterManagersRanking(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.getCounterManagersRanking(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("zones-ranking")
+  @Roles(["national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getZonesRanking(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.getZonesRanking(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("stores/:storeId/brands-comparison")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getStoreBrandsComparison(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Param("storeId") storeId: string,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.getStoreBrandsComparison(
+      session.user,
+      storeId,
+      this.parseDateRange(from, to),
+    );
   }
 
   @Get("export")

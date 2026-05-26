@@ -25,6 +25,13 @@ export const storeEvents = pgTable(
       .notNull()
       .references(() => stores.id),
     brandId: uuid("brand_id").references(() => brands.id),
+    /**
+     * Shared identifier for events created together as a multi-store rollout
+     * (e.g. an Area Manager schedules the same launch across N stores). All
+     * rows produced by the same multi-store creation share this id; null for
+     * one-off, single-store events.
+     */
+    eventGroupId: uuid("event_group_id"),
     name: varchar("name", { length: 200 }).notNull(),
     description: text("description"),
     kind: varchar("kind", { length: 30 }).notNull(),
@@ -43,7 +50,10 @@ export const storeEvents = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index("store_events_store_start_idx").on(table.storeId, table.startTime)],
+  (table) => [
+    index("store_events_store_start_idx").on(table.storeId, table.startTime),
+    index("store_events_group_idx").on(table.eventGroupId),
+  ],
 );
 
 /**

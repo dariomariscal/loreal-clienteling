@@ -1,4 +1,4 @@
-import { IsString, MinLength, MaxLength, IsIn, IsOptional, IsBoolean, IsObject, IsNumber, IsPositive, IsInt } from "class-validator";
+import { IsString, MinLength, MaxLength, IsIn, IsOptional, IsBoolean, IsObject, IsNumber, IsPositive, IsInt, IsUUID } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { BRAND_TIERS } from "@loreal/contracts";
 
@@ -18,6 +18,15 @@ export class CreateBrandDto {
   @ApiProperty({ type: String, enum: BRAND_TIERS, example: "luxury" })
   @IsIn(BRAND_TIERS)
   tier: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    description: "Required when admin creates the brand. NRM-created brands are pinned to the NRM's division server-side.",
+  })
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
 
   @ApiPropertyOptional({ type: String, maxLength: 500, example: "/logos/lancome.svg" })
   @IsOptional()

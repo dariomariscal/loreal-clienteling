@@ -3,8 +3,10 @@ import {
   Inject,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { and, eq, gte, lte, desc, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   storeEvents,
@@ -18,6 +20,7 @@ import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
 import type {
   CreateEventDto,
+  CreateMultiStoreEventDto,
   UpdateEventDto,
   ListEventsQueryDto,
   InviteCustomerDto,
@@ -120,6 +123,63 @@ export class EventsService {
     });
 
     return event;
+  }
+
+  /**
+   * Creates the same event in N stores at once. Every row produced shares an
+   * `eventGroupId`, which lets the UI surface the rollout as a single
+   * logical event and lets downstream queries aggregate stats across stores.
+   * Each storeId is validated against the user's scope before insert.
+   */
+  async createMultiStore(data: CreateMultiStoreEventDto, user: SessionUser) {
+    if (data.storeIds.length === 0) {
+      throw new ForbiddenException("storeIds must contain at least one store");
+    }
+
+    const accessible = await this.scopeService.getAccessibleStoreIds(user);
+    if (user.role !== "admin") {
+      const inaccessible = data.storeIds.filter((id) => !accessible.includes(id));
+      if (inaccessible.length > 0) {
+        throw new ForbiddenException(
+          `Some stores are not accessible: ${inaccessible.join(", ")}`,
+        );
+      }
+    }
+
+    const eventGroupId = randomUUID();
+    const startTime = new Date(data.startTime);
+    const endTime = new Date(data.endTime);
+
+    const inserted = await this.db
+      .insert(storeEvents)
+      .values(
+        data.storeIds.map((storeId) => ({
+          storeId,
+          brandId: data.brandId,
+          eventGroupId,
+          name: data.name,
+          description: data.description,
+          kind: data.kind,
+          startTime,
+          endTime,
+          capacity: data.capacity,
+          coverImageUrl: data.coverImageUrl,
+        })),
+      )
+      .returning();
+
+    await this.auditService.log(user, "create_multi_store", "store_event", eventGroupId, {
+      eventGroupId,
+      storeIds: data.storeIds,
+      kind: data.kind,
+      count: inserted.length,
+    });
+
+    return {
+      eventGroupId,
+      count: inserted.length,
+      events: inserted,
+    };
   }
 
   async update(id: string, data: UpdateEventDto, user: SessionUser) {

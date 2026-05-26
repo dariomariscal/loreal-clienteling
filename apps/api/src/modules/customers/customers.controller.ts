@@ -97,7 +97,7 @@ export class CustomersController {
   }
 
   @Post()
-  @Roles(["beauty_advisor", "counter_manager"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiBody({ type: CreateCustomerDto })
   create(
     @Body() body: CreateCustomerDto,
@@ -107,7 +107,7 @@ export class CustomersController {
   }
 
   @Post("register")
-  @Roles(["beauty_advisor", "counter_manager"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiBody({ type: RegisterCustomerDto })
   register(
     @Body() body: RegisterCustomerDto,
@@ -123,7 +123,7 @@ export class CustomersController {
   }
 
   @Patch(":id")
-  @Roles(["beauty_advisor", "counter_manager"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateCustomerDto })
   update(

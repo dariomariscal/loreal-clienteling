@@ -1,5 +1,5 @@
 import { Injectable, Inject, ForbiddenException } from "@nestjs/common";
-import { and, eq, gte, lte, sql, count, sum } from "drizzle-orm";
+import { and, eq, gte, lte, sql, count, sum, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   customers,
@@ -11,6 +11,7 @@ import {
   storeEvents,
   inventoryLevels,
   users,
+  stores,
 } from "@loreal/database";
 import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../common/types/session";
@@ -297,5 +298,114 @@ export class DashboardsService {
         ),
       );
     return row?.count ?? 0;
+  }
+
+  /**
+   * Home dashboard for the Area / National Retail Manager. Bundles the
+   * zone-wide KPIs (from AnalyticsService.getZoneOverview), the store
+   * ranking, and the cross-store operational counters in a single payload
+   * so the client only needs one request.
+   */
+  async getZoneToday(user: SessionUser, opts: { date?: string } = {}) {
+    if (
+      user.role !== UserRole.AREA_MANAGER &&
+      user.role !== UserRole.NATIONAL_RETAIL_MANAGER &&
+      user.role !== UserRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        "Zone dashboard is restricted to area_manager, national_retail_manager and admin",
+      );
+    }
+
+    const date = opts.date ?? new Date().toISOString().split("T")[0];
+    const dayStart = new Date(`${date}T00:00:00.000Z`);
+    const dayEnd = new Date(`${date}T23:59:59.999Z`);
+
+    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const isAdmin = user.role === UserRole.ADMIN;
+
+    const [overview, ranking, operationalCounters, upcomingEvents] =
+      await Promise.all([
+        this.analyticsService.getZoneOverview(user, {
+          from: dayStart,
+          to: dayEnd,
+        }),
+        this.analyticsService.getStoresRanking(user, {
+          from: dayStart,
+          to: dayEnd,
+        }),
+        this.getZoneOperationalCounters(isAdmin, storeIds),
+        this.getZoneUpcomingEvents(isAdmin, storeIds, dayStart),
+      ]);
+
+    return {
+      date,
+      scope: {
+        storeCount: isAdmin ? null : storeIds.length,
+        storeIds: isAdmin ? null : storeIds,
+      },
+      pulse: overview,
+      ranking: ranking.data,
+      operations: {
+        ...operationalCounters,
+        upcomingEvents,
+      },
+    };
+  }
+
+  private async getZoneOperationalCounters(isAdmin: boolean, storeIds: string[]) {
+    if (!isAdmin && storeIds.length === 0) {
+      return { pendingApprovalCount: 0, stockAlertCount: 0 };
+    }
+
+    const approvalConds: any[] = [eq(approvalRequests.status, "pending")];
+    if (!isAdmin) approvalConds.push(inArray(approvalRequests.storeId, storeIds));
+    const [approvalRow] = await this.db
+      .select({ count: count() })
+      .from(approvalRequests)
+      .where(and(...approvalConds));
+
+    const stockConds: any[] = [
+      sql`${inventoryLevels.stockStatus} in ('low', 'out_of_stock')`,
+    ];
+    if (!isAdmin) stockConds.push(inArray(inventoryLevels.storeId, storeIds));
+    const [stockRow] = await this.db
+      .select({ count: count() })
+      .from(inventoryLevels)
+      .where(and(...stockConds));
+
+    return {
+      pendingApprovalCount: approvalRow?.count ?? 0,
+      stockAlertCount: stockRow?.count ?? 0,
+    };
+  }
+
+  private async getZoneUpcomingEvents(
+    isAdmin: boolean,
+    storeIds: string[],
+    after: Date,
+  ) {
+    if (!isAdmin && storeIds.length === 0) return [];
+
+    const conds: any[] = [gte(storeEvents.startTime, after)];
+    if (!isAdmin) conds.push(inArray(storeEvents.storeId, storeIds));
+
+    return this.db
+      .select({
+        id: storeEvents.id,
+        name: storeEvents.name,
+        kind: storeEvents.kind,
+        startTime: storeEvents.startTime,
+        endTime: storeEvents.endTime,
+        capacity: storeEvents.capacity,
+        status: storeEvents.status,
+        storeId: storeEvents.storeId,
+        storeName: stores.displayName,
+      })
+      .from(storeEvents)
+      .innerJoin(stores, eq(stores.id, storeEvents.storeId))
+      .where(and(...conds))
+      .orderBy(storeEvents.startTime)
+      .limit(10);
   }
 }

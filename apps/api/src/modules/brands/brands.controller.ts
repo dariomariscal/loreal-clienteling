@@ -24,25 +24,33 @@ export class BrandsController {
   }
 
   @Post()
-  @Roles(["admin"])
+  @Roles(["national_retail_manager", "admin"])
   @ApiBody({ type: CreateBrandDto })
-  create(@Body() body: CreateBrandDto) {
-    return this.brandsService.create(body);
+  create(@Body() body: CreateBrandDto, @Session() session: UserSession) {
+    return this.brandsService.create(body, session.user);
   }
 
   @Patch(":id")
-  @Roles(["admin"])
+  @Roles(["national_retail_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateBrandDto })
-  update(@Param("id") id: string, @Body() body: UpdateBrandDto) {
-    return this.brandsService.update(id, body);
+  update(
+    @Param("id") id: string,
+    @Body() body: UpdateBrandDto,
+    @Session() session: UserSession,
+  ) {
+    return this.brandsService.update(id, body, session.user);
   }
 
   @Put(":id/config")
-  @Roles(["admin"])
+  @Roles(["national_retail_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpsertBrandConfigDto })
-  upsertConfig(@Param("id") id: string, @Body() body: UpsertBrandConfigDto) {
-    return this.brandsService.upsertConfig(id, body);
+  upsertConfig(
+    @Param("id") id: string,
+    @Body() body: UpsertBrandConfigDto,
+    @Session() session: UserSession,
+  ) {
+    return this.brandsService.upsertConfig(id, body, session.user);
   }
 }

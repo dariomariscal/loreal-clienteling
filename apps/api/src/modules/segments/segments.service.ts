@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { customerSegments, customers } from "@loreal/database";
+import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
@@ -37,7 +38,17 @@ export class SegmentsService {
   ) {}
 
   async list(user: SessionUser) {
+    // Admin sees every segment regardless of scope.
+    if (user.role === UserRole.ADMIN) {
+      return this.db
+        .select()
+        .from(customerSegments)
+        .orderBy(desc(customerSegments.updatedAt));
+    }
+
     const visibility: SQL[] = [eq(customerSegments.ownerUserId, user.id)];
+
+    // Brand-shared segments (BA/Counter Manager/AM/NRM all see brand-level)
     if (user.brandId) {
       visibility.push(
         and(
@@ -46,8 +57,29 @@ export class SegmentsService {
         )!,
       );
     }
+
+    // Division-shared segments (Area Manager and NRM can see their division's)
+    if (
+      (user.role === UserRole.AREA_MANAGER ||
+        user.role === UserRole.NATIONAL_RETAIL_MANAGER) &&
+      user.divisionId
+    ) {
+      visibility.push(
+        and(
+          eq(customerSegments.divisionId, user.divisionId),
+          isNull(customerSegments.ownerUserId),
+          isNull(customerSegments.brandId),
+        )!,
+      );
+    }
+
+    // Global / admin-defined segments
     visibility.push(
-      and(isNull(customerSegments.ownerUserId), isNull(customerSegments.brandId))!,
+      and(
+        isNull(customerSegments.ownerUserId),
+        isNull(customerSegments.brandId),
+        isNull(customerSegments.divisionId),
+      )!,
     );
 
     return this.db
@@ -69,10 +101,53 @@ export class SegmentsService {
   }
 
   async create(data: CreateSegmentDto, user: SessionUser) {
+    // Resolve segment scope:
+    //   "personal" (default) → owned by the caller (ownerUserId set)
+    //   "brand"              → shared across the caller's brand
+    //   "division"           → shared across the caller's division (NRM/admin only)
+    //   "global"             → admin only
+    const scope = data.scope ?? "personal";
+
+    let ownerUserId: string | null = user.id;
+    let brandId: string | null = null;
+    let divisionId: string | null = null;
+
+    if (scope === "brand") {
+      if (user.role === UserRole.ADMIN && data.brandId) {
+        brandId = data.brandId;
+      } else {
+        brandId = this.scopeService.assertBrand(user);
+      }
+      ownerUserId = null;
+    } else if (scope === "division") {
+      if (
+        user.role !== UserRole.NATIONAL_RETAIL_MANAGER &&
+        user.role !== UserRole.ADMIN
+      ) {
+        throw new ForbiddenException(
+          "Only national_retail_manager or admin may create division-scoped segments",
+        );
+      }
+      divisionId =
+        user.role === UserRole.ADMIN && data.divisionId
+          ? data.divisionId
+          : this.scopeService.assertDivision(user);
+      ownerUserId = null;
+    } else if (scope === "global") {
+      if (user.role !== UserRole.ADMIN) {
+        throw new ForbiddenException(
+          "Only admin may create global segments",
+        );
+      }
+      ownerUserId = null;
+    }
+
     const [segment] = await this.db
       .insert(customerSegments)
       .values({
-        ownerUserId: user.id,
+        ownerUserId,
+        brandId,
+        divisionId,
         name: data.name,
         description: data.description,
         filter: data.filter as Record<string, unknown>,
@@ -82,6 +157,7 @@ export class SegmentsService {
 
     await this.auditService.log(user, "create", "customer_segment", segment.id, {
       name: data.name,
+      scope,
     });
 
     return segment;
@@ -146,24 +222,55 @@ export class SegmentsService {
   // ----- internals -----
 
   private assertReadable(
-    segment: { ownerUserId: string | null; brandId: string | null },
+    segment: {
+      ownerUserId: string | null;
+      brandId: string | null;
+      divisionId: string | null;
+    },
     user: SessionUser,
   ) {
-    if (user.role === "admin") return;
+    if (user.role === UserRole.ADMIN) return;
     if (segment.ownerUserId === user.id) return;
     if (segment.ownerUserId === null) {
-      if (segment.brandId === null) return; // global
-      if (segment.brandId === user.brandId) return;
+      // global
+      if (
+        segment.brandId === null &&
+        segment.divisionId === null
+      )
+        return;
+      // brand-shared
+      if (segment.brandId && segment.brandId === user.brandId) return;
+      // division-shared (visible to AM/NRM of that division)
+      if (
+        segment.divisionId &&
+        segment.divisionId === user.divisionId &&
+        (user.role === UserRole.AREA_MANAGER ||
+          user.role === UserRole.NATIONAL_RETAIL_MANAGER)
+      )
+        return;
     }
     throw new ForbiddenException("Segment not visible");
   }
 
   private assertWritable(
-    segment: { ownerUserId: string | null; brandId: string | null },
+    segment: {
+      ownerUserId: string | null;
+      brandId: string | null;
+      divisionId: string | null;
+    },
     user: SessionUser,
   ) {
-    if (user.role === "admin") return;
+    if (user.role === UserRole.ADMIN) return;
     if (segment.ownerUserId === user.id) return;
+    // NRM may edit division-shared segments inside their own division
+    if (
+      user.role === UserRole.NATIONAL_RETAIL_MANAGER &&
+      segment.ownerUserId === null &&
+      segment.divisionId &&
+      segment.divisionId === user.divisionId
+    ) {
+      return;
+    }
     throw new ForbiddenException("Segment owned by someone else");
   }
 

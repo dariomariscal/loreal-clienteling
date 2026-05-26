@@ -18,7 +18,13 @@ export class MessagesController {
   constructor(@Inject(MessagesService) private messagesService: MessagesService) {}
 
   @Get("messages")
-  @Roles(["beauty_advisor", "counter_manager", "admin"])
+  @Roles([
+    "beauty_advisor",
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ])
   findAll(@Session() session: UserSession) {
     return this.messagesService.findAll(session.user);
   }
@@ -55,18 +61,25 @@ export class MessagesController {
   }
 
   @Post("messages/templates")
-  @Roles(["admin", "counter_manager"])
+  @Roles(["admin", "national_retail_manager"])
   @ApiBody({ type: CreateTemplateDto })
-  createTemplate(@Body() body: CreateTemplateDto) {
-    return this.messagesService.createTemplate(body);
+  createTemplate(
+    @Body() body: CreateTemplateDto,
+    @Session() session: UserSession,
+  ) {
+    return this.messagesService.createTemplate(body, session.user);
   }
 
   @Patch("messages/templates/:id")
-  @Roles(["admin", "counter_manager"])
+  @Roles(["admin", "national_retail_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateTemplateDto })
-  updateTemplate(@Param("id") id: string, @Body() body: UpdateTemplateDto) {
-    return this.messagesService.updateTemplate(id, body);
+  updateTemplate(
+    @Param("id") id: string,
+    @Body() body: UpdateTemplateDto,
+    @Session() session: UserSession,
+  ) {
+    return this.messagesService.updateTemplate(id, body, session.user);
   }
 
   @Patch("messages/:id/tracking")

@@ -35,4 +35,14 @@ export class DashboardsController {
       date,
     });
   }
+
+  @Get("zone/today")
+  @Roles(["area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "date", required: false, type: String, description: "YYYY-MM-DD" })
+  getZoneToday(
+    @Query("date") date: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.dashboardsService.getZoneToday(session.user, { date });
+  }
 }

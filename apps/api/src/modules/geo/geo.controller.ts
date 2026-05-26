@@ -1,7 +1,9 @@
 import { Controller, Get, Inject, Query } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
+import { Session } from "../../auth/decorators/session.decorator";
 import { GeoService } from "./geo.service";
+import type { UserSession } from "../../common/types/session";
 
 @ApiTags("Geo")
 @ApiBearerAuth()
@@ -29,6 +31,27 @@ export class GeoController {
       stateCode,
       simplifyTolerance:
         simplifyTolerance && !Number.isNaN(simplifyTolerance) ? simplifyTolerance : undefined,
+    });
+  }
+
+  @Get("customer-density")
+  @Roles([
+    "admin",
+    "area_manager",
+    "national_retail_manager",
+    "counter_manager",
+  ])
+  @ApiQuery({ name: "geojson", required: false, type: Boolean })
+  @ApiQuery({ name: "simplify", required: false, type: Number })
+  customerDensity(
+    @Session() session: UserSession,
+    @Query("geojson") geojson?: string,
+    @Query("simplify") simplify?: string,
+  ) {
+    const tol = simplify ? Number(simplify) : undefined;
+    return this.geoService.customerDensity(session.user, {
+      geojson: geojson === "true",
+      simplifyTolerance: tol && !Number.isNaN(tol) ? tol : undefined,
     });
   }
 }

@@ -36,6 +36,53 @@ export const RSVP_STATUSES = [
   "waitlist",
 ] as const;
 
+export class CreateMultiStoreEventDto {
+  @ApiProperty({ type: [String], format: "uuid", description: "One row per storeId is created, all sharing the same eventGroupId." })
+  @IsArray()
+  @IsUUID("4", { each: true })
+  storeIds: string[];
+
+  @ApiPropertyOptional({ type: String, format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  brandId?: string;
+
+  @ApiProperty({ type: String, maxLength: 200 })
+  @IsString()
+  @MaxLength(200)
+  name: string;
+
+  @ApiPropertyOptional({ type: String, maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiProperty({ type: String, enum: EVENT_KINDS })
+  @IsIn(EVENT_KINDS)
+  kind: (typeof EVENT_KINDS)[number];
+
+  @ApiProperty({ type: String, format: "date-time" })
+  @IsDateString()
+  startTime: string;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  @IsDateString()
+  endTime: string;
+
+  @ApiPropertyOptional({ type: Number, minimum: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  capacity?: number;
+
+  @ApiPropertyOptional({ type: String, maxLength: 500 })
+  @IsOptional()
+  @IsUrl()
+  @MaxLength(500)
+  coverImageUrl?: string;
+}
+
 export class CreateEventDto {
   @ApiProperty({ type: String, format: "uuid" })
   @IsUUID()

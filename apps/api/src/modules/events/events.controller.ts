@@ -15,6 +15,7 @@ import { Session } from "../../auth/decorators/session.decorator";
 import { EventsService } from "./events.service";
 import {
   CreateEventDto,
+  CreateMultiStoreEventDto,
   UpdateEventDto,
   ListEventsQueryDto,
   InviteCustomerDto,
@@ -46,6 +47,16 @@ export class EventsController {
   @ApiBody({ type: CreateEventDto })
   create(@Body() body: CreateEventDto, @Session() session: UserSession) {
     return this.eventsService.create(body, session.user);
+  }
+
+  @Post("multi")
+  @Roles(["area_manager", "national_retail_manager", "admin"])
+  @ApiBody({ type: CreateMultiStoreEventDto })
+  createMultiStore(
+    @Body() body: CreateMultiStoreEventDto,
+    @Session() session: UserSession,
+  ) {
+    return this.eventsService.createMultiStore(body, session.user);
   }
 
   @Patch(":id")

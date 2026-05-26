@@ -88,6 +88,13 @@ export class SegmentFilterDto {
   birthdayThisMonth?: boolean;
 }
 
+export const SEGMENT_SCOPES = [
+  "personal",
+  "brand",
+  "division",
+  "global",
+] as const;
+
 export class CreateSegmentDto {
   @ApiProperty({ type: String, maxLength: 200 })
   @IsString()
@@ -113,6 +120,34 @@ export class CreateSegmentDto {
   @IsOptional()
   @IsBoolean()
   isDynamic?: boolean;
+
+  @ApiPropertyOptional({
+    enum: SEGMENT_SCOPES,
+    default: "personal",
+    description:
+      "personal = owned by the caller; brand = shared with the caller's brand; division = shared across the caller's division (NRM/admin); global = admin-only.",
+  })
+  @IsOptional()
+  @IsIn(SEGMENT_SCOPES)
+  scope?: (typeof SEGMENT_SCOPES)[number];
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    description: "Admin override when scope='brand'; ignored for non-admin.",
+  })
+  @IsOptional()
+  @IsUUID()
+  brandId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    description: "Admin override when scope='division'; ignored for non-admin.",
+  })
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
 }
 
 export class UpdateSegmentDto {

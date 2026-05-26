@@ -1,7 +1,8 @@
 import { Injectable, Inject, ForbiddenException, NotFoundException } from "@nestjs/common";
-import { eq, and, or, isNull, inArray, desc } from "drizzle-orm";
+import { eq, and, or, isNull, inArray, desc, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { messages, messageTemplates, consents, customers } from "@loreal/database";
+import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
@@ -27,10 +28,28 @@ export class MessagesService {
   ) {}
 
   async findAll(user: SessionUser) {
-    // BA/manager: only their own sent messages
-    // Admin: all messages
-    const conditions =
-      user.role === "admin" ? [] : [eq(messages.sentByUserId, user.id)];
+    // Scope rules:
+    //   admin                                → every message
+    //   area_manager / national_retail_mgr   → every message attached to a
+    //                                          customer in their accessible stores
+    //   counter_manager                      → every message in their store
+    //   beauty_advisor                       → only the messages they themselves sent
+    const conditions: any[] = [];
+    if (user.role === UserRole.ADMIN) {
+      // no filter
+    } else if (
+      user.role === UserRole.AREA_MANAGER ||
+      user.role === UserRole.NATIONAL_RETAIL_MANAGER ||
+      user.role === UserRole.COUNTER_MANAGER
+    ) {
+      const storeScope = await this.scopeService.scopeByStore(
+        user,
+        customers.signupStoreId,
+      );
+      if (storeScope) conditions.push(storeScope);
+    } else {
+      conditions.push(eq(messages.sentByUserId, user.id));
+    }
 
     // Join customers so the inbox can render the real client name/avatar
     // instead of falling back to the raw phone/email address. Use explicit
@@ -134,14 +153,36 @@ export class MessagesService {
     user: SessionUser,
     options?: { customerId?: string },
   ) {
-    // Step 1: brand scope. Admin gets every active template; everyone else
-    // gets brand-specific + global (null-brand) templates.
+    // Step 1: brand scope.
+    //   admin                                → every active template
+    //   area_manager / national_retail_mgr   → every brand of their division + globals
+    //   counter_manager / beauty_advisor     → their single brand + globals
     const baseConditions: any[] = [eq(messageTemplates.isActive, true)];
-    if (user.role !== "admin") {
-      const brandId = this.scopeService.assertBrand(user);
-      baseConditions.push(
-        or(eq(messageTemplates.brandId, brandId), isNull(messageTemplates.brandId)),
-      );
+    if (user.role !== UserRole.ADMIN) {
+      if (
+        user.role === UserRole.AREA_MANAGER ||
+        user.role === UserRole.NATIONAL_RETAIL_MANAGER
+      ) {
+        const brandIds = await this.scopeService.getAccessibleBrandIds(user);
+        if (brandIds.length === 0) {
+          baseConditions.push(isNull(messageTemplates.brandId));
+        } else {
+          baseConditions.push(
+            or(
+              inArray(messageTemplates.brandId, brandIds),
+              isNull(messageTemplates.brandId),
+            ),
+          );
+        }
+      } else {
+        const brandId = this.scopeService.assertBrand(user);
+        baseConditions.push(
+          or(
+            eq(messageTemplates.brandId, brandId),
+            isNull(messageTemplates.brandId),
+          ),
+        );
+      }
     }
 
     // Step 2: optional consent filter. When a customerId is provided, only
@@ -174,13 +215,24 @@ export class MessagesService {
       .where(and(...baseConditions));
   }
 
-  async createTemplate(data: {
-    brandId?: string;
-    name: string;
-    channel: string;
-    body: string;
-    campaignType: string;
-  }) {
+  async createTemplate(
+    data: {
+      brandId?: string;
+      name: string;
+      channel: string;
+      body: string;
+      campaignType: string;
+    },
+    user: SessionUser,
+  ) {
+    if (data.brandId) {
+      await this.assertBrandWritable(data.brandId, user);
+    } else if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        "Only admin may create global (brand-less) templates",
+      );
+    }
+
     const [template] = await this.db
       .insert(messageTemplates)
       .values(data)
@@ -197,7 +249,22 @@ export class MessagesService {
       campaignType: string;
       isActive: boolean;
     }>,
+    user: SessionUser,
   ) {
+    const [existing] = await this.db
+      .select({ brandId: messageTemplates.brandId })
+      .from(messageTemplates)
+      .where(eq(messageTemplates.id, id));
+    if (!existing) throw new NotFoundException("Template not found");
+
+    if (existing.brandId) {
+      await this.assertBrandWritable(existing.brandId, user);
+    } else if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        "Only admin may edit global (brand-less) templates",
+      );
+    }
+
     const [template] = await this.db
       .update(messageTemplates)
       .set({ ...data, updatedAt: new Date() })
@@ -205,6 +272,23 @@ export class MessagesService {
       .returning();
     if (!template) throw new NotFoundException("Template not found");
     return template;
+  }
+
+  /**
+   * Helper to enforce that `brandId` is editable by `user` — admin can edit
+   * any brand's templates; NRM is limited to brands within their division.
+   */
+  private async assertBrandWritable(brandId: string, user: SessionUser) {
+    if (user.role === UserRole.ADMIN) return;
+    if (user.role !== UserRole.NATIONAL_RETAIL_MANAGER) {
+      throw new ForbiddenException(
+        "Only admin or NRM may create/edit brand templates",
+      );
+    }
+    const accessible = await this.scopeService.getAccessibleBrandIds(user);
+    if (!accessible.includes(brandId)) {
+      throw new ForbiddenException("Brand is outside your division");
+    }
   }
 
   async updateTracking(
