@@ -29,6 +29,66 @@ const signInSchema = z.object({
 
 type SignInValues = z.infer<typeof signInSchema>;
 
+type DemoUser = {
+  role: string;
+  fullName: string;
+  email: string;
+  password: string;
+  blurb: string;
+};
+
+const DEMO_USERS: readonly DemoUser[] = [
+  {
+    role: "NRM",
+    fullName: "Diana Nacional",
+    email: "d.nacional@loreal.mx",
+    password: "Loreal2026!Demo",
+    blurb: "5 regiones · $33M",
+  },
+  {
+    role: "Admin",
+    fullName: "Admin Central",
+    email: "admin@loreal.mx",
+    password: "LorealAdmin2026",
+    blurb: "Acceso total",
+  },
+  {
+    role: "Area Manager",
+    fullName: "Diego Puebla",
+    email: "d.puebla@loreal.mx",
+    password: "trWx=xPk59c^^!LP",
+    blurb: "Centro · $18M",
+  },
+  {
+    role: "Counter Manager",
+    fullName: "Juan Perez",
+    email: "j.perez@loreal.mx",
+    password: "M%7cs5Je&ML5i#VG",
+    blurb: "Polanco · YSL",
+  },
+  {
+    role: "Beauty Advisor",
+    fullName: "Ana Martinez",
+    email: "a.martinez@loreal.mx",
+    password: "cYe!_ePAwNuLAt!3",
+    blurb: "Santa Fe · YSL",
+  },
+  {
+    role: "Beauty Advisor",
+    fullName: "Emiliano Alvarez",
+    email: "e.alvarez@loreal.mx",
+    password: "mango-violin-roca-7392",
+    blurb: "Santa Fe · YSL",
+  },
+  {
+    role: "Beauty Advisor",
+    fullName: "Moy Nousairi",
+    email: "m.nousairi@loreal.mx",
+    password: "GyR^#MS$ma_#6P+W",
+    blurb: "Polanco · Lancôme",
+  },
+];
+
 export function SignInForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
@@ -52,7 +112,7 @@ export function SignInForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  async function handleSubmit(data: SignInValues) {
+  async function attemptSignIn(email: string, password: string) {
     if (!isLoaded) return;
 
     setError(null);
@@ -61,8 +121,8 @@ export function SignInForm() {
     try {
       const attempt = await signIn.create({
         strategy: "password",
-        identifier: data.email.trim(),
-        password: data.password,
+        identifier: email.trim(),
+        password,
       });
 
       if (attempt.status === "complete") {
@@ -99,6 +159,16 @@ export function SignInForm() {
       }
       setLoading(false);
     }
+  }
+
+  function handleSubmit(data: SignInValues) {
+    return attemptSignIn(data.email, data.password);
+  }
+
+  function handleDemoLogin(user: DemoUser) {
+    form.setValue("email", user.email);
+    form.setValue("password", user.password);
+    return attemptSignIn(user.email, user.password);
   }
 
   return (
@@ -199,6 +269,33 @@ export function SignInForm() {
           </div>
         </form>
       </Form>
+
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            demo · acceso rápido
+          </span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {DEMO_USERS.map((user) => (
+            <button
+              key={user.email}
+              type="button"
+              onClick={() => handleDemoLogin(user)}
+              disabled={!isLoaded || loading}
+              className="group flex flex-col items-start gap-1 rounded-md border border-border bg-background px-3 py-2 text-left transition-colors hover:border-foreground/40 hover:bg-muted disabled:opacity-50 disabled:hover:bg-background"
+            >
+              <span className="inline-flex h-4 items-center rounded-sm bg-muted px-1.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground group-hover:bg-foreground/10">
+                {user.role}
+              </span>
+              <span className="text-xs font-medium text-foreground">{user.fullName}</span>
+              <span className="text-[10px] text-muted-foreground">{user.blurb}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
