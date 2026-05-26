@@ -3,6 +3,7 @@ import { api } from "@/lib/api-client";
 import type { z } from "zod";
 import type {
   createEventSchema,
+  createMultiStoreEventSchema,
   updateEventSchema,
   listEventsQuerySchema,
   updateRsvpSchema,
@@ -63,9 +64,18 @@ export interface EventInvitation {
 }
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
+export type CreateMultiStoreEventInput = z.infer<
+  typeof createMultiStoreEventSchema
+>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 export type ListEventsQuery = z.infer<typeof listEventsQuerySchema>;
 export type UpdateRsvpInput = z.infer<typeof updateRsvpSchema>;
+
+export interface CreateMultiStoreEventResult {
+  eventGroupId: string;
+  count: number;
+  events: StoreEvent[];
+}
 
 // ── Query keys ─────────────────────────────────────────────────────
 
@@ -113,6 +123,20 @@ export function useCreateEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateEventInput) => api.post<StoreEvent>("/events", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
+  });
+}
+
+/**
+ * Schedule the same event in N stores in one shot. The API returns the
+ * generated `eventGroupId` and the individual rows it created. Restricted on
+ * the server to area_manager, national_retail_manager and admin.
+ */
+export function useCreateMultiStoreEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateMultiStoreEventInput) =>
+      api.post<CreateMultiStoreEventResult>("/events/multi", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
   });
 }

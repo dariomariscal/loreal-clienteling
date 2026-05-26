@@ -125,6 +125,13 @@ export const analyticsKeys = {
   conversion: (from?: string, to?: string, trending?: boolean) => ["analytics", "conversion", from, to, trending] as const,
   customers: ["analytics", "customers"] as const,
   retention: ["analytics", "retention"] as const,
+  zoneOverview: (from?: string, to?: string) => ["analytics", "zone-overview", from, to] as const,
+  storesRanking: (from?: string, to?: string) => ["analytics", "stores-ranking", from, to] as const,
+  counterManagersRanking: (from?: string, to?: string) =>
+    ["analytics", "counter-managers-ranking", from, to] as const,
+  zonesRanking: (from?: string, to?: string) => ["analytics", "zones-ranking", from, to] as const,
+  brandsComparison: (storeId: string, from?: string, to?: string) =>
+    ["analytics", "brands-comparison", storeId, from, to] as const,
 };
 
 // ── Queries ────────────────────────────────────────────────────────
@@ -227,6 +234,160 @@ export function useRetention() {
   return useQuery({
     queryKey: analyticsKeys.retention,
     queryFn: () => api.get<RetentionData>("/analytics/retention"),
+  });
+}
+
+// ── Zone-level analytics (Area Manager / National Retail Manager) ──
+
+export interface ZoneOverview {
+  period: { from: string; to: string };
+  scope: { storeCount: number | null; storeIds: string[] | null };
+  sales: { totalAmount: number; orderCount: number; uniqueCustomers: number };
+  customers: { total: number; newInPeriod: number };
+  appointments: { total: number; completed: number; noShow: number };
+  recommendations: {
+    total: number;
+    converted: number;
+    conversionPct: number | null;
+  };
+  samples: { delivered: number; converted: number };
+}
+
+export interface StoreRankingRow {
+  storeId: string;
+  storeName: string;
+  zoneId: string | null;
+  sales: {
+    totalAmount: number;
+    orderCount: number;
+    uniqueCustomers: number;
+    avgTicket: number;
+  };
+  newCustomers: number;
+  recommendations: {
+    total: number;
+    converted: number;
+    conversionPct: number | null;
+  };
+}
+
+export interface CounterManagerRankingRow {
+  userId: string;
+  fullName: string;
+  storeId: string | null;
+  brandId: string | null;
+  sales: { totalAmount: number; orderCount: number };
+}
+
+export interface ZoneRankingAggRow {
+  zoneId: string;
+  zoneCode: string;
+  zoneName: string;
+  storeCount: number;
+  sales: {
+    totalAmount: number;
+    orderCount: number;
+    uniqueCustomers: number;
+    avgTicket: number;
+  };
+  newCustomers: number;
+  recommendations: {
+    total: number;
+    converted: number;
+    conversionPct: number | null;
+  };
+}
+
+export interface BrandComparisonRow {
+  brandId: string;
+  brandName: string;
+  divisionId: string | null;
+  sales: { totalAmount: number; itemCount: number };
+  recommendations: {
+    total: number;
+    converted: number;
+    conversionPct: number | null;
+  };
+}
+
+export function useZoneOverview(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.zoneOverview(from, to),
+    queryFn: () =>
+      api.get<ZoneOverview>(
+        "/analytics/zone-overview",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+export function useStoresRanking(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.storesRanking(from, to),
+    queryFn: () =>
+      api.get<{ period: { from: string; to: string }; data: StoreRankingRow[] }>(
+        "/analytics/stores-ranking",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+export function useCounterManagersRanking(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.counterManagersRanking(from, to),
+    queryFn: () =>
+      api.get<{
+        period: { from: string; to: string };
+        data: CounterManagerRankingRow[];
+      }>(
+        "/analytics/counter-managers-ranking",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+export function useZonesRanking(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.zonesRanking(from, to),
+    queryFn: () =>
+      api.get<{
+        period: { from: string; to: string };
+        data: ZoneRankingAggRow[];
+      }>(
+        "/analytics/zones-ranking",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+export function useBrandsComparison(storeId: string, from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.brandsComparison(storeId, from, to),
+    queryFn: () =>
+      api.get<{
+        storeId: string;
+        period: { from: string; to: string };
+        data: BrandComparisonRow[];
+      }>(
+        `/analytics/stores/${storeId}/brands-comparison`,
+        Object.keys(params).length ? params : undefined,
+      ),
+    enabled: !!storeId,
   });
 }
 

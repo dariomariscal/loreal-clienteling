@@ -28,11 +28,29 @@ export const segmentFilterSchema = z.object({
   birthdayThisMonth: z.boolean().optional(),
 });
 
+export const SEGMENT_SCOPES = [
+  "personal",
+  "brand",
+  "division",
+  "global",
+] as const;
+
 export const createSegmentSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   filter: segmentFilterSchema,
   isDynamic: z.boolean().optional(),
+  /**
+   * personal = owned by the caller (default)
+   * brand    = shared inside the caller's brand
+   * division = shared across the caller's division (NRM / admin)
+   * global   = admin-only
+   */
+  scope: z.enum(SEGMENT_SCOPES).optional(),
+  /** Admin override when scope='brand'. Ignored for non-admin callers. */
+  brandId: z.string().uuid().optional(),
+  /** Admin override when scope='division'. Ignored for non-admin callers. */
+  divisionId: z.string().uuid().optional(),
 });
 
 export const updateSegmentSchema = z.object({

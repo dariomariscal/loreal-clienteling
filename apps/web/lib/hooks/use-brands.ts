@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { z } from "zod";
 import { api } from "@/lib/api-client";
+import type {
+  createBrandSchema,
+  updateBrandSchema,
+  upsertBrandConfigSchema,
+} from "@/lib/schemas/brands";
 
 // ── Types (inferred from API responses) ────────────────────────────
 
@@ -8,6 +14,12 @@ export interface Brand {
   code: string;
   displayName: string;
   tier: string;
+  /**
+   * L'Oréal division (luxe, consumer, active, professional). Drives scope
+   * for Area Managers and National Retail Managers. Optional in the payload
+   * because legacy seed rows may predate the divisions table.
+   */
+  divisionId?: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +47,10 @@ export interface BrandConfig {
 export interface BrandWithConfig extends Brand {
   config: BrandConfig | null;
 }
+
+export type CreateBrandInput = z.infer<typeof createBrandSchema>;
+export type UpdateBrandInput = z.infer<typeof updateBrandSchema>;
+export type UpsertBrandConfigInput = z.infer<typeof upsertBrandConfigSchema>;
 
 // ── Query keys ─────────────────────────────────────────────────────
 
@@ -68,8 +84,7 @@ export function useBrand(id: string) {
 export function useCreateBrand() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { code: string; displayName: string; tier: string; logoUrl?: string }) =>
-      api.post<Brand>("/brands", data),
+    mutationFn: (data: CreateBrandInput) => api.post<Brand>("/brands", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: brandKeys.all }),
   });
 }
@@ -77,7 +92,7 @@ export function useCreateBrand() {
 export function useUpdateBrand() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string } & Partial<{ code: string; displayName: string; tier: string; logoUrl: string; active: boolean }>) =>
+    mutationFn: ({ id, ...data }: { id: string } & UpdateBrandInput) =>
       api.patch<Brand>(`/brands/${id}`, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: brandKeys.all });
@@ -89,7 +104,7 @@ export function useUpdateBrand() {
 export function useUpdateBrandConfig() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ brandId, ...data }: { brandId: string } & Record<string, unknown>) =>
+    mutationFn: ({ brandId, ...data }: { brandId: string } & UpsertBrandConfigInput) =>
       api.put<BrandConfig>(`/brands/${brandId}/config`, data),
     onSuccess: (_, { brandId }) => {
       queryClient.invalidateQueries({ queryKey: brandKeys.all });

@@ -109,3 +109,97 @@ export function useCounterDashboardToday(
     refetchInterval: 60_000,
   });
 }
+
+// ── Zone-level dashboard (Area Manager / National Retail Manager) ──
+
+/**
+ * One row of the per-store ranking served inside the zone dashboard. The
+ * server already sorts by sales desc.
+ */
+export interface ZoneRankingRow {
+  storeId: string;
+  storeName: string;
+  zoneId: string | null;
+  sales: {
+    totalAmount: number;
+    orderCount: number;
+    uniqueCustomers: number;
+    avgTicket: number;
+  };
+  newCustomers: number;
+  recommendations: {
+    total: number;
+    converted: number;
+    conversionPct: number | null;
+  };
+}
+
+export interface ZoneUpcomingEvent extends CounterUpcomingEvent {
+  storeId: string;
+  storeName: string;
+}
+
+export interface ZonePulse {
+  period: { from: string; to: string };
+  scope: { storeCount: number | null; storeIds: string[] | null };
+  sales: {
+    totalAmount: number;
+    orderCount: number;
+    uniqueCustomers: number;
+  };
+  customers: {
+    total: number;
+    newInPeriod: number;
+  };
+  appointments: {
+    total: number;
+    completed: number;
+    noShow: number;
+  };
+  recommendations: {
+    total: number;
+    converted: number;
+    conversionPct: number | null;
+  };
+  samples: {
+    delivered: number;
+    converted: number;
+  };
+}
+
+export interface ZoneDashboardToday {
+  date: string;
+  scope: { storeCount: number | null; storeIds: string[] | null };
+  pulse: ZonePulse;
+  ranking: ZoneRankingRow[];
+  operations: {
+    pendingApprovalCount: number;
+    stockAlertCount: number;
+    upcomingEvents: ZoneUpcomingEvent[];
+  };
+}
+
+export interface ZoneDashboardParams {
+  /** YYYY-MM-DD. Defaults to today in server timezone. */
+  date?: string;
+}
+
+const zoneDashboardKeys = {
+  today: (params: ZoneDashboardParams) =>
+    ["dashboards", "zone", "today", params] as const,
+};
+
+export function useZoneDashboardToday(params: ZoneDashboardParams = {}) {
+  const query: Record<string, string> = {};
+  if (params.date) query.date = params.date;
+
+  return useQuery({
+    queryKey: zoneDashboardKeys.today(params),
+    queryFn: () =>
+      api.get<ZoneDashboardToday>(
+        "/dashboards/zone/today",
+        Object.keys(query).length ? query : undefined,
+      ),
+    refetchInterval: 60_000,
+  });
+}

@@ -30,6 +30,8 @@ export interface AuditLogFilters {
 const auditKeys = {
   list: (filters: AuditLogFilters) => ["audit-logs", filters] as const,
   detail: (id: string) => ["audit-logs", id] as const,
+  summary: (params: AuditSummaryParams) =>
+    ["audit-logs", "summary", params] as const,
 };
 
 // ── Queries (read-only — audit logs are never mutated from frontend) ─
@@ -55,5 +57,47 @@ export function useAuditLog(id: string) {
     queryKey: auditKeys.detail(id),
     queryFn: () => api.get<AuditLog>(`/audit-logs/${id}`),
     enabled: !!id,
+  });
+}
+
+// ── Summary (visible to area_manager and national_retail_manager) ──
+
+export interface AuditSummaryParams {
+  /** ISO-8601. Defaults to 30 days ago on the server. */
+  from?: string;
+  to?: string;
+  /** Top-N for byAction, byEntityType and topActors. Defaults to 20. */
+  limit?: number;
+}
+
+export interface AuditSummary {
+  period: { from: string; to: string };
+  totals: { events: number };
+  byAction: { action: string; count: number }[];
+  byEntityType: { entityType: string; count: number }[];
+  topActors: {
+    actorUserId: string | null;
+    actorFullName: string | null;
+    count: number;
+  }[];
+}
+
+/**
+ * Aggregated audit view: counts by action, entityType, top actors. The full
+ * audit log row stream stays admin-only — managers see this rolled-up shape.
+ */
+export function useAuditLogsSummary(params: AuditSummaryParams = {}) {
+  return useQuery({
+    queryKey: auditKeys.summary(params),
+    queryFn: () => {
+      const query: Record<string, string> = {};
+      if (params.from) query.from = params.from;
+      if (params.to) query.to = params.to;
+      if (params.limit) query.limit = String(params.limit);
+      return api.get<AuditSummary>(
+        "/audit-logs/summary",
+        Object.keys(query).length ? query : undefined,
+      );
+    },
   });
 }

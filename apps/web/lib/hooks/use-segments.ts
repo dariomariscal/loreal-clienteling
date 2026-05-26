@@ -17,6 +17,8 @@ export interface CustomerSegment {
   id: string;
   ownerUserId: string | null;
   brandId: string | null;
+  /** Division-level segments (NRM-shared). Null for personal/brand/global. */
+  divisionId: string | null;
   name: string;
   description: string | null;
   filter: SegmentFilter;

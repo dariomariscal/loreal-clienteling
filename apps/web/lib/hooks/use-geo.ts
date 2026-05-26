@@ -70,3 +70,58 @@ export function useMunicipalityBoundaries(stateCode?: string, simplify?: number)
     staleTime: 1000 * 60 * 60 * 24,
   });
 }
+
+// ── Customer density (Area Manager / National Retail Manager) ──────
+
+export interface CustomerDensityRow {
+  municipalityId: string;
+  municipalityName: string;
+  stateCode: string;
+  stateName: string;
+  customerCount: number;
+}
+
+export interface CustomerDensityFeatureCollection {
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    id: string;
+    geometry: { type: "MultiPolygon"; coordinates: number[][][][] };
+    properties: {
+      id: string;
+      name: string;
+      stateCode: string;
+      stateName: string;
+      customerCount: number;
+    };
+  }>;
+}
+
+/**
+ * Customer density per municipality, scoped to the caller's accessible
+ * stores. When `geojson=false` (default) returns a flat list; with
+ * `geojson=true` returns a FeatureCollection ready for choropleth rendering.
+ */
+export function useCustomerDensity<
+  G extends boolean = false,
+>(options: { geojson?: G; simplify?: number } = {}) {
+  type Result = G extends true
+    ? CustomerDensityFeatureCollection
+    : { data: CustomerDensityRow[] };
+
+  return useQuery({
+    queryKey: ["geo", "customer-density", options] as const,
+    queryFn: () => {
+      const params: Record<string, string> = {};
+      if (options.geojson) params.geojson = "true";
+      if (options.simplify) params.simplify = String(options.simplify);
+      return api.get<Result>(
+        "/geo/customer-density",
+        Object.keys(params).length ? params : undefined,
+      );
+    },
+    // Density rolls up customer signups which barely move minute-to-minute;
+    // a few minutes of cache keeps the heatmap responsive without spamming.
+    staleTime: 1000 * 60 * 5,
+  });
+}

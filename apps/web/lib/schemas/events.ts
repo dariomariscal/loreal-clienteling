@@ -34,6 +34,23 @@ export const createEventSchema = z.object({
   coverImageUrl: z.string().url().max(500).optional(),
 });
 
+/**
+ * Multi-store rollout. Schedules the same event in N stores in one shot —
+ * the API inserts one row per storeId, all sharing an `eventGroupId`.
+ * Used by Area Manager / National Retail Manager.
+ */
+export const createMultiStoreEventSchema = z.object({
+  storeIds: z.array(z.string().uuid()).min(1),
+  brandId: z.string().uuid().optional(),
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  kind: z.enum(EVENT_KINDS),
+  startTime: z.string(),
+  endTime: z.string(),
+  capacity: z.number().int().positive().optional(),
+  coverImageUrl: z.string().url().max(500).optional(),
+});
+
 export const updateEventSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).optional(),
