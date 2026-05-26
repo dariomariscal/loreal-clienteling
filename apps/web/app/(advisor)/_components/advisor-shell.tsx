@@ -25,7 +25,7 @@ export function AdvisorShell({ user, children }: Props) {
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-[color:var(--ba-surface)] text-foreground">
       {isCustomerProfile ? null : <AdvisorSidebar user={user} />}
-      <main className="flex flex-1 overflow-hidden">{children}</main>
+      <main className="advisor-scope flex flex-1 overflow-hidden">{children}</main>
     </div>
   );
 }
