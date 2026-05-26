@@ -24,3 +24,8 @@ export * from "./suggested-action";
 export * from "./note-extraction";
 export * from "./semantic-search";
 export * from "./message-suggestion";
+export * from "./sales-targets";
+export * from "./approval-requests";
+export * from "./shifts";
+export * from "./ba-ratings";
+export * from "./event-assignments";

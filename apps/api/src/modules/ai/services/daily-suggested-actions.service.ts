@@ -52,6 +52,48 @@ export class DailySuggestedActionsService {
     }));
   }
 
+  /**
+   * Consolidated NBA queue for every BA in a store. Counter Manager uses this
+   * to see the full mostrador pipeline at a glance and reassign actions.
+   */
+  async listForStore(
+    storeId: string,
+    dueDate: string,
+    opts: { assignedToUserIds?: string[]; limit?: number } = {},
+  ) {
+    const rows = await this.suggestedActionsRepo.listForStore(
+      storeId,
+      dueDate,
+      opts,
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      customerId: r.customerId,
+      assignedToUserId: r.assignedToUserId,
+      assignedTo: {
+        id: r.assignedToUserId,
+        name: r.assignedToName,
+        specialty: r.assignedToSpecialty,
+      },
+      dueDate: r.dueDate,
+      triggerType: r.triggerType as SuggestedActionTrigger,
+      description: r.description,
+      recommendedAction: r.recommendedAction,
+      suggestedMessageDraft: r.suggestedMessageDraft,
+      priority: r.priority,
+      createdAt: r.createdAt,
+      customer: {
+        id: r.customerId,
+        firstName: r.customerFirstName,
+        lastName: r.customerLastName,
+        lifecycleStage: r.customerLifecycleStage,
+        loyaltyTier: r.customerLoyaltyTier,
+        lastInteractionAt: r.customerLastInteractionAt,
+        lastOrderAt: r.customerLastOrderAt,
+      },
+    }));
+  }
+
   async dismiss(suggestedActionId: string): Promise<void> {
     await this.suggestedActionsRepo.markDismissed(suggestedActionId);
   }

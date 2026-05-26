@@ -33,6 +33,7 @@ export { abandonedCarts } from "./abandoned-carts";
 export { serviceTypes } from "./service-types";
 export { appointments } from "./appointments";
 export { storeEvents, eventInvitations } from "./store-events";
+export { eventAssignments } from "./event-assignments";
 
 // Communications & outreach
 export { messages } from "./messages";
@@ -45,6 +46,12 @@ export { customerSegments } from "./customer-segments";
 export { consents } from "./consents";
 export { privacyNotices } from "./privacy-notices";
 export { auditLogs } from "./audit-logs";
+
+// Counter Manager operations — targets, approvals, shifts, ratings
+export { salesTargets } from "./sales-targets";
+export { approvalRequests } from "./approval-requests";
+export { shifts } from "./shifts";
+export { baRatings } from "./ba-ratings";
 
 // AI infrastructure — embeddings, summaries, voice, telemetry
 export { customerEmbeddings } from "./customer-embeddings";

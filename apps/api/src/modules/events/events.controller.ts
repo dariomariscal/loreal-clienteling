@@ -20,6 +20,7 @@ import {
   InviteCustomerDto,
   InviteCustomersDto,
   UpdateRsvpDto,
+  AssignBaToEventDto,
 } from "../../dtos/events.dto";
 import type { UserSession } from "../../common/types/session";
 
@@ -131,5 +132,35 @@ export class EventsController {
     @Session() session: UserSession,
   ) {
     return this.eventsService.removeInvitation(id, invitationId, session.user);
+  }
+
+  @Get(":id/assignments")
+  @ApiParam({ name: "id", type: String })
+  listAssignments(@Param("id") id: string, @Session() session: UserSession) {
+    return this.eventsService.listAssignments(id, session.user);
+  }
+
+  @Post(":id/assignments")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  @ApiParam({ name: "id", type: String })
+  @ApiBody({ type: AssignBaToEventDto })
+  assignBa(
+    @Param("id") id: string,
+    @Body() body: AssignBaToEventDto,
+    @Session() session: UserSession,
+  ) {
+    return this.eventsService.assignBa(id, body, session.user);
+  }
+
+  @Delete(":id/assignments/:assignmentId")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  @ApiParam({ name: "id", type: String })
+  @ApiParam({ name: "assignmentId", type: String })
+  unassignBa(
+    @Param("id") id: string,
+    @Param("assignmentId") assignmentId: string,
+    @Session() session: UserSession,
+  ) {
+    return this.eventsService.unassignBa(id, assignmentId, session.user);
   }
 }

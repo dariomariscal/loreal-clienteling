@@ -168,3 +168,16 @@ export class UpdateRsvpDto {
   @IsIn(RSVP_STATUSES)
   rsvpStatus: (typeof RSVP_STATUSES)[number];
 }
+
+export const EVENT_ASSIGNMENT_ROLES = ["lead", "staff", "mua", "host"] as const;
+
+export class AssignBaToEventDto {
+  @ApiProperty({ type: String, description: "Clerk userId of the BA being assigned" })
+  @IsString()
+  userId: string;
+
+  @ApiPropertyOptional({ enum: EVENT_ASSIGNMENT_ROLES, default: "staff" })
+  @IsOptional()
+  @IsIn(EVENT_ASSIGNMENT_ROLES as unknown as string[])
+  role?: (typeof EVENT_ASSIGNMENT_ROLES)[number];
+}

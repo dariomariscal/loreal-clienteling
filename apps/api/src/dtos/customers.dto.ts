@@ -206,6 +206,26 @@ export class RegisterCustomerDto {
   consents: RegistrationConsentsDto;
 }
 
+// ── Reassignment (counter manager reassigns customer to another BA) ─────────
+
+export class ReassignCustomerDto {
+  @ApiProperty({
+    type: String,
+    description: "Clerk userId of the BA the customer is being reassigned to",
+  })
+  @IsString()
+  newAssignedToUserId: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description: "Optional short reason logged in the audit trail",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
 // ── Duplicate check (pre-registration anti-dedup) ───────────────────────────
 
 export class CheckDuplicateDto {

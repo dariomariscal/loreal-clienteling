@@ -1,4 +1,10 @@
-import { Injectable, Inject, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from "@nestjs/common";
 import { eq, and, or, ilike, sql, gte, lte, asc, desc, count, sum } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
@@ -28,7 +34,9 @@ import type {
   CustomerFiltersDto,
   RegisterCustomerDto,
   CheckDuplicateDto,
+  ReassignCustomerDto,
 } from "../../dtos/customers.dto";
+import { UserRole } from "@loreal/contracts";
 import { rankCustomerSearchResults } from "@loreal/domain";
 
 const MARKETING_CHANNEL_TO_CONSENT = {
@@ -740,6 +748,96 @@ export class CustomersService {
         changes,
       );
     }
+
+    return updated;
+  }
+
+  /**
+   * Reassign a customer to a different BA. Allowed for counter_manager and up.
+   * The target BA must work in a store the caller can reach AND in the same
+   * store as the customer's signup store — otherwise the new BA would not be
+   * able to see the customer they're assigned to.
+   */
+  async reassign(
+    customerId: string,
+    data: ReassignCustomerDto,
+    user: SessionUser,
+  ) {
+    if (
+      user.role !== UserRole.COUNTER_MANAGER &&
+      user.role !== UserRole.AREA_MANAGER &&
+      user.role !== UserRole.NATIONAL_RETAIL_MANAGER &&
+      user.role !== UserRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        "Only counter managers and up can reassign customers",
+      );
+    }
+
+    const [customer] = await this.db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, customerId));
+    if (!customer) throw new NotFoundException("Customer not found");
+
+    // Caller must have access to the customer.
+    await this.scopeService.assertCustomerAccess(customerId, user);
+
+    // Target BA must exist and be active.
+    const [targetUser] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.id, data.newAssignedToUserId));
+    if (!targetUser) throw new NotFoundException("Target advisor not found");
+    if (!targetUser.isActive) {
+      throw new BadRequestException("Target advisor is inactive");
+    }
+
+    // Counter Manager can only reassign within their own store.
+    if (user.role === UserRole.COUNTER_MANAGER) {
+      if (
+        customer.signupStoreId !== user.storeId ||
+        targetUser.storeId !== user.storeId
+      ) {
+        throw new ForbiddenException(
+          "Counter Manager can only reassign within their own store",
+        );
+      }
+    }
+
+    // For higher roles: target BA must work in the customer's store (otherwise
+    // they would not see the customer).
+    if (
+      targetUser.storeId &&
+      targetUser.storeId !== customer.signupStoreId
+    ) {
+      throw new BadRequestException(
+        "Target advisor does not work at the customer's store",
+      );
+    }
+
+    const previousAssigneeId = customer.assignedToUserId;
+
+    const [updated] = await this.db
+      .update(customers)
+      .set({
+        assignedToUserId: data.newAssignedToUserId,
+        updatedAt: new Date(),
+      })
+      .where(eq(customers.id, customerId))
+      .returning();
+
+    await this.auditService.log(
+      user,
+      "customer_reassigned",
+      "customer",
+      customerId,
+      {
+        from: previousAssigneeId,
+        to: data.newAssignedToUserId,
+        reason: data.reason ?? null,
+      },
+    );
 
     return updated;
   }

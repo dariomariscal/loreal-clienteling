@@ -30,6 +30,7 @@ import {
   ExtractNoteFromTextDto,
   SemanticSearchDto,
   SuggestedActionsQueryDto,
+  StoreSuggestedActionsQueryDto,
 } from "../../dtos/ai.dto";
 
 const BA_ROLES = ["beauty_advisor", "counter_manager", "area_manager", "admin"] as const;
@@ -153,6 +154,28 @@ export class AiController {
       dueDate,
       query.limit ?? 5,
     );
+  }
+
+  @Get("suggested-actions/store")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  storeSuggestedActions(
+    @Query() query: StoreSuggestedActionsQueryDto,
+    @Session() session: UserSession,
+  ) {
+    const dueDate = query.dueDate ?? new Date().toISOString().slice(0, 10);
+    const storeId = query.storeId ?? session.user.storeId;
+    if (!storeId) {
+      throw new Error("storeId is required when caller has no storeId");
+    }
+    const ids = Array.isArray(query.assignedToUserIds)
+      ? query.assignedToUserIds
+      : query.assignedToUserIds
+        ? [query.assignedToUserIds]
+        : undefined;
+    return this.dailySuggestedActionsService.listForStore(storeId, dueDate, {
+      assignedToUserIds: ids,
+      limit: query.limit ?? 200,
+    });
   }
 
   @Post("suggested-actions/:id/dismiss")

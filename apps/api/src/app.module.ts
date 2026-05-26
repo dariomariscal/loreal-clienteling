@@ -33,6 +33,12 @@ import { WishlistsModule } from "./modules/wishlists/wishlists.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { EventsModule } from "./modules/events/events.module";
 import { SegmentsModule } from "./modules/segments/segments.module";
+import { SalesTargetsModule } from "./modules/sales-targets/sales-targets.module";
+import { ApprovalRequestsModule } from "./modules/approval-requests/approval-requests.module";
+import { ShiftsModule } from "./modules/shifts/shifts.module";
+import { BaRatingsModule } from "./modules/ba-ratings/ba-ratings.module";
+import { InventoryModule } from "./modules/inventory/inventory.module";
+import { DashboardsModule } from "./modules/dashboards/dashboards.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -74,6 +80,12 @@ import { HealthController } from "./health.controller";
     TasksModule,
     EventsModule,
     SegmentsModule,
+    SalesTargetsModule,
+    ApprovalRequestsModule,
+    ShiftsModule,
+    BaRatingsModule,
+    InventoryModule,
+    DashboardsModule,
   ],
   controllers: [HealthController],
 })

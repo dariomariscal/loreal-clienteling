@@ -64,3 +64,36 @@ export class SuggestedActionsQueryDto {
   @Max(20)
   limit?: number;
 }
+
+export class StoreSuggestedActionsQueryDto {
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    description: "Store to consolidate. Defaults to caller's storeId.",
+  })
+  @IsOptional()
+  storeId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    example: "2026-05-22",
+    description: "ISO date (YYYY-MM-DD). Defaults to today in server tz.",
+  })
+  @IsOptional()
+  @Matches(ISO_DATE, { message: "dueDate must be YYYY-MM-DD" })
+  dueDate?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: "Optional filter: only actions assigned to these userIds",
+  })
+  @IsOptional()
+  assignedToUserIds?: string[];
+
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 500, default: 200 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  limit?: number;
+}

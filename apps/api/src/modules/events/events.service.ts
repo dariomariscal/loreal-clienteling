@@ -9,7 +9,9 @@ import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   storeEvents,
   eventInvitations,
+  eventAssignments,
   customers,
+  users,
 } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
@@ -21,6 +23,7 @@ import type {
   InviteCustomerDto,
   InviteCustomersDto,
   UpdateRsvpDto,
+  AssignBaToEventDto,
 } from "../../dtos/events.dto";
 
 @Injectable()
@@ -317,5 +320,86 @@ export class EventsService {
 
     if (!deleted) throw new NotFoundException("Invitation not found");
     return { id: invitationId, deleted: true };
+  }
+
+  // ── Staff assignments ─────────────────────────────────────────────────
+
+  async listAssignments(eventId: string, user: SessionUser) {
+    await this.findOne(eventId, user);
+
+    return this.db
+      .select({
+        id: eventAssignments.id,
+        userId: eventAssignments.userId,
+        userFullName: users.fullName,
+        userSpecialty: users.specialty,
+        role: eventAssignments.role,
+        assignedByUserId: eventAssignments.assignedByUserId,
+        createdAt: eventAssignments.createdAt,
+      })
+      .from(eventAssignments)
+      .leftJoin(users, eq(users.id, eventAssignments.userId))
+      .where(eq(eventAssignments.storeEventId, eventId))
+      .orderBy(desc(eventAssignments.createdAt));
+  }
+
+  async assignBa(
+    eventId: string,
+    data: AssignBaToEventDto,
+    user: SessionUser,
+  ) {
+    await this.findOne(eventId, user);
+
+    const [existing] = await this.db
+      .select({ id: eventAssignments.id })
+      .from(eventAssignments)
+      .where(
+        and(
+          eq(eventAssignments.storeEventId, eventId),
+          eq(eventAssignments.userId, data.userId),
+        ),
+      );
+    if (existing) {
+      throw new ConflictException("BA is already assigned to this event");
+    }
+
+    const [assignment] = await this.db
+      .insert(eventAssignments)
+      .values({
+        storeEventId: eventId,
+        userId: data.userId,
+        role: data.role ?? "staff",
+        assignedByUserId: user.id,
+      })
+      .returning();
+
+    await this.auditService.log(user, "assign_ba", "store_event", eventId, {
+      userId: data.userId,
+      role: data.role ?? "staff",
+    });
+
+    return assignment;
+  }
+
+  async unassignBa(eventId: string, assignmentId: string, user: SessionUser) {
+    await this.findOne(eventId, user);
+
+    const [deleted] = await this.db
+      .delete(eventAssignments)
+      .where(
+        and(
+          eq(eventAssignments.id, assignmentId),
+          eq(eventAssignments.storeEventId, eventId),
+        ),
+      )
+      .returning();
+
+    if (!deleted) throw new NotFoundException("Assignment not found");
+
+    await this.auditService.log(user, "unassign_ba", "store_event", eventId, {
+      assignmentId,
+    });
+
+    return { id: assignmentId, deleted: true };
   }
 }

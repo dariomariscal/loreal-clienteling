@@ -22,6 +22,7 @@ import {
   CustomerFiltersDto,
   RegisterCustomerDto,
   CheckDuplicateDto,
+  ReassignCustomerDto,
 } from "../../dtos/customers.dto";
 import type { UserSession } from "../../common/types/session";
 
@@ -131,6 +132,18 @@ export class CustomersController {
     @Session() session: UserSession,
   ) {
     return this.customersService.update(id, body, session.user);
+  }
+
+  @Post(":id/reassign")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  @ApiParam({ name: "id", type: String })
+  @ApiBody({ type: ReassignCustomerDto })
+  reassign(
+    @Param("id") id: string,
+    @Body() body: ReassignCustomerDto,
+    @Session() session: UserSession,
+  ) {
+    return this.customersService.reassign(id, body, session.user);
   }
 
   @Delete(":id/arco")
