@@ -23,9 +23,12 @@ export default async function DashboardLayout({
     redirect(ROUTES.SIGN_IN);
   }
 
-  // Beauty Advisors live in the iPad-first /advisor shell — bounce them
-  // out of the desktop dashboard so they never land in the wrong surface.
-  if (session.user.role === "beauty_advisor") {
+  // Beauty Advisors and Counter Managers live in the iPad-first /advisor shell —
+  // bounce them out of the desktop dashboard so they never land in the wrong surface.
+  if (
+    session.user.role === "beauty_advisor" ||
+    session.user.role === "counter_manager"
+  ) {
     redirect(ADVISOR_HOME);
   }
 
