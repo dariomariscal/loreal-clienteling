@@ -1,14 +1,14 @@
 import { ThreeColumnLayout } from "@/components/advisor/three-column-layout";
-import { CustomerList } from "@/components/advisor/customer-list";
 import { AdvisorEmptyState } from "@/components/advisor/advisor-empty-state";
 import { UserGlyph } from "@/components/ui/glyphs";
+import { CustomersListPanel } from "./_components/customers-list-panel";
 
 export const metadata = { title: "Mis clientas" };
 
 export default function CustomersPage() {
   return (
     <ThreeColumnLayout
-      list={<CustomerList />}
+      list={<CustomersListPanel />}
       detail={
         <div className="flex h-full items-center justify-center">
           <AdvisorEmptyState
