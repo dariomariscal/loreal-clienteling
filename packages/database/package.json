@@ -15,14 +15,17 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "generate": "drizzle-kit generate",
+    "generate:custom": "drizzle-kit generate --custom",
     "migrate": "tsx migrate.ts",
     "migrate:kit": "drizzle-kit migrate",
+    "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
     "seed": "tsx seed/index.ts",
     "seed:divisions": "tsx seed/divisions.ts",
     "seed:municipalities": "tsx seed/municipalities.ts",
     "seed:stores": "tsx seed/stores/index.ts",
-    "seed:privacy-notices": "tsx seed/privacy-notices.ts"
+    "seed:privacy-notices": "tsx seed/privacy-notices.ts",
+    "seed:counter-manager": "tsx seed/counter-manager.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

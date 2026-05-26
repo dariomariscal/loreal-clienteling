@@ -29,6 +29,13 @@
       "when": 1779820000000,
       "tag": "0003_roles_and_divisions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779820100000,
+      "tag": "0004_luxuriant_tombstone",
+      "breakpoints": true
     }
   ]
 }
