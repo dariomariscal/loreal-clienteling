@@ -10,6 +10,7 @@ import {
   Inject,
 } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
+import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
 import { SegmentsService } from "./segments.service";
 import {
@@ -40,12 +41,26 @@ export class SegmentsController {
   }
 
   @Post()
+  @Roles([
+    "beauty_advisor",
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ])
   @ApiBody({ type: CreateSegmentDto })
   create(@Body() body: CreateSegmentDto, @Session() session: UserSession) {
     return this.segmentsService.create(body, session.user);
   }
 
   @Patch(":id")
+  @Roles([
+    "beauty_advisor",
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateSegmentDto })
   update(
@@ -57,6 +72,13 @@ export class SegmentsController {
   }
 
   @Delete(":id")
+  @Roles([
+    "beauty_advisor",
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ])
   @ApiParam({ name: "id", type: String })
   remove(@Param("id") id: string, @Session() session: UserSession) {
     return this.segmentsService.remove(id, session.user);
