@@ -13,7 +13,7 @@ export class ZonesController {
   constructor(@Inject(ZonesService) private zonesService: ZonesService) {}
 
   @Get()
-  @Roles(["admin", "area_manager"])
+  @Roles(["admin", "area_manager", "national_retail_manager"])
   findAll(@Session() session: UserSession) {
     return this.zonesService.findAll(session.user);
   }
@@ -32,7 +32,7 @@ export class ZonesController {
   }
 
   @Get(":id")
-  @Roles(["admin", "area_manager"])
+  @Roles(["admin", "area_manager", "national_retail_manager"])
   @ApiParam({ name: "id", type: String })
   findOne(@Param("id") id: string) {
     return this.zonesService.findOne(id);

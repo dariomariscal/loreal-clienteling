@@ -45,17 +45,16 @@ import {
 export function NationalTodayPage() {
   const { data, isLoading } = useZoneDashboardToday();
 
-  const today = new Date();
-  const sevenDaysAgo = subDays(today, 6);
-  const { data: trend } = useSalesTrend(
-    "day",
-    sevenDaysAgo.toISOString(),
-    today.toISOString(),
-  );
-  const { data: zonesRanking } = useZonesRanking(
-    sevenDaysAgo.toISOString(),
-    today.toISOString(),
-  );
+  const { today, fromIso, toIso } = useMemo(() => {
+    const now = new Date();
+    return {
+      today: now,
+      fromIso: subDays(now, 6).toISOString(),
+      toIso: now.toISOString(),
+    };
+  }, []);
+  const { data: trend } = useSalesTrend("day", fromIso, toIso);
+  const { data: zonesRanking } = useZonesRanking(fromIso, toIso);
 
   const salesSeries = useMemo(
     () =>

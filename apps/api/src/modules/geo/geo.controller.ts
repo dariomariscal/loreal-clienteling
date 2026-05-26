@@ -12,14 +12,14 @@ export class GeoController {
   constructor(@Inject(GeoService) private geoService: GeoService) {}
 
   @Get("municipalities")
-  @Roles(["admin", "area_manager", "counter_manager", "beauty_advisor"])
+  @Roles(["admin", "area_manager", "national_retail_manager", "counter_manager", "beauty_advisor"])
   @ApiQuery({ name: "stateCode", required: false, example: "09" })
   listMunicipalities(@Query("stateCode") stateCode?: string) {
     return this.geoService.listMunicipalities(stateCode);
   }
 
   @Get("municipalities/boundaries")
-  @Roles(["admin", "area_manager", "counter_manager", "beauty_advisor"])
+  @Roles(["admin", "area_manager", "national_retail_manager", "counter_manager", "beauty_advisor"])
   @ApiQuery({ name: "stateCode", required: false, example: "09" })
   @ApiQuery({ name: "simplify", required: false, example: 0.001, description: "Simplify tolerance in degrees" })
   municipalitiesGeoJson(

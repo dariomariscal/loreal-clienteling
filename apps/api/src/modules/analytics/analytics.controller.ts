@@ -42,7 +42,7 @@ const COLUMN_LABELS: Record<string, string> = {
 @ApiTags("Analytics")
 @ApiBearerAuth()
 @Controller("analytics")
-@Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+@Roles(["beauty_advisor", "counter_manager", "area_manager", "national_retail_manager", "admin"])
 export class AnalyticsController {
   constructor(@Inject(AnalyticsService) private analyticsService: AnalyticsService) {}
 

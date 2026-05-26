@@ -33,7 +33,7 @@ export class CustomersController {
   constructor(@Inject(CustomersService) private customersService: CustomersService) {}
 
   @Get()
-  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "national_retail_manager", "admin"])
   findAll(
     @Query() filters: CustomerFiltersDto,
     @Session() session: UserSession,
@@ -42,7 +42,7 @@ export class CustomersController {
   }
 
   @Get("search")
-  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "national_retail_manager", "admin"])
   search(
     @Query() query: SearchCustomerDto,
     @Session() session: UserSession,
@@ -55,7 +55,7 @@ export class CustomersController {
   }
 
   @Get("check-duplicate")
-  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "email", required: false, type: String })
   @ApiQuery({ name: "phone", required: false, type: String })
   checkDuplicate(
@@ -66,14 +66,14 @@ export class CustomersController {
   }
 
   @Get(":id/metrics")
-  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   getMetrics(@Param("id") id: string, @Session() session: UserSession) {
     return this.customersService.getMetrics(id, session.user);
   }
 
   @Get(":id/activity")
-  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "before", required: false, type: String, description: "ISO timestamp cursor — return events strictly before this instant" })
@@ -90,7 +90,7 @@ export class CustomersController {
   }
 
   @Get(":id")
-  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   findOne(@Param("id") id: string, @Session() session: UserSession) {
     return this.customersService.findOne(id, session.user);

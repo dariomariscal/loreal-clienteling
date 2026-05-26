@@ -30,7 +30,7 @@ export class AdvisorController {
    * but scoped to their store, which is useful when they cover a shift.
    */
   @Get("today")
-  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "national_retail_manager", "admin"])
   today(@Session() session: UserSession) {
     return this.advisorService.getToday(session.user);
   }
