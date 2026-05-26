@@ -1,7 +1,7 @@
 import { Injectable, Inject, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { eq, and, or, isNull, inArray, desc } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { messages, messageTemplates, consents } from "@loreal/database";
+import { messages, messageTemplates, consents, customers } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
@@ -31,12 +31,43 @@ export class MessagesService {
     // Admin: all messages
     const conditions =
       user.role === "admin" ? [] : [eq(messages.sentByUserId, user.id)];
-    return this.db
-      .select()
+
+    // Join customers so the inbox can render the real client name/avatar
+    // instead of falling back to the raw phone/email address. Use explicit
+    // selection to keep the wire payload aligned with the Message contract
+    // (no leaking extra columns from the customers table).
+    const rows = await this.db
+      .select({
+        id: messages.id,
+        customerId: messages.customerId,
+        sentByUserId: messages.sentByUserId,
+        direction: messages.direction,
+        channel: messages.channel,
+        status: messages.status,
+        fromAddress: messages.fromAddress,
+        toAddress: messages.toAddress,
+        providerMessageId: messages.providerMessageId,
+        templateId: messages.templateId,
+        subject: messages.subject,
+        body: messages.body,
+        campaignType: messages.campaignType,
+        failureReason: messages.failureReason,
+        sentAt: messages.sentAt,
+        deliveredAt: messages.deliveredAt,
+        readAt: messages.readAt,
+        respondedAt: messages.respondedAt,
+        createdAt: messages.createdAt,
+        customerFirstName: customers.firstName,
+        customerLastName: customers.lastName,
+        customerAvatarUrl: customers.avatarUrl,
+      })
       .from(messages)
+      .leftJoin(customers, eq(messages.customerId, customers.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(messages.sentAt))
       .limit(100);
+
+    return rows;
   }
 
   async findByCustomer(customerId: string, user: SessionUser) {

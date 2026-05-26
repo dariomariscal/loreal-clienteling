@@ -134,6 +134,13 @@ export interface Message {
   readAt: string | null;
   respondedAt: string | null;
   createdAt: string;
+  /**
+   * Joined from `customers` by the inbox endpoint (`GET /messages`). Absent
+   * on per-customer endpoints — those are already in a customer context.
+   */
+  customerFirstName?: string | null;
+  customerLastName?: string | null;
+  customerAvatarUrl?: string | null;
 }
 
 export interface Consent {
