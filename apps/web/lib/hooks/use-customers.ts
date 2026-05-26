@@ -156,3 +156,29 @@ export function useDeleteCustomerArco() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
   });
 }
+
+/**
+ * Reassign a customer to another BA. Used by the Counter Manager from the
+ * consolidated NBA queue (drag a card onto another BA).
+ */
+export interface ReassignCustomerInput {
+  id: string;
+  newAssignedToUserId: string;
+  reason?: string;
+}
+
+export function useReassignCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: ReassignCustomerInput) =>
+      api.post<Customer>(`/customers/${id}/reassign`, body),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: customerKeys.detail(id) });
+      // Consolidated NBA queue depends on the assignment.
+      queryClient.invalidateQueries({
+        queryKey: ["ai", "suggested-actions"],
+      });
+    },
+  });
+}

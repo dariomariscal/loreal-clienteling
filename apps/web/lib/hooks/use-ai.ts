@@ -74,6 +74,63 @@ export function useCompleteSuggestedAction() {
   });
 }
 
+// ── Consolidated NBA queue (Counter Manager view) ─────────────────
+
+/** Row in the consolidated counter NBA inbox. */
+export interface StoreSuggestedAction {
+  id: string;
+  customerId: string;
+  assignedToUserId: string;
+  assignedTo: {
+    id: string;
+    name: string | null;
+    specialty: string | null;
+  };
+  dueDate: string;
+  triggerType: string;
+  description: string;
+  recommendedAction: string;
+  suggestedMessageDraft: string | null;
+  priority: number;
+  createdAt: string;
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    lifecycleStage: string | null;
+    loyaltyTier: string | null;
+    lastInteractionAt: string | null;
+    lastOrderAt: string | null;
+  };
+}
+
+export interface StoreSuggestedActionsParams {
+  storeId?: string;
+  dueDate?: string;
+  assignedToUserIds?: string[];
+  limit?: number;
+}
+
+export function useStoreSuggestedActions(
+  params: StoreSuggestedActionsParams = {},
+) {
+  const query: Record<string, string> = {};
+  if (params.storeId) query.storeId = params.storeId;
+  if (params.dueDate) query.dueDate = params.dueDate;
+  if (params.limit) query.limit = String(params.limit);
+  if (params.assignedToUserIds && params.assignedToUserIds.length > 0) {
+    // Backend accepts either a single value or an array; comma-join is
+    // friendlier to URLSearchParams than repeated keys.
+    query.assignedToUserIds = params.assignedToUserIds.join(",");
+  }
+
+  return useQuery({
+    queryKey: ["ai", "suggested-actions", "store", params] as const,
+    queryFn: () =>
+      api.get<StoreSuggestedAction[]>("/suggested-actions/store", query),
+  });
+}
+
 // ── Semantic search ────────────────────────────────────────────────
 
 export function useSemanticSearch(query: string, limit = 10) {

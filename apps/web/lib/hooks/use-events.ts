@@ -236,3 +236,72 @@ export function useRemoveInvitation() {
     },
   });
 }
+
+// ── Staff assignments (Counter Manager: who works the event) ──────
+
+export type EventAssignmentRole = "lead" | "staff" | "mua" | "host";
+
+export interface EventAssignment {
+  id: string;
+  userId: string;
+  userFullName: string | null;
+  userSpecialty: string | null;
+  role: EventAssignmentRole;
+  assignedByUserId: string;
+  createdAt: string;
+}
+
+const eventAssignmentKey = (eventId: string) =>
+  ["events", eventId, "assignments"] as const;
+
+export function useEventAssignments(eventId: string) {
+  return useQuery({
+    queryKey: eventAssignmentKey(eventId),
+    queryFn: () =>
+      api.get<EventAssignment[]>(`/events/${eventId}/assignments`),
+    enabled: !!eventId,
+  });
+}
+
+export function useAssignBaToEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      eventId,
+      userId,
+      role,
+    }: {
+      eventId: string;
+      userId: string;
+      role?: EventAssignmentRole;
+    }) =>
+      api.post<EventAssignment>(`/events/${eventId}/assignments`, {
+        userId,
+        ...(role ? { role } : {}),
+      }),
+    onSuccess: (_a, vars) => {
+      qc.invalidateQueries({ queryKey: eventAssignmentKey(vars.eventId) });
+      qc.invalidateQueries({ queryKey: eventKeys.detail(vars.eventId) });
+    },
+  });
+}
+
+export function useUnassignBaFromEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      eventId,
+      assignmentId,
+    }: {
+      eventId: string;
+      assignmentId: string;
+    }) =>
+      api.delete<{ id: string; deleted: true }>(
+        `/events/${eventId}/assignments/${assignmentId}`,
+      ),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: eventAssignmentKey(vars.eventId) });
+      qc.invalidateQueries({ queryKey: eventKeys.detail(vars.eventId) });
+    },
+  });
+}

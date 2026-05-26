@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { esMX } from "@clerk/localizations";
+import { Toaster } from "sonner";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ApiTokenSync } from "@/components/providers/api-token-sync";
 import "./globals.css";
@@ -66,6 +67,17 @@ export default function RootLayout({
         >
           <ApiTokenSync />
           <QueryProvider>{children}</QueryProvider>
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            toastOptions={{
+              classNames: {
+                toast:
+                  "rounded-xl border border-border bg-card text-foreground shadow-md",
+              },
+            }}
+          />
         </body>
       </html>
     </ClerkProvider>
