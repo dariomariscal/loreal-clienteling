@@ -454,7 +454,10 @@ export class AnalyticsService {
       .where(conditions.length > 0 ? and(...conditions as any) : undefined)
       .groupBy(customers.lifecycleStage);
 
-    return result;
+    return result.map((row) => ({
+      segment: row.stage ?? "unknown",
+      count: row.count,
+    }));
   }
 
   async getAgendaReport(
