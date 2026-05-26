@@ -61,7 +61,6 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { label: "Tiendas", href: "/tiendas", icon: StoreIcon, roles: ["admin", "supervisor"] },
       { label: "Zonas", href: "/zonas", icon: MapIcon, roles: ["admin", "supervisor"] },
       { label: "Equipo", href: "/equipo", icon: TeamIcon, roles: ["manager", "admin"] },
-      { label: "Plantillas", href: "/plantillas", icon: FileTextIcon, roles: ["admin"] },
       { label: "Configuración", href: "/configuracion", icon: SettingsIcon, roles: ["admin"] },
       { label: "Auditoría", href: "/auditoria", icon: ShieldIcon, roles: ["admin"] },
     ],
