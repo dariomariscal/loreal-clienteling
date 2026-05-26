@@ -44,7 +44,7 @@ export function HeatmapPage() {
   const loading = geoLoading || listLoading;
 
   return (
-    <section className="relative flex h-full w-full overflow-hidden bg-background">
+    <section className="relative flex h-full min-w-0 flex-1 overflow-hidden bg-background">
       <CustomerDensityMap
         // Type narrowing — geojson:true returns the FeatureCollection.
         data={geo && "type" in geo ? geo : null}

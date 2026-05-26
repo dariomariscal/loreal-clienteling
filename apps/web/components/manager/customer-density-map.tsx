@@ -72,6 +72,7 @@ export function CustomerDensityMap({
     new globalThis.Map(),
   );
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const token = getMapboxToken();
 
   const onClickRef = useRef(onMunicipalityClick);
@@ -86,105 +87,157 @@ export function CustomerDensityMap({
   }, [data]);
 
   // ── Map init ─────────────────────────────────────────────────────
+  // Mapbox renders a blank canvas if instantiated against a 0×0 container,
+  // and its internal `load` event never fires — leaving the map permanently
+  // stuck. In a flex/route-transition layout the container often takes one
+  // animation frame to reach its real size, so we wait for that before
+  // calling `new mapboxgl.Map`. See mapbox-gl-js#8982 for the canonical
+  // pattern: rAF until offsetWidth/Height > 0, then trackResize handles
+  // every subsequent layout change.
   useEffect(() => {
     if (!token || !containerRef.current || mapRef.current) return;
 
-    mapboxgl.accessToken = token;
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
-      center: initialCenter,
-      zoom: initialZoom,
-      attributionControl: false,
-    });
+    let cancelled = false;
+    let rafId: number | null = null;
+    let map: mapboxgl.Map | null = null;
+    const cleanupFns: Array<() => void> = [];
 
-    map.addControl(
-      new mapboxgl.NavigationControl({ showCompass: false, visualizePitch: false }),
-      "top-right",
-    );
-    map.addControl(
-      new mapboxgl.AttributionControl({ compact: true }),
-      "bottom-right",
-    );
+    const start = () => {
+      const el = containerRef.current;
+      if (cancelled || !el) return;
+      if (el.offsetWidth === 0 || el.offsetHeight === 0) {
+        rafId = requestAnimationFrame(start);
+        return;
+      }
 
-    map.on("load", () => {
-      map.addSource("density", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] } as GeoJSON.FeatureCollection,
-        promoteId: "id",
-      });
-
-      map.addLayer({
-        id: "density-fill",
-        type: "fill",
-        source: "density",
-        paint: {
-          "fill-color": NO_DATA_COLOR,
-          "fill-opacity": [
-            "case",
-            ["boolean", ["feature-state", "hover"], false],
-            0.85,
-            0.65,
-          ],
-        },
-      });
-
-      map.addLayer({
-        id: "density-line",
-        type: "line",
-        source: "density",
-        paint: {
-          "line-color": "#1F2937",
-          "line-width": [
-            "case",
-            ["boolean", ["feature-state", "hover"], false],
-            1.6,
-            0.4,
-          ],
-          "line-opacity": 0.4,
-        },
-      });
-
-      let hoveredId: string | number | null = null;
-      map.on("mousemove", "density-fill", (e) => {
-        if (!e.features?.length) return;
-        const id = e.features[0].id ?? e.features[0].properties?.id;
-        if (id === undefined || id === null) return;
-        if (hoveredId !== null && hoveredId !== id) {
-          map.setFeatureState({ source: "density", id: hoveredId }, { hover: false });
-        }
-        hoveredId = id;
-        map.setFeatureState({ source: "density", id }, { hover: true });
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "density-fill", () => {
-        if (hoveredId !== null) {
-          map.setFeatureState({ source: "density", id: hoveredId }, { hover: false });
-          hoveredId = null;
-        }
-        map.getCanvas().style.cursor = "";
-      });
-
-      map.on("click", "density-fill", (e) => {
-        const onClick = onClickRef.current;
-        if (!onClick || !e.features?.length) return;
-        const f = e.features[0];
-        onClick({
-          municipalityId: String(f.properties?.id ?? f.id ?? ""),
-          municipalityName: String(f.properties?.name ?? ""),
-          customerCount: Number(f.properties?.customerCount ?? 0),
+      mapboxgl.accessToken = token;
+      try {
+        map = new mapboxgl.Map({
+          container: el,
+          style: "mapbox://styles/mapbox/light-v11",
+          center: initialCenter,
+          zoom: initialZoom,
+          attributionControl: false,
+          trackResize: true,
         });
+      } catch (err) {
+        setMapError(
+          err instanceof Error ? err.message : "No se pudo inicializar Mapbox",
+        );
+        return;
+      }
+
+      map.on("error", (e) => {
+        const msg = e?.error?.message ?? "Mapbox error";
+        // eslint-disable-next-line no-console
+        console.error("[CustomerDensityMap] mapbox error:", e);
+        setMapError(msg);
       });
 
-      setMapReady(true);
-    });
+      map.addControl(
+        new mapboxgl.NavigationControl({
+          showCompass: false,
+          visualizePitch: false,
+        }),
+        "top-right",
+      );
+      map.addControl(
+        new mapboxgl.AttributionControl({ compact: true }),
+        "bottom-right",
+      );
 
-    mapRef.current = map;
+      attachMapLayers(map);
+      mapRef.current = map;
+    };
+
+    const attachMapLayers = (m: mapboxgl.Map) => {
+      m.on("load", () => {
+        m.addSource("density", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] } as GeoJSON.FeatureCollection,
+          promoteId: "id",
+        });
+
+        m.addLayer({
+          id: "density-fill",
+          type: "fill",
+          source: "density",
+          paint: {
+            "fill-color": NO_DATA_COLOR,
+            "fill-opacity": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              0.85,
+              0.65,
+            ],
+          },
+        });
+
+        m.addLayer({
+          id: "density-line",
+          type: "line",
+          source: "density",
+          paint: {
+            "line-color": "#1F2937",
+            "line-width": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              1.6,
+              0.4,
+            ],
+            "line-opacity": 0.4,
+          },
+        });
+
+        let hoveredId: string | number | null = null;
+        m.on("mousemove", "density-fill", (e) => {
+          if (!e.features?.length) return;
+          const id = e.features[0].id ?? e.features[0].properties?.id;
+          if (id === undefined || id === null) return;
+          if (hoveredId !== null && hoveredId !== id) {
+            m.setFeatureState({ source: "density", id: hoveredId }, { hover: false });
+          }
+          hoveredId = id;
+          m.setFeatureState({ source: "density", id }, { hover: true });
+          m.getCanvas().style.cursor = "pointer";
+        });
+        m.on("mouseleave", "density-fill", () => {
+          if (hoveredId !== null) {
+            m.setFeatureState({ source: "density", id: hoveredId }, { hover: false });
+            hoveredId = null;
+          }
+          m.getCanvas().style.cursor = "";
+        });
+
+        m.on("click", "density-fill", (e) => {
+          const onClick = onClickRef.current;
+          if (!onClick || !e.features?.length) return;
+          const f = e.features[0];
+          onClick({
+            municipalityId: String(f.properties?.id ?? f.id ?? ""),
+            municipalityName: String(f.properties?.name ?? ""),
+            customerCount: Number(f.properties?.customerCount ?? 0),
+          });
+        });
+
+        // Belt-and-suspenders: resize once layers are in, in case the
+        // container grew between init and load.
+        m.resize();
+        setMapReady(true);
+      });
+    };
+
+    start();
 
     return () => {
+      cancelled = true;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      for (const fn of cleanupFns) fn();
       for (const marker of markersRef.current.values()) marker.remove();
       markersRef.current.clear();
-      map.remove();
+      if (map) {
+        map.remove();
+      }
       mapRef.current = null;
       setMapReady(false);
     };
@@ -197,31 +250,104 @@ export function CustomerDensityMap({
     if (!map || !mapReady || !data) return;
     const src = map.getSource("density") as mapboxgl.GeoJSONSource | undefined;
     src?.setData(data as unknown as GeoJSON.FeatureCollection);
+
+    // Frame the viewport on the data the first time it arrives, otherwise a
+    // user whose territory sits far from the default center sees a blank
+    // canvas with the polygons offscreen.
+    if (data.features.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      let added = 0;
+
+      const extendRing = (ring: unknown) => {
+        if (!Array.isArray(ring)) return;
+        for (const pt of ring) {
+          if (!Array.isArray(pt) || pt.length < 2) continue;
+          const lng = Number(pt[0]);
+          const lat = Number(pt[1]);
+          if (Number.isFinite(lng) && Number.isFinite(lat)) {
+            bounds.extend([lng, lat]);
+            added++;
+          }
+        }
+      };
+
+      for (const f of data.features) {
+        const geom = f.geometry as
+          | { type: string; coordinates: unknown }
+          | undefined;
+        if (!geom || !Array.isArray(geom.coordinates)) continue;
+
+        if (geom.type === "MultiPolygon") {
+          for (const poly of geom.coordinates as unknown[]) {
+            if (!Array.isArray(poly)) continue;
+            for (const ring of poly) extendRing(ring);
+          }
+        } else if (geom.type === "Polygon") {
+          for (const ring of geom.coordinates as unknown[]) extendRing(ring);
+        }
+      }
+      if (added > 0) {
+        map.fitBounds(bounds, {
+          padding: { top: 32, bottom: 32, left: 320, right: 32 },
+          duration: 0,
+          maxZoom: 12,
+        });
+      }
+    }
   }, [data, mapReady]);
+
+  // ── Keep canvas in sync with the container size ──────────────────
+  // Mapbox computes its WebGL viewport once on init; in a flex/route-
+  // transition layout the container often gains its final size *after*
+  // that, leaving the map rendered at 0×0 (i.e. "blank"). Observe and
+  // call resize() to recover.
+  useEffect(() => {
+    const map = mapRef.current;
+    const el = containerRef.current;
+    if (!map || !mapReady || !el) return;
+    const ro = new ResizeObserver(() => {
+      map.resize();
+    });
+    ro.observe(el);
+    map.resize();
+    return () => ro.disconnect();
+  }, [mapReady]);
 
   // ── Apply choropleth color expression ────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
-    // Step expression: 0 → NO_DATA_COLOR, then each quintile picks the next
-    // palette stop. Counts are read from feature properties.
+
+    // Mapbox "step" requires strictly ascending stops. When the data is sparse
+    // or clustered (e.g. most municipalities share the same low count), the
+    // quintiles can collapse into duplicates like [1,1,1,2,5] — which crashes
+    // the style. Dedupe stops and drop the palette colors that lose their slot.
+    const stops: number[] = [];
+    const outs: string[] = [PALETTE[0]];
+    for (let i = 0; i < 4; i++) {
+      const next = breaks[i];
+      if (next > (stops[stops.length - 1] ?? 0)) {
+        stops.push(next);
+        outs.push(PALETTE[i + 1]);
+      }
+    }
+
+    const stepExpr: mapboxgl.ExpressionSpecification =
+      stops.length === 0
+        ? (outs[0] as unknown as mapboxgl.ExpressionSpecification)
+        : ([
+            "step",
+            ["get", "customerCount"],
+            ...outs.flatMap((color, i) =>
+              i === 0 ? [color] : [stops[i - 1], color],
+            ),
+          ] as mapboxgl.ExpressionSpecification);
+
     const expr: mapboxgl.ExpressionSpecification = [
       "case",
       ["==", ["get", "customerCount"], 0],
       NO_DATA_COLOR,
-      [
-        "step",
-        ["get", "customerCount"],
-        PALETTE[0],
-        breaks[0],
-        PALETTE[1],
-        breaks[1],
-        PALETTE[2],
-        breaks[2],
-        PALETTE[3],
-        breaks[3],
-        PALETTE[4],
-      ],
+      stepExpr,
     ];
     map.setPaintProperty("density-fill", "fill-color", expr);
   }, [breaks, mapReady]);
@@ -299,9 +425,21 @@ export function CustomerDensityMap({
     );
   }
 
+  // Match the ZonesMap pattern: the div carrying the ref *is* the sized
+  // element. Wrapping it in another div and using `absolute inset-0` is
+  // what was leaving Mapbox with a 0×0 container in a flex chain (the
+  // ZonesMap parent uses an explicit `h-[640px]`; we use flex). Here we
+  // make the wrapper a column flex so the container claims all remaining
+  // space without depending on `h-full` measuring correctly on first paint.
   return (
-    <div className={cn("relative h-full w-full", className)}>
-      <div ref={containerRef} className="absolute inset-0" />
+    <div className={cn("relative flex h-full w-full flex-col", className)}>
+      <div ref={containerRef} className="relative min-h-0 flex-1" />
+      {mapError ? (
+        <div className="pointer-events-none absolute top-4 right-4 max-w-sm rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive shadow-sm">
+          <p className="font-semibold">Error de Mapbox</p>
+          <p className="mt-0.5 break-words">{mapError}</p>
+        </div>
+      ) : null}
       <DensityLegend breaks={breaks} />
     </div>
   );

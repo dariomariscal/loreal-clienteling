@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { ROUTES } from "@/lib/constants";
-import { ADVISOR_HOME } from "@/lib/auth/home-for-role";
+import { ADVISOR_HOME, AREA_MANAGER_HOME } from "@/lib/auth/home-for-role";
 import { SidebarProvider } from "@/components/dashboard/sidebar-context";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
@@ -30,6 +30,10 @@ export default async function DashboardLayout({
     session.user.role === "counter_manager"
   ) {
     redirect(ADVISOR_HOME);
+  }
+
+  if (session.user.role === "area_manager") {
+    redirect(AREA_MANAGER_HOME);
   }
 
   return (

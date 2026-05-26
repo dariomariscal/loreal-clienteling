@@ -131,6 +131,20 @@ export class GeoService {
       ? sql`ST_AsGeoJSON(ST_SimplifyPreserveTopology(m.boundary, ${opts.simplifyTolerance}))::jsonb`
       : sql`ST_AsGeoJSON(m.boundary)::jsonb`;
 
+    // Return EVERY municipality the user could conceivably manage (filled with
+    // 0 if no customers yet) so the choropleth has territorial context — a
+    // single highlighted polygon on a blank canvas reads as "the map is
+    // broken". For scoped roles we widen to the states their accessible
+    // stores live in.
+    const territoryFilter = isAdmin
+      ? sql``
+      : sql`WHERE m.state_code IN (
+          SELECT DISTINCT m2.state_code
+          FROM stores s
+          INNER JOIN municipalities m2 ON m2.id = s.municipality_id
+          WHERE s.id IN (${sql.join(accessibleStoreIds.map((id) => sql`${id}`), sql`, `)})
+        )`;
+
     const result = await this.db.execute(sql`
       SELECT jsonb_build_object(
         'type', 'FeatureCollection',
@@ -157,7 +171,7 @@ export class GeoService {
         WHERE s.municipality_id IS NOT NULL ${storeFilter}
         GROUP BY s.municipality_id
       ) cust_counts ON cust_counts.municipality_id = m.id
-      WHERE COALESCE(cust_counts.cnt, 0) > 0
+      ${territoryFilter}
     `);
 
     const row = (result as unknown as { rows: { feature_collection: unknown }[] }).rows[0];
