@@ -1081,3 +1081,108 @@ export function MessageDotGlyph(props: GlyphProps) {
     </Glyph>
   );
 }
+
+// ── National Retail Manager glyphs ───────────────────────────────────
+// These represent the NRM-specific concepts (executive pulse, multi-zone,
+// team rollup, brand identity, channel templates, segment Venn, audit
+// activity, choropleth canvas). Drawn in the same monoline 24×24 style.
+
+export function PulseGlyph(props: GlyphProps) {
+  // Heart-rate line — executive "national pulse" at a glance.
+  return (
+    <Glyph label="Pulso" {...props}>
+      <path d="M3 12h4l2-5 3 10 2-7 2 4 1-2h4" />
+    </Glyph>
+  );
+}
+
+export function ZonesGlyph(props: GlyphProps) {
+  // Three contiguous polygonal cells — multiple zones tiled together.
+  return (
+    <Glyph label="Zonas" {...props}>
+      <path d="M4 5h7l2 4-2 4H4V5Z" />
+      <path d="M13 9l4-4h3v8h-5l-2-4Z" />
+      <path d="M9 13l2 4h6l3 3H6l-2-3 5-4Z" opacity="0.85" />
+    </Glyph>
+  );
+}
+
+export function TeamGlyph(props: GlyphProps) {
+  // Three silhouettes — group/team distinct from single UserGlyph.
+  return (
+    <Glyph label="Equipo" {...props}>
+      <circle cx="8" cy="9" r="2.5" />
+      <circle cx="16" cy="9" r="2.5" />
+      <circle cx="12" cy="7.5" r="2.5" />
+      <path d="M3.5 18c.6-2.4 2.4-4 4.5-4M20.5 18c-.6-2.4-2.4-4-4.5-4" />
+      <path d="M6.5 20c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5" />
+    </Glyph>
+  );
+}
+
+export function BrandGlyph(props: GlyphProps) {
+  // Paint palette + droplet — visual identity / brand tokens.
+  return (
+    <Glyph label="Marca" {...props}>
+      <path d="M12 3.5c-4.7 0-8.5 3.5-8.5 7.8 0 3.3 2.3 5.7 5.5 5.7 1.4 0 2-.7 2-1.6 0-.6-.4-1.1-.4-1.7 0-.9.7-1.6 1.6-1.6h2.4c2.7 0 4.9-2.2 4.9-4.9 0-2-2.5-3.7-7.5-3.7Z" />
+      <circle cx="8" cy="10" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="7.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="10" r="0.9" fill="currentColor" stroke="none" />
+    </Glyph>
+  );
+}
+
+export function TemplateGlyph(props: GlyphProps) {
+  // Document with folded corner + structured body lines — message template.
+  return (
+    <Glyph label="Plantilla" {...props}>
+      <path d="M5 3h10l4 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+      <path d="M15 3v4h4" />
+      <path d="M7 11h8M7 14h8M7 17h5" />
+    </Glyph>
+  );
+}
+
+export function SegmentGlyph(props: GlyphProps) {
+  // Two overlapping circles — Venn diagram, the segment-builder mental model.
+  return (
+    <Glyph label="Segmento" {...props}>
+      <circle cx="9.5" cy="12" r="5.5" />
+      <circle cx="14.5" cy="12" r="5.5" />
+    </Glyph>
+  );
+}
+
+export function HeatmapGlyph(props: GlyphProps) {
+  // 3×3 grid with two cells filled — geographic density visualization.
+  return (
+    <Glyph label="Mapa de calor" {...props}>
+      <rect x="4" y="4" width="5" height="5" rx="0.8" />
+      <rect
+        x="10"
+        y="4"
+        width="5"
+        height="5"
+        rx="0.8"
+        fill="currentColor"
+        stroke="none"
+        opacity="0.85"
+      />
+      <rect x="16" y="4" width="4" height="5" rx="0.8" opacity="0.5" />
+      <rect x="4" y="10" width="5" height="5" rx="0.8" opacity="0.5" />
+      <rect
+        x="10"
+        y="10"
+        width="5"
+        height="5"
+        rx="0.8"
+        fill="currentColor"
+        stroke="none"
+      />
+      <rect x="16" y="10" width="4" height="5" rx="0.8" />
+      <rect x="4" y="16" width="5" height="4" rx="0.8" opacity="0.5" />
+      <rect x="10" y="16" width="5" height="4" rx="0.8" opacity="0.5" />
+      <rect x="16" y="16" width="4" height="4" rx="0.8" />
+    </Glyph>
+  );
+}
