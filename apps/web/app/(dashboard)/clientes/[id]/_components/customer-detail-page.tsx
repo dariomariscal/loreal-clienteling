@@ -36,7 +36,7 @@ import { AppointmentsSection } from "./appointments-section";
 import { NotesSection } from "./notes-section";
 import { NoteSheet } from "./note-sheet";
 import { OrderSheet } from "./order/order-sheet";
-import { AppointmentSheet } from "./appointment/appointment-sheet";
+import { AppointmentSheet } from "@/components/appointment/appointment-sheet";
 import { RecommendationSheet } from "./recommendation/recommendation-sheet";
 import { MessageSheet } from "./message/message-sheet";
 import { ActivityTimeline } from "./activity-timeline";

@@ -32,9 +32,11 @@ export function buildDayStrip(
     return {
       iso,
       date,
-      // Optimistically allow days until availability loads — once it lands,
-      // days without slots dim without flicker.
-      available: availMap.get(iso) ?? true,
+      // Only mark a day available when the API has explicitly said so. The
+      // earlier optimistic `?? true` let the BA tap a day before availability
+      // resolved, then trap them at the empty-slots step. Skeleton above
+      // covers the loading state, so unknown = unavailable is the safer call.
+      available: availMap.get(iso) === true,
     };
   });
 }

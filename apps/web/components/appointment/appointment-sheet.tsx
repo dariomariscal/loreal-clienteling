@@ -42,8 +42,10 @@ interface AppointmentSheetProps {
   customerLifecycleStage?: string | null;
   staffUserId: string;
   /**
-   * Optional ISO string from a clicked empty slot on the agenda — we use it
-   * to pre-select the day chip, but never the time (BAs expect to confirm).
+   * Optional ISO string from a clicked empty slot on the agenda. We pre-select
+   * the day chip AND the matching time slot — when the BA tapped a specific
+   * cell on the calendar that's the moment they want; forcing them to re-pick
+   * inside the sheet feels broken. They can still tap another slot if needed.
    */
   defaultStartsAt?: string | null;
 }
@@ -79,6 +81,11 @@ export function AppointmentSheet({
     useServiceTypes();
   const createAppointment = useCreateAppointment();
 
+  // Set true by the open-reset effect when `defaultStartsAt` preselects a
+  // slot. The slot-reset effect below honors it once and clears it, so the
+  // calendar-tap preselection survives the date change that comes with it.
+  const skipNextSlotResetRef = React.useRef(false);
+
   // Reset the form whenever the sheet opens. We intentionally exclude the
   // picked customer's segment from the dep array — when the BA picks a
   // client, that would re-fire this effect and clear the selection. The
@@ -88,10 +95,14 @@ export function AppointmentSheet({
     setPickedCustomer(null);
     if (defaultStartsAt) {
       setDate(toISODate(new Date(defaultStartsAt)));
+      setSlotStartsAt(defaultStartsAt);
+      // Tell the slot-reset effect below to skip its next firing — the date
+      // change we just triggered would otherwise wipe the slot we just set.
+      skipNextSlotResetRef.current = true;
     } else {
       setDate(null);
+      setSlotStartsAt(null);
     }
-    setSlotStartsAt(null);
     setIsVirtual(false);
     setNotes("");
     createAppointment.reset();
@@ -146,15 +157,17 @@ export function AppointmentSheet({
       enabled: !!date && !!selectedType && open,
     });
 
-  // Drop downstream selections when service/day changes — slot depends on
-  // both, so a stale pick would be misleading.
+  // Drop the slot pick when the BA changes the service or day, since slot
+  // depends on both and a stale value would mislead the preview. We skip the
+  // *very first* run after open when `defaultStartsAt` preselected the slot,
+  // so the cell the BA tapped on the calendar isn't cleared instantly.
   React.useEffect(() => {
+    if (skipNextSlotResetRef.current) {
+      skipNextSlotResetRef.current = false;
+      return;
+    }
     setSlotStartsAt(null);
-  }, [date]);
-
-  React.useEffect(() => {
-    setSlotStartsAt(null);
-  }, [serviceTypeId]);
+  }, [date, serviceTypeId]);
 
   const days = React.useMemo(
     () => buildDayStrip(dayRange.from, DAY_RANGE, availabilityDays),

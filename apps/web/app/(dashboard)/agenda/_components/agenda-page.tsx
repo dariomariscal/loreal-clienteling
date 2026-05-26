@@ -27,11 +27,11 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { AppointmentSheet } from "@/app/(dashboard)/clientes/[id]/_components/appointment/appointment-sheet";
+import { AppointmentSheet } from "@/components/appointment/appointment-sheet";
 import {
   TimeGridCalendar,
   type CalendarView,
-} from "./time-grid-calendar";
+} from "@/components/calendar/time-grid-calendar";
 import { cn } from "@/lib/utils";
 
 // ── Labels ────────────────────────────────────────────────────────

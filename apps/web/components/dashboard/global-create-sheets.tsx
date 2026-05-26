@@ -4,7 +4,7 @@ import { useCreateMenu } from "@/components/providers/create-menu-provider";
 import { BrandFormSheet } from "@/app/(dashboard)/marcas/_components/brand-form-sheet";
 import { StoreFormSheet } from "@/app/(dashboard)/tiendas/_components/store-form-sheet";
 import { CustomerRegistrationWizard } from "@/app/(dashboard)/clientes/_components/customer-registration-wizard";
-import { AppointmentSheet } from "@/app/(dashboard)/clientes/[id]/_components/appointment/appointment-sheet";
+import { AppointmentSheet } from "@/components/appointment/appointment-sheet";
 
 interface GlobalCreateSheetsProps {
   /** Current user's id — needed by the appointment wizard to scope the

@@ -15,7 +15,7 @@ export type CalendarView = "day" | "week";
 const DAY_START_HOUR = 9;
 const DAY_END_HOUR = 21;
 const SLOT_MINUTES = 30;
-const HOUR_HEIGHT = 64; // px per hour — gives 32px per slot.
+const DEFAULT_HOUR_HEIGHT = 64; // px per hour — gives 32px per slot.
 const HOURS = Array.from(
   { length: DAY_END_HOUR - DAY_START_HOUR + 1 },
   (_, i) => DAY_START_HOUR + i,
@@ -34,6 +34,16 @@ interface TimeGridCalendarProps {
   /** Show BA name on blocks (store view for managers). */
   showBa?: boolean;
   isLoading?: boolean;
+  /**
+   * Pixels per hour. Default 64. The advisor surface on iPad raises this
+   * to ~80 so each half-hour slot reaches the 40px tap target.
+   */
+  hourHeight?: number;
+  /**
+   * Fallback color used when a service type has no color. Defaults to
+   * var(--accent); the advisor passes var(--ba-accent).
+   */
+  fallbackAccent?: string;
 }
 
 export function TimeGridCalendar({
@@ -44,6 +54,8 @@ export function TimeGridCalendar({
   onSlotClick,
   showBa,
   isLoading,
+  hourHeight = DEFAULT_HOUR_HEIGHT,
+  fallbackAccent = "var(--accent)",
 }: TimeGridCalendarProps) {
   const days = React.useMemo(
     () => (view === "day" ? [anchor] : weekDays(anchor)),
@@ -85,7 +97,7 @@ export function TimeGridCalendar({
           )}
           style={{
             height:
-              (DAY_END_HOUR - DAY_START_HOUR + 1) * HOUR_HEIGHT + "px",
+              (DAY_END_HOUR - DAY_START_HOUR + 1) * hourHeight + "px",
           }}
         >
           {/* Hour rail */}
@@ -94,7 +106,7 @@ export function TimeGridCalendar({
               <div
                 key={h}
                 className="absolute right-2 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground/70"
-                style={{ top: i * HOUR_HEIGHT + "px" }}
+                style={{ top: i * hourHeight + "px" }}
               >
                 {String(h).padStart(2, "0")}:00
               </div>
@@ -114,6 +126,8 @@ export function TimeGridCalendar({
               now={now}
               showBa={showBa}
               isLoading={isLoading && dayIdx === 0}
+              hourHeight={hourHeight}
+              fallbackAccent={fallbackAccent}
             />
           ))}
         </div>
@@ -187,6 +201,8 @@ function DayColumn({
   now,
   showBa,
   isLoading,
+  hourHeight,
+  fallbackAccent,
 }: {
   day: Date;
   appointments: CalendarAppointment[];
@@ -195,9 +211,13 @@ function DayColumn({
   now: Date;
   showBa?: boolean;
   isLoading?: boolean;
+  hourHeight: number;
+  fallbackAccent: string;
 }) {
   const isToday = sameDay(day, now);
-  const nowTop = isToday ? minutesFromDayStart(now) * (HOUR_HEIGHT / 60) : null;
+  const nowTop = isToday ? minutesFromDayStart(now) * (hourHeight / 60) : null;
+  const slotHeight = hourHeight / 2;
+  const isPastDay = !isToday && day.getTime() < startOfDay(now).getTime();
 
   return (
     <div className="relative border-l border-border/30">
@@ -208,23 +228,37 @@ function DayColumn({
             day={day}
             hour={h}
             minute={0}
-            top={i * HOUR_HEIGHT}
+            top={i * hourHeight}
+            height={slotHeight}
             onClick={onSlotClick}
+            isPast={isPastDay || isSlotPast(day, h, 0, now)}
           />
           {/* Half-hour slot, no top border so the hour visually dominates */}
           <SlotCell
             day={day}
             hour={h}
             minute={30}
-            top={i * HOUR_HEIGHT + HOUR_HEIGHT / 2}
+            top={i * hourHeight + slotHeight}
+            height={slotHeight}
             onClick={onSlotClick}
             isHalfHour
+            isPast={isPastDay || isSlotPast(day, h, 30, now)}
           />
         </React.Fragment>
       ))}
 
+      {/* Past-time veil — gray everything above the now line so the BA sees
+          at a glance which slots have already passed. */}
+      {nowTop !== null && nowTop > 0 && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-[1] bg-muted/30"
+          style={{ height: nowTop + "px" }}
+          aria-hidden
+        />
+      )}
+
       {/* Now line */}
-      {nowTop !== null && nowTop >= 0 && nowTop <= (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT && (
+      {nowTop !== null && nowTop >= 0 && nowTop <= (DAY_END_HOUR - DAY_START_HOUR) * hourHeight && (
         <div
           className="pointer-events-none absolute left-0 right-0 z-20"
           style={{ top: nowTop + "px" }}
@@ -244,6 +278,8 @@ function DayColumn({
             appointment={a}
             onClick={() => onAppointmentClick(a)}
             showBa={showBa}
+            hourHeight={hourHeight}
+            fallbackAccent={fallbackAccent}
           />
         ))}
 
@@ -266,17 +302,22 @@ function SlotCell({
   hour,
   minute,
   top,
+  height,
   onClick,
   isHalfHour,
+  isPast,
 }: {
   day: Date;
   hour: number;
   minute: number;
   top: number;
+  height: number;
   onClick: (iso: string) => void;
   isHalfHour?: boolean;
+  isPast?: boolean;
 }) {
   function handleClick() {
+    if (isPast) return;
     const d = new Date(day);
     d.setHours(hour, minute, 0, 0);
     onClick(d.toISOString());
@@ -285,13 +326,18 @@ function SlotCell({
     <button
       type="button"
       onClick={handleClick}
-      aria-label={`Crear cita ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`}
+      disabled={isPast}
+      aria-label={
+        isPast
+          ? `Hora pasada ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+          : `Crear cita ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+      }
       className={cn(
-        "absolute inset-x-0 z-0 h-[32px] transition-colors duration-100",
+        "absolute inset-x-0 z-0 transition-colors duration-100",
         !isHalfHour && "border-t border-border/30",
-        "hover:bg-muted/30",
+        isPast ? "cursor-not-allowed" : "hover:bg-muted/30",
       )}
-      style={{ top: top + "px" }}
+      style={{ top: top + "px", height: height + "px" }}
     />
   );
 }
@@ -302,16 +348,20 @@ function AppointmentBlock({
   appointment,
   onClick,
   showBa,
+  hourHeight,
+  fallbackAccent,
 }: {
   appointment: CalendarAppointment;
   onClick: () => void;
   showBa?: boolean;
+  hourHeight: number;
+  fallbackAccent: string;
 }) {
   const start = new Date(appointment.startTime);
   const minutesFromTop = minutesFromDayStart(start);
-  const top = minutesFromTop * (HOUR_HEIGHT / 60);
-  const height = appointment.durationMinutes * (HOUR_HEIGHT / 60);
-  const accent = appointment.serviceTypeColor ?? "var(--accent)";
+  const top = minutesFromTop * (hourHeight / 60);
+  const height = appointment.durationMinutes * (hourHeight / 60);
+  const accent = appointment.serviceTypeColor ?? fallbackAccent;
   const startLabel = start.toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
@@ -319,7 +369,7 @@ function AppointmentBlock({
   // Hide block visually when it falls outside the visible window (e.g. an
   // appointment at 7:30am when the grid starts at 9). The user can still
   // open the day in detail later if needed.
-  if (top < -8 || top > (DAY_END_HOUR - DAY_START_HOUR + 1) * HOUR_HEIGHT) {
+  if (top < -8 || top > (DAY_END_HOUR - DAY_START_HOUR + 1) * hourHeight) {
     return null;
   }
   // Cancelled / no-show are dimmed so they don't compete with active ones.
@@ -384,6 +434,24 @@ function sameDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
+}
+
+function startOfDay(d: Date): Date {
+  const n = new Date(d);
+  n.setHours(0, 0, 0, 0);
+  return n;
+}
+
+/**
+ * True when the given hour:minute on `day` is already in the past relative
+ * to `now`. Mirrors the API's "no slots in the past" rule in
+ * appointments.service.ts → buildDaySlots, so the calendar doesn't offer
+ * cells that the backend would refuse to book.
+ */
+function isSlotPast(day: Date, hour: number, minute: number, now: Date): boolean {
+  const slot = new Date(day);
+  slot.setHours(hour, minute, 0, 0);
+  return slot.getTime() <= now.getTime();
 }
 
 function minutesFromDayStart(d: Date): number {

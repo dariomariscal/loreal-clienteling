@@ -30,7 +30,7 @@ import type { CustomerQuickActionId } from "./customer-quick-actions";
 import { BeautySection } from "@/app/(dashboard)/clientes/[id]/_components/beauty/beauty-section";
 import { NoteSheet } from "@/app/(dashboard)/clientes/[id]/_components/note-sheet";
 import { OrderSheet } from "@/app/(dashboard)/clientes/[id]/_components/order/order-sheet";
-import { AppointmentSheet } from "@/app/(dashboard)/clientes/[id]/_components/appointment/appointment-sheet";
+import { AppointmentSheet } from "@/components/appointment/appointment-sheet";
 import { RecommendationSheet } from "@/app/(dashboard)/clientes/[id]/_components/recommendation/recommendation-sheet";
 import { MessageSheet } from "@/app/(dashboard)/clientes/[id]/_components/message/message-sheet";
 import type { SessionUser } from "@/lib/auth";
