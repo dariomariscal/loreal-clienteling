@@ -26,4 +26,18 @@ declare global {
     invitationStatus?: "pending" | "accepted" | "revoked";
     invitedByUserId?: string;
   }
+
+  /**
+   * Self-editable preferences. `unsafeMetadata` is writable by the user
+   * themselves via the Clerk client SDK, no admin endpoint needed.
+   */
+  interface UserUnsafeMetadata {
+    preferences?: {
+      defaultMessageChannel?: "whatsapp" | "sms" | "email";
+      language?: "es" | "en";
+      notifyOnBirthday?: boolean;
+      notifyOnUpcomingAppointment?: boolean;
+      notifyOnIncomingMessage?: boolean;
+    };
+  }
 }

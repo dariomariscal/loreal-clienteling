@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import type { AuditLog } from "@loreal/contracts";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -47,6 +48,24 @@ const userKeys = {
 };
 
 // ── Queries ────────────────────────────────────────────────────────
+
+/**
+ * Audit-log feed scoped to the current user — backs the "Activity" tab in
+ * the advisor account area. Refreshes silently when the tab regains focus
+ * so a note created in another window shows up without a manual reload.
+ */
+export function useMyActivity(page = 1, limit = 25) {
+  return useQuery({
+    queryKey: ["users", "me", "activity", page, limit] as const,
+    queryFn: () =>
+      api.get<AuditLog[]>("/users/me/activity", {
+        page: String(page),
+        limit: String(limit),
+      }),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+}
 
 export function useUsers(filters?: UserFilters) {
   const params: Record<string, string> = {};

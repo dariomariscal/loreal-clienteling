@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
+
+const ACCOUNT_HREF = "/advisor/account";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { cn } from "@/lib/utils";
 import { useBrand } from "@/lib/hooks/use-brands";
@@ -123,16 +125,22 @@ export function AdvisorNav({ user, onNavigate, collapsed = false }: Props) {
             <Tooltip.Root>
               <Tooltip.Trigger
                 render={
-                  <div
-                    className="flex items-center justify-center py-1.5"
-                    aria-label={user.fullName || "Asesora de belleza"}
+                  <Link
+                    href={ACCOUNT_HREF}
+                    onClick={onNavigate}
+                    aria-label={`${user.fullName || "Asesora de belleza"} — Mi cuenta`}
+                    className={cn(
+                      "flex items-center justify-center rounded-md py-1.5 transition-colors hover:bg-[color:var(--ba-sidebar-active)]",
+                      pathname.startsWith(ACCOUNT_HREF) &&
+                        "bg-[color:var(--ba-sidebar-active)]",
+                    )}
                   >
                     <CustomerAvatar
                       firstName={user.fullName || "Asesora de belleza"}
                       avatarUrl={user.imageUrl}
                       size="sm"
                     />
-                  </div>
+                  </Link>
                 }
               />
               <Tooltip.Portal>
@@ -145,7 +153,15 @@ export function AdvisorNav({ user, onNavigate, collapsed = false }: Props) {
             </Tooltip.Root>
           </Tooltip.Provider>
         ) : (
-          <div className="flex items-center gap-3 px-2 py-2">
+          <Link
+            href={ACCOUNT_HREF}
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-[color:var(--ba-sidebar-active)]",
+              pathname.startsWith(ACCOUNT_HREF) &&
+                "bg-[color:var(--ba-sidebar-active)]",
+            )}
+          >
             <CustomerAvatar
               firstName={user.fullName || "Asesora de belleza"}
               avatarUrl={user.imageUrl}
@@ -159,7 +175,7 @@ export function AdvisorNav({ user, onNavigate, collapsed = false }: Props) {
                 {user.email}
               </p>
             </div>
-          </div>
+          </Link>
         )}
         {collapsed ? (
           <Tooltip.Provider>

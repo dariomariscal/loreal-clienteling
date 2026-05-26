@@ -16,6 +16,7 @@ export * from "./messages";
 export * from "./consents";
 export * from "./samples";
 export * from "./users";
+export * from "./audit-logs";
 export * from "./advisor";
 export * from "./customer-ai-summary";
 export * from "./suggested-action";

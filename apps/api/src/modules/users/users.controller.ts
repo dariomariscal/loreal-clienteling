@@ -15,12 +15,16 @@ import { Roles } from "../../auth/decorators/roles.decorator";
 import type { SessionUser } from "../../common/types/session";
 import { CreateUserDto, UpdateMeDto } from "../../dtos/users.dto";
 import { UsersService } from "./users.service";
+import { AuditQueryService } from "../audit/audit.service";
 
 @ApiTags("Users")
 @ApiBearerAuth()
 @Controller("users")
 export class UsersController {
-  constructor(@Inject(UsersService) private readonly usersService: UsersService) {}
+  constructor(
+    @Inject(UsersService) private readonly usersService: UsersService,
+    @Inject(AuditQueryService) private readonly auditService: AuditQueryService,
+  ) {}
 
   @Get()
   @Roles(["manager", "admin"])
@@ -72,6 +76,25 @@ export class UsersController {
   @ApiBody({ type: UpdateMeDto })
   updateMe(@Body() body: UpdateMeDto, @CurrentUser() user: SessionUser) {
     return this.usersService.updateSelf(user, body);
+  }
+
+  /**
+   * Own audit log — every change the current user made (notes, appointments,
+   * customer edits…). Read-only feed used by the advisor account screen.
+   */
+  @Get("me/activity")
+  @ApiQuery({ name: "page", type: Number, required: false })
+  @ApiQuery({ name: "limit", type: Number, required: false })
+  getMyActivity(
+    @CurrentUser() user: SessionUser,
+    @Query("page") page: string | undefined,
+    @Query("limit") limit: string | undefined,
+  ) {
+    return this.auditService.findAll({
+      actorUserId: user.id,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? Math.min(parseInt(limit), 100) : 25,
+    });
   }
 
   @Get(":id")
