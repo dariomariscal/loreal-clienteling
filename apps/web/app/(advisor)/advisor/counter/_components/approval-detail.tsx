@@ -65,7 +65,7 @@ export function ApprovalDetail({ approval, onResolved }: ApprovalDetailProps) {
             {format(new Date(approval.createdAt), "d MMM yyyy · HH:mm", { locale: es })}
           </span>
         </div>
-        <h2 className="mt-3 font-[var(--font-heading)] text-xl font-medium text-foreground">
+        <h2 className="mt-3 font-[family-name:var(--font-heading)] text-xl font-medium text-foreground">
           Solicitud de {approval.requestedByUserId ? "una BA" : "el equipo"}
         </h2>
         {approval.reason ? (

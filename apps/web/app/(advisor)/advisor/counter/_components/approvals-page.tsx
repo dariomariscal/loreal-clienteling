@@ -27,7 +27,7 @@ export function CounterApprovalsPage() {
       list={
         <div className="flex h-full flex-col">
           <div className="border-b border-border px-4 py-3">
-            <h2 className="font-[var(--font-heading)] text-base font-medium tracking-tight">
+            <h2 className="font-[family-name:var(--font-heading)] text-base font-medium tracking-tight">
               Aprobaciones
             </h2>
             <div className="mt-3 flex gap-1.5">

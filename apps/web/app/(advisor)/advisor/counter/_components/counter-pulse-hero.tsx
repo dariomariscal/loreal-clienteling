@@ -52,7 +52,7 @@ export function CounterPulseHero({
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Venta de hoy
         </p>
-        <p className="mt-2 font-[var(--font-heading)] text-3xl font-semibold tabular-nums text-foreground">
+        <p className="mt-2 font-[family-name:var(--font-heading)] text-3xl font-semibold tabular-nums text-foreground">
           {formatMoney(actualAmount, currencyCode)}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -83,7 +83,7 @@ export function CounterPulseHero({
           {pct}%
         </p>
       </div>
-      <p className="mt-2 font-[var(--font-heading)] text-3xl font-semibold tabular-nums text-foreground">
+      <p className="mt-2 font-[family-name:var(--font-heading)] text-3xl font-semibold tabular-nums text-foreground">
         {formatMoney(actualAmount, currencyCode)}{" "}
         <span className="text-xl font-normal text-muted-foreground">
           / {formatMoney(targetAmount, currencyCode)}

@@ -17,7 +17,7 @@ export function SectionCard({ title, action, children, className }: SectionCardP
       )}
     >
       <header className="flex items-center justify-between gap-4 px-6 pt-5 pb-3">
-        <h2 className="font-[var(--font-heading)] text-base font-medium tracking-tight text-foreground">
+        <h2 className="font-[family-name:var(--font-heading)] text-base font-medium tracking-tight text-foreground">
           {title}
         </h2>
         {action ? <div className="text-sm">{action}</div> : null}
