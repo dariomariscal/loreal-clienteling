@@ -29,7 +29,7 @@ interface BrandsPageProps {
 }
 
 export function BrandsPage({ user }: BrandsPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const { data: brands = [], isLoading } = useBrands();
   const { open: openCreate } = useCreateMenu();
   const [editing, setEditing] = useState<Brand | null>(null);

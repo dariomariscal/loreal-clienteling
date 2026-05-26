@@ -51,7 +51,10 @@ export class ProductSemanticSearchService {
     user: SessionUser,
     limit: number,
   ): Promise<ProductSemanticSearchResult[]> {
-    const brandScope = this.scopeService.scopeByBrand(user, products.brandId);
+    const brandScope = await this.scopeService.scopeByBrand(
+      user,
+      products.brandId,
+    );
     const pattern = `%${query}%`;
 
     const conditions = [

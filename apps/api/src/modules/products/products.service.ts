@@ -35,7 +35,10 @@ export class ProductsService {
   ) {}
 
   async findAll(user: SessionUser, filters: ProductFiltersDto) {
-    const brandScope = this.scopeService.scopeByBrand(user, products.brandId);
+    const brandScope = await this.scopeService.scopeByBrand(
+      user,
+      products.brandId,
+    );
 
     const conditions = [
       eq(products.status, "active"),

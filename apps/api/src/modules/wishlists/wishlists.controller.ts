@@ -45,7 +45,7 @@ export class WishlistsController {
   }
 
   @Post("wishlists")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiBody({ type: CreateWishlistDto })
   create(
     @Body() body: CreateWishlistDto,
@@ -55,7 +55,7 @@ export class WishlistsController {
   }
 
   @Patch("wishlists/:id")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateWishlistDto })
   update(
@@ -67,14 +67,14 @@ export class WishlistsController {
   }
 
   @Delete("wishlists/:id")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   remove(@Param("id") id: string, @Session() session: UserSession) {
     return this.wishlistsService.remove(id, session.user);
   }
 
   @Post("wishlists/:id/share")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: ShareWishlistDto })
   share(
@@ -86,7 +86,7 @@ export class WishlistsController {
   }
 
   @Post("wishlists/:id/items")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: AddWishlistItemDto })
   addItem(
@@ -98,7 +98,7 @@ export class WishlistsController {
   }
 
   @Patch("wishlists/:id/items/:itemId")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiParam({ name: "itemId", type: String })
   @ApiBody({ type: UpdateWishlistItemDto })
@@ -112,7 +112,7 @@ export class WishlistsController {
   }
 
   @Delete("wishlists/:id/items/:itemId")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiParam({ name: "itemId", type: String })
   removeItem(

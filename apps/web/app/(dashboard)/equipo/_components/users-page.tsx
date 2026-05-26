@@ -40,9 +40,10 @@ import { UserFormSheet } from "./user-form-sheet";
 import { PasswordResultDialog } from "./password-result-dialog";
 
 const ROLE_LABEL: Record<string, string> = {
-  ba: "Beauty Advisor",
-  manager: "Gerente",
-  supervisor: "Supervisor",
+  beauty_advisor: "Beauty Advisor",
+  counter_manager: "Gerente de Mostrador",
+  area_manager: "Gerente de Zona",
+  national_retail_manager: "Director Nacional",
   admin: "Administrador",
 };
 
@@ -51,9 +52,10 @@ const ROLE_VARIANT: Record<
   "default" | "info" | "warning" | "destructive"
 > = {
   admin: "destructive",
-  supervisor: "warning",
-  manager: "info",
-  ba: "default",
+  national_retail_manager: "destructive",
+  area_manager: "warning",
+  counter_manager: "info",
+  beauty_advisor: "default",
 };
 
 interface UsersPageProps {
@@ -61,7 +63,7 @@ interface UsersPageProps {
 }
 
 export function UsersPage({ user }: UsersPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
   const filters =
@@ -126,10 +128,11 @@ export function UsersPage({ user }: UsersPageProps) {
       key: "storeId",
       label: "Ámbito",
       render: (_, row) => {
-        if (row.role === "supervisor") {
+        if (row.role === "national_retail_manager") return "Nacional";
+        if (row.role === "admin") return "Nacional · Todas las divisiones";
+        if (row.role === "area_manager") {
           return zoneMap[row.zoneId ?? ""] ?? row.zoneId ?? "—";
         }
-        if (row.role === "admin") return "Nacional";
         return row.storeName ?? storeMap[row.storeId ?? ""] ?? "—";
       },
     },
@@ -201,9 +204,10 @@ export function UsersPage({ user }: UsersPageProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Todos los roles</SelectItem>
-            <SelectItem value="ba">Beauty Advisor</SelectItem>
-            <SelectItem value="manager">Gerente</SelectItem>
-            <SelectItem value="supervisor">Supervisor</SelectItem>
+            <SelectItem value="beauty_advisor">Beauty Advisor</SelectItem>
+            <SelectItem value="counter_manager">Gerente de Mostrador</SelectItem>
+            <SelectItem value="area_manager">Gerente de Zona</SelectItem>
+            <SelectItem value="national_retail_manager">Director Nacional</SelectItem>
             <SelectItem value="admin">Administrador</SelectItem>
           </SelectContent>
         </Select>

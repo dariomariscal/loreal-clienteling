@@ -10,6 +10,8 @@ export interface SessionUser {
   storeId: string | null;
   zoneId: string | null;
   brandId: string | null;
+  divisionId: string | null;
+  specialty: string | null;
   active: boolean;
 }
 
@@ -42,10 +44,12 @@ export async function getSession(): Promise<Session | null> {
       email,
       fullName,
       imageUrl: user.imageUrl ?? null,
-      role: meta.role ?? "ba",
+      role: meta.role ?? "beauty_advisor",
       storeId: meta.storeId ?? null,
       zoneId: meta.zoneId ?? null,
       brandId: meta.brandId ?? null,
+      divisionId: meta.divisionId ?? null,
+      specialty: meta.specialty ?? null,
       active: meta.active ?? true,
     },
   };

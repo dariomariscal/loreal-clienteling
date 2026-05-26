@@ -25,6 +25,7 @@ interface UserFilters {
   storeId?: string;
   zoneId?: string;
   brandId?: string;
+  divisionId?: string;
   active?: boolean;
   invitationStatus?: string;
   search?: string;
@@ -39,6 +40,8 @@ interface InviteUserData {
   storeId?: string;
   zoneId?: string;
   brandId?: string;
+  divisionId?: string;
+  specialty?: string;
 }
 
 interface CreateDirectUserData extends InviteUserData {}
@@ -56,9 +59,19 @@ interface UpdateUserData {
   storeId?: string | null;
   zoneId?: string | null;
   brandId?: string | null;
+  divisionId?: string | null;
+  specialty?: string | null;
   active?: boolean;
   fullName?: string;
 }
+
+type ResolvedScope = {
+  storeId: string | null;
+  zoneId: string | null;
+  brandId: string | null;
+  divisionId: string | null;
+  specialty: string | null;
+};
 
 @Injectable()
 export class UsersService {
@@ -76,23 +89,24 @@ export class UsersService {
 
     const conditions: any[] = [];
 
-    if (user.role === "manager") {
+    if (user.role === "counter_manager") {
       if (user.storeId) conditions.push(eq(users.storeId, user.storeId));
-    } else if (user.role === "supervisor") {
+    } else if (
+      user.role === "area_manager" ||
+      user.role === "national_retail_manager"
+    ) {
       const storeIds = await this.scopeService.getAccessibleStoreIds(user);
       if (storeIds.length === 0) {
         conditions.push(sql`false`);
       } else {
+        // Area/National roles can also see users that are division-scoped
+        // (other area managers in the same division) even when they have no
+        // storeId. Filter on storeId IN (...) OR division match.
         conditions.push(
-          sql`${users.storeId} IN (${sql.join(
+          sql`(${users.storeId} IN (${sql.join(
             storeIds.map((id) => sql`${id}`),
             sql`, `,
-          )})`,
-        );
-      }
-      if (user.brandId) {
-        conditions.push(
-          sql`(${users.brandId} = ${user.brandId} OR ${users.brandId} IS NULL)`,
+          )}) OR ${users.divisionId} = ${user.divisionId})`,
         );
       }
     }
@@ -101,6 +115,8 @@ export class UsersService {
     if (filters.storeId) conditions.push(eq(users.storeId, filters.storeId));
     if (filters.zoneId) conditions.push(eq(users.zoneId, filters.zoneId));
     if (filters.brandId) conditions.push(eq(users.brandId, filters.brandId));
+    if (filters.divisionId)
+      conditions.push(eq(users.divisionId, filters.divisionId));
     if (filters.active !== undefined)
       conditions.push(eq(users.isActive, filters.active));
     if (filters.invitationStatus) conditions.push(eq(users.invitationStatus, filters.invitationStatus));
@@ -130,6 +146,8 @@ export class UsersService {
         zoneName: zones.displayName,
         brandId: users.brandId,
         brandName: brands.displayName,
+        divisionId: users.divisionId,
+        specialty: users.specialty,
         isActive: users.isActive,
         invitationStatus: users.invitationStatus,
         invitedAt: users.invitedAt,
@@ -162,6 +180,8 @@ export class UsersService {
         zoneName: zones.displayName,
         brandId: users.brandId,
         brandName: brands.displayName,
+        divisionId: users.divisionId,
+        specialty: users.specialty,
         isActive: users.isActive,
         invitationStatus: users.invitationStatus,
         invitedAt: users.invitedAt,
@@ -194,6 +214,8 @@ export class UsersService {
       storeId: scope.storeId,
       zoneId: scope.zoneId,
       brandId: scope.brandId,
+      divisionId: scope.divisionId,
+      specialty: scope.specialty,
       isActive: true,
       invitationStatus: "pending",
       invitedByUserId: invitedBy.id,
@@ -251,6 +273,8 @@ export class UsersService {
         storeId: scope.storeId,
         zoneId: scope.zoneId,
         brandId: scope.brandId,
+        divisionId: scope.divisionId,
+        specialty: scope.specialty,
         isActive: true,
         invitationStatus: "accepted",
         invitedByUserId: createdBy.id,
@@ -267,6 +291,8 @@ export class UsersService {
         storeId: scope.storeId,
         zoneId: scope.zoneId,
         brandId: scope.brandId,
+        divisionId: scope.divisionId,
+        specialty: scope.specialty,
         isActive: true,
         invitationStatus: "accepted",
         invitedByUserId: createdBy.id,
@@ -331,11 +357,21 @@ export class UsersService {
     const existing = await this.findOne(id);
 
     const nextRole = data.role ?? existing.role;
-    if (nextRole === "supervisor") {
-      const nextZoneId = data.zoneId !== undefined ? data.zoneId : existing.zoneId;
-      const nextBrandId = data.brandId !== undefined ? data.brandId : existing.brandId;
-      if (!nextZoneId) throw new ConflictException("Un supervisor requiere zoneId");
-      if (!nextBrandId) throw new ConflictException("Un supervisor requiere brandId");
+    const nextDivisionId =
+      data.divisionId !== undefined ? data.divisionId : (existing as any).divisionId;
+    const nextZoneId =
+      data.zoneId !== undefined ? data.zoneId : existing.zoneId;
+
+    if (nextRole === "area_manager") {
+      if (!nextZoneId)
+        throw new ConflictException("Un Area Manager requiere zoneId");
+      if (!nextDivisionId)
+        throw new ConflictException("Un Area Manager requiere divisionId");
+    }
+    if (nextRole === "national_retail_manager" && !nextDivisionId) {
+      throw new ConflictException(
+        "Un National Retail Manager requiere divisionId",
+      );
     }
 
     if (data.brandId) await this.assertBrandExists(data.brandId);
@@ -347,6 +383,8 @@ export class UsersService {
     if (data.storeId !== undefined) updateValues.storeId = data.storeId;
     if (data.zoneId !== undefined) updateValues.zoneId = data.zoneId;
     if (data.brandId !== undefined) updateValues.brandId = data.brandId;
+    if (data.divisionId !== undefined) updateValues.divisionId = data.divisionId;
+    if (data.specialty !== undefined) updateValues.specialty = data.specialty;
     if (data.active !== undefined) updateValues.isActive = data.active;
     if (data.fullName !== undefined) updateValues.fullName = data.fullName;
 
@@ -360,7 +398,16 @@ export class UsersService {
     // invitationStatus, invitedByUserId) gets wiped, then propagated back
     // through the user.updated webhook as nulls.
     const metadataPatch: Record<string, unknown> = {};
-    for (const key of ["role", "storeId", "zoneId", "brandId", "active", "fullName"] as const) {
+    for (const key of [
+      "role",
+      "storeId",
+      "zoneId",
+      "brandId",
+      "divisionId",
+      "specialty",
+      "active",
+      "fullName",
+    ] as const) {
       if (data[key] !== undefined) {
         // Clerk metadata keeps the legacy `active` key; the local mirror uses `isActive`.
         metadataPatch[key === "active" ? "isActive" : key] = data[key];
@@ -458,37 +505,68 @@ export class UsersService {
   }
 
   /**
-   * Resolves the {storeId, zoneId, brandId} a new user should be assigned to.
+   * Resolves the scope (storeId, zoneId, brandId, divisionId, specialty)
+   * a new user should be assigned to.
    *
-   * Rules:
-   * - ba/manager: storeId is required. zoneId is auto-derived from the store
-   *   when not provided. brandId, if provided, must belong to brandStores of
-   *   that store; if omitted and the store sells exactly one brand, that
-   *   brand is auto-picked.
-   * - supervisor: zoneId AND brandId are required (a storeId is ignored —
-   *   supervisors roam across all stores in the zone that carry their brand).
-   * - admin: no scope fields apply.
+   * Role-specific rules:
+   *   admin                   → no scope fields apply.
+   *   national_retail_manager → divisionId is required; covers every store
+   *                             selling brands of that division nationally.
+   *   area_manager            → zoneId AND divisionId are required. The
+   *                             user roams every store in the zone that
+   *                             carries any brand of that division
+   *                             (Multibrand Area Manager).
+   *   counter_manager         → storeId is required + brandId must belong
+   *                             to that store's brand_stores rows.
+   *   beauty_advisor          → same as counter_manager; specialty defaults
+   *                             to "generalist" when omitted.
    */
   private async resolveAssignmentScope(
     data: InviteUserData,
-  ): Promise<{ storeId: string | null; zoneId: string | null; brandId: string | null }> {
+  ): Promise<ResolvedScope> {
     if (data.role === "admin") {
-      return { storeId: null, zoneId: null, brandId: null };
+      return {
+        storeId: null,
+        zoneId: null,
+        brandId: null,
+        divisionId: null,
+        specialty: null,
+      };
     }
 
-    if (data.role === "supervisor") {
-      if (!data.zoneId) {
-        throw new ConflictException("Un supervisor requiere zoneId");
+    if (data.role === "national_retail_manager") {
+      if (!data.divisionId) {
+        throw new ConflictException(
+          "Un National Retail Manager requiere divisionId",
+        );
       }
-      if (!data.brandId) {
-        throw new ConflictException("Un supervisor requiere brandId");
+      return {
+        storeId: null,
+        zoneId: null,
+        brandId: null,
+        divisionId: data.divisionId,
+        specialty: null,
+      };
+    }
+
+    if (data.role === "area_manager") {
+      if (!data.zoneId) {
+        throw new ConflictException("Un Area Manager requiere zoneId");
+      }
+      if (!data.divisionId) {
+        throw new ConflictException("Un Area Manager requiere divisionId");
       }
       await this.assertZoneExists(data.zoneId);
-      await this.assertBrandExists(data.brandId);
-      return { storeId: null, zoneId: data.zoneId, brandId: data.brandId };
+      return {
+        storeId: null,
+        zoneId: data.zoneId,
+        brandId: null,
+        divisionId: data.divisionId,
+        specialty: null,
+      };
     }
 
-    // ba | manager
+    // beauty_advisor | counter_manager
     if (!data.storeId) {
       throw new ConflictException("Este rol requiere storeId");
     }
@@ -520,7 +598,14 @@ export class UsersService {
 
     const zoneId = data.zoneId ?? store.zoneId ?? null;
 
-    return { storeId: store.id, zoneId, brandId };
+    // BAs without an explicit specialty default to generalist so the column
+    // is never null for BA rows — keeps downstream filtering simple.
+    const specialty =
+      data.role === "beauty_advisor"
+        ? (data.specialty ?? "generalist")
+        : null;
+
+    return { storeId: store.id, zoneId, brandId, divisionId: null, specialty };
   }
 
   // Reference checks. ba/manager hit FK validations indirectly through the

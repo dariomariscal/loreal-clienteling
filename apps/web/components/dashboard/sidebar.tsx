@@ -38,39 +38,64 @@ interface SidebarProps {
 
 // ── Navigation config ────────────────────────────────────────────
 
+const ALL_ROLES = [
+  "beauty_advisor",
+  "counter_manager",
+  "area_manager",
+  "national_retail_manager",
+  "admin",
+] as const satisfies readonly UserRole[];
+
+const MANAGEMENT_ROLES = [
+  "counter_manager",
+  "area_manager",
+  "national_retail_manager",
+  "admin",
+] as const satisfies readonly UserRole[];
+
 const NAV_SECTIONS: readonly NavSection[] = [
   {
     items: [
-      { label: "Inicio", href: "/", icon: HomeIcon, roles: ["ba", "manager", "supervisor", "admin"] },
-      { label: "Clientes", href: "/clientes", icon: UsersIcon, roles: ["ba", "manager", "supervisor", "admin"] },
-      { label: "Agenda", href: "/agenda", icon: CalendarIcon, roles: ["ba"] },
+      { label: "Inicio", href: "/", icon: HomeIcon, roles: ALL_ROLES },
+      { label: "Clientes", href: "/clientes", icon: UsersIcon, roles: ALL_ROLES },
+      { label: "Agenda", href: "/agenda", icon: CalendarIcon, roles: ["beauty_advisor"] },
     ],
   },
   {
     label: "Gestión",
     items: [
-      { label: "Productos", href: "/productos", icon: BoxIcon, roles: ["ba", "manager", "supervisor", "admin"] },
-      { label: "Reportes", href: "/reportes", icon: ChartIcon, roles: ["manager", "supervisor", "admin"] },
-      { label: "Mensajes", href: "/mensajes", icon: MegaphoneIcon, roles: ["ba", "manager", "admin"] },
+      { label: "Productos", href: "/productos", icon: BoxIcon, roles: ALL_ROLES },
+      { label: "Reportes", href: "/reportes", icon: ChartIcon, roles: MANAGEMENT_ROLES },
+      {
+        label: "Mensajes",
+        href: "/mensajes",
+        icon: MegaphoneIcon,
+        roles: ["beauty_advisor", "counter_manager", "national_retail_manager", "admin"],
+      },
     ],
   },
   {
     label: "Configuración",
     items: [
       { label: "Marcas", href: "/marcas", icon: TagIcon, roles: ["admin"] },
-      { label: "Tiendas", href: "/tiendas", icon: StoreIcon, roles: ["admin", "supervisor"] },
-      { label: "Zonas", href: "/zonas", icon: MapIcon, roles: ["admin", "supervisor"] },
-      { label: "Equipo", href: "/equipo", icon: TeamIcon, roles: ["manager", "admin"] },
+      { label: "Tiendas", href: "/tiendas", icon: StoreIcon, roles: ["admin", "area_manager", "national_retail_manager"] },
+      { label: "Zonas", href: "/zonas", icon: MapIcon, roles: ["admin", "area_manager", "national_retail_manager"] },
+      { label: "Equipo", href: "/equipo", icon: TeamIcon, roles: MANAGEMENT_ROLES },
       { label: "Configuración", href: "/configuracion", icon: SettingsIcon, roles: ["admin"] },
       { label: "Auditoría", href: "/auditoria", icon: ShieldIcon, roles: ["admin"] },
     ],
   },
 ];
 
+/**
+ * Display labels for each role. Uses the Spanish-MX naming the field
+ * organization actually uses on business cards and signage.
+ */
 const ROLE_LABELS: Record<string, string> = {
-  ba: "Beauty Advisor",
-  manager: "Gerente",
-  supervisor: "Supervisor",
+  beauty_advisor: "Beauty Advisor",
+  counter_manager: "Gerente de Mostrador",
+  area_manager: "Gerente de Zona",
+  national_retail_manager: "Director Nacional de Retail",
   admin: "Administrador",
 };
 
@@ -105,7 +130,7 @@ function SidebarContent({ user }: SidebarProps) {
   const router = useRouter();
   const { signOut } = useClerk();
   const { collapsed, toggleCollapsed } = useSidebar();
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const { data: brand } = useBrand(user.brandId ?? "");
 
   async function handleSignOut() {

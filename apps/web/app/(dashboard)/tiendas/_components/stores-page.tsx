@@ -23,7 +23,7 @@ interface StoresPageProps {
 }
 
 export function StoresPage({ user }: StoresPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const { data: stores = [], isLoading } = useStores();
   const { data: zones = [] } = useZones();
   const { open: openCreate } = useCreateMenu();

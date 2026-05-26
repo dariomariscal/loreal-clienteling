@@ -19,6 +19,7 @@
     "migrate:kit": "drizzle-kit migrate",
     "studio": "drizzle-kit studio",
     "seed": "tsx seed/index.ts",
+    "seed:divisions": "tsx seed/divisions.ts",
     "seed:municipalities": "tsx seed/municipalities.ts",
     "seed:stores": "tsx seed/stores/index.ts",
     "seed:privacy-notices": "tsx seed/privacy-notices.ts"

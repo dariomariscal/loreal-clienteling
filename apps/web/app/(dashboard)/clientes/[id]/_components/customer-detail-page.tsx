@@ -72,7 +72,7 @@ export function CustomerDetailPage({
   customerId,
   user,
 }: CustomerDetailPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: customer, isLoading } = useCustomer(customerId);

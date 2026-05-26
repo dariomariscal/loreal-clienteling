@@ -20,7 +20,7 @@ export class ZonesService {
 
   async findAll(user: SessionUser) {
     const rows =
-      user.role === "supervisor" && user.zoneId
+      user.role === "area_manager" && user.zoneId
         ? await this.db.select().from(zones).where(eq(zones.id, user.zoneId))
         : await this.db.select().from(zones);
 

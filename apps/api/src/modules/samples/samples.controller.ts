@@ -22,7 +22,7 @@ export class SamplesController {
   }
 
   @Post("samples")
-  @Roles(["ba"])
+  @Roles(["beauty_advisor"])
   @ApiBody({ type: CreateSampleDto })
   create(
     @Body() body: CreateSampleDto,
@@ -32,7 +32,7 @@ export class SamplesController {
   }
 
   @Patch("samples/:id/convert")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   markConverted(
     @Param("id") id: string,

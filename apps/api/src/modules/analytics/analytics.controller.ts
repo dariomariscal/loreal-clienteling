@@ -42,7 +42,7 @@ const COLUMN_LABELS: Record<string, string> = {
 @ApiTags("Analytics")
 @ApiBearerAuth()
 @Controller("analytics")
-@Roles(["ba", "manager", "supervisor", "admin"])
+@Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
 export class AnalyticsController {
   constructor(@Inject(AnalyticsService) private analyticsService: AnalyticsService) {}
 
@@ -139,7 +139,7 @@ export class AnalyticsController {
   }
 
   @Get("agenda-report")
-  @Roles(["manager", "supervisor", "admin"])
+  @Roles(["counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   @ApiQuery({ name: "baUserId", type: String, required: false })
@@ -168,7 +168,7 @@ export class AnalyticsController {
   }
 
   @Get("appointments-by-ba")
-  @Roles(["manager", "supervisor", "admin"])
+  @Roles(["counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   getAppointmentsByBa(
@@ -180,7 +180,7 @@ export class AnalyticsController {
   }
 
   @Get("retention")
-  @Roles(["manager", "supervisor", "admin"])
+  @Roles(["counter_manager", "area_manager", "admin"])
   getRetention(@Session() session: UserSession) {
     return this.analyticsService.getRetention(session.user);
   }

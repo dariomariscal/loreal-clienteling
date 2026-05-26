@@ -3,11 +3,15 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { sql } from "drizzle-orm";
 import * as schema from "../schema";
+import { seedDivisions } from "./divisions";
 
 const pool = new Pool({
   connectionString:
     process.env.DATABASE_URL ??
     "postgresql://loreal:loreal@localhost:5433/loreal_clienteling",
+  ssl: process.env.DATABASE_URL?.includes("neon.tech")
+    ? { rejectUnauthorized: false }
+    : undefined,
 });
 const db = drizzle(pool, { schema });
 
@@ -16,8 +20,11 @@ const db = drizzle(pool, { schema });
 async function seed() {
   console.log("🌱 Bootstrap seed (domain reset)...\n");
 
-  // Truncate domain tables. `users` is preserved — identity is managed by
-  // Clerk and the local mirror is repopulated by the user.created webhook.
+  // Truncate domain tables. `users` and `divisions` are preserved:
+  //   - users: identity is managed by Clerk; the local mirror is repopulated
+  //     by the user.created webhook.
+  //   - divisions: every environment must keep the same canonical UUIDs
+  //     because Clerk publicMetadata.divisionId references them.
   console.log("Truncating tables...");
   await db.execute(sql`TRUNCATE TABLE
     audit_logs, communications, message_templates, consents,
@@ -26,6 +33,11 @@ async function seed() {
     beauty_profiles, customers, products, brand_configs,
     brand_stores, stores, zone_municipalities, zones, brands
     CASCADE`);
+
+  // Re-seed divisions with their canonical UUIDs. Idempotent: existing rows
+  // keep their id, only displayName is refreshed.
+  console.log("Seeding divisions...");
+  await seedDivisions(db);
 
   console.log("\n✅ Bootstrap complete.\n");
   console.log(`Next steps:

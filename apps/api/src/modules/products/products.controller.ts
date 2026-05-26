@@ -14,7 +14,7 @@ import {
 } from "../../dtos/products.dto";
 import type { UserSession } from "../../common/types/session";
 
-const BA_ROLES = ["ba", "manager", "supervisor", "admin"] as const;
+const BA_ROLES = ["beauty_advisor", "counter_manager", "area_manager", "admin"] as const;
 
 @ApiTags("Products")
 @ApiBearerAuth()
@@ -90,7 +90,7 @@ export class ProductsController {
   }
 
   @Patch(":id/availability/:storeId")
-  @Roles(["admin", "manager"])
+  @Roles(["admin", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiParam({ name: "storeId", type: String })
   @ApiBody({ type: UpdateInventoryLevelDto })

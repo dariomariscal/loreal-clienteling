@@ -4,24 +4,41 @@
 
 export {};
 
+type RoleLiteral =
+  | "beauty_advisor"
+  | "counter_manager"
+  | "area_manager"
+  | "national_retail_manager"
+  | "admin";
+
+type SpecialtyLiteral =
+  | "generalist"
+  | "makeup_artist"
+  | "skincare_expert"
+  | "fragrance_specialist";
+
 declare global {
   interface CustomJwtSessionClaims {
     metadata: {
-      role?: "ba" | "manager" | "supervisor" | "admin";
+      role?: RoleLiteral;
       fullName?: string;
       storeId?: string | null;
       zoneId?: string | null;
       brandId?: string | null;
+      divisionId?: string | null;
+      specialty?: SpecialtyLiteral | null;
       active?: boolean;
     };
   }
 
   interface UserPublicMetadata {
-    role?: "ba" | "manager" | "supervisor" | "admin";
+    role?: RoleLiteral;
     fullName?: string;
     storeId?: string | null;
     zoneId?: string | null;
     brandId?: string | null;
+    divisionId?: string | null;
+    specialty?: SpecialtyLiteral | null;
     active?: boolean;
     invitationStatus?: "pending" | "accepted" | "revoked";
     invitedByUserId?: string;

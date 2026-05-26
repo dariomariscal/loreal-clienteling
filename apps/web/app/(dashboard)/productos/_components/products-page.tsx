@@ -58,7 +58,7 @@ interface ProductsPageProps {
 }
 
 export function ProductsPage({ user }: ProductsPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");

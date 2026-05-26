@@ -41,14 +41,14 @@ export class EventsController {
   }
 
   @Post()
-  @Roles(["manager", "supervisor", "admin"])
+  @Roles(["counter_manager", "area_manager", "admin"])
   @ApiBody({ type: CreateEventDto })
   create(@Body() body: CreateEventDto, @Session() session: UserSession) {
     return this.eventsService.create(body, session.user);
   }
 
   @Patch(":id")
-  @Roles(["manager", "supervisor", "admin"])
+  @Roles(["counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateEventDto })
   update(
@@ -60,7 +60,7 @@ export class EventsController {
   }
 
   @Delete(":id")
-  @Roles(["manager", "supervisor", "admin"])
+  @Roles(["counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   remove(@Param("id") id: string, @Session() session: UserSession) {
     return this.eventsService.remove(id, session.user);
@@ -73,7 +73,7 @@ export class EventsController {
   }
 
   @Post(":id/invitees")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: InviteCustomerDto })
   invite(
@@ -85,7 +85,7 @@ export class EventsController {
   }
 
   @Post(":id/invitees/bulk")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: InviteCustomersDto })
   inviteBulk(
@@ -110,7 +110,7 @@ export class EventsController {
   }
 
   @Post(":id/invitees/:invitationId/attended")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiParam({ name: "invitationId", type: String })
   markAttended(
@@ -122,7 +122,7 @@ export class EventsController {
   }
 
   @Delete(":id/invitees/:invitationId")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiParam({ name: "invitationId", type: String })
   removeInvitation(

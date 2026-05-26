@@ -22,7 +22,7 @@ interface ZonesPageProps {
 }
 
 export function ZonesPage({ user }: ZonesPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const { data: zones = [], isLoading: zonesLoading } = useZones();
   const { data: stores = [], isLoading: storesLoading } = useStores();
   const { data: municipalities = [] } = useMunicipalities();

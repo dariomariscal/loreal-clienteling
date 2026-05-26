@@ -151,7 +151,7 @@ export class AnalyticsService {
     const { from, to } = this.getDefaultDateRange(range);
 
     // Get BAs accessible to this user
-    const baConditions = [eq(users.role, "ba"), eq(users.isActive, true)];
+    const baConditions = [eq(users.role, "beauty_advisor"), eq(users.isActive, true)];
     if (!isAdmin && storeIds.length > 0) {
       baConditions.push(
         sql`${users.storeId} IN (${sql.join(storeIds.map((id) => sql`${id}`), sql`, `)})` as any,

@@ -61,7 +61,7 @@ interface MessagesPageProps {
 }
 
 export function MessagesPage({ user }: MessagesPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const { data: messages = [], isLoading } = useMessages();
   const createMessage = useCreateMessage();
   const [dialog, setDialog] = useState<DialogState>(null);

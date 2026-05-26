@@ -29,7 +29,7 @@ export class AppointmentsController {
   constructor(@Inject(AppointmentsService) private appointmentsService: AppointmentsService) {}
 
   @Get()
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   @ApiQuery({ name: "staffUserId", type: String, required: false })
@@ -47,7 +47,7 @@ export class AppointmentsController {
   }
 
   @Get("calendar")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: true })
   @ApiQuery({ name: "to", type: String, required: true })
   @ApiQuery({ name: "staffUserId", type: String, required: false })
@@ -68,7 +68,7 @@ export class AppointmentsController {
   }
 
   @Get("availability")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "staffUserId", type: String, required: true })
   @ApiQuery({ name: "from", type: String, required: true, description: "ISO date or datetime" })
   @ApiQuery({ name: "to", type: String, required: true, description: "ISO date or datetime" })
@@ -89,7 +89,7 @@ export class AppointmentsController {
   }
 
   @Get("availability/slots")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "staffUserId", type: String, required: true })
   @ApiQuery({ name: "date", type: String, required: true, description: "ISO date (YYYY-MM-DD)" })
   @ApiQuery({ name: "durationMinutes", type: Number, required: true })
@@ -117,7 +117,7 @@ export class AppointmentsController {
   }
 
   @Post()
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiBody({ type: CreateAppointmentDto })
   create(
     @Body() body: CreateAppointmentDto,
@@ -127,7 +127,7 @@ export class AppointmentsController {
   }
 
   @Patch(":id")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateAppointmentDto })
   update(

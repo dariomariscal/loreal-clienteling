@@ -52,7 +52,7 @@ interface CustomersPageProps {
 type CartView = "mine" | "store";
 
 export function CustomersPage({ user }: CustomersPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const router = useRouter();
   const { open: openCreate } = useCreateMenu();
 
@@ -61,7 +61,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
   const [page, setPage] = useState(1);
   // BAs default to their own cartera ("Client Book" in industry parlance);
   // managers and admins land on the store view because that's their job.
-  const [view, setView] = useState<CartView>(role === "ba" ? "mine" : "store");
+  const [view, setView] = useState<CartView>(role === "beauty_advisor" ? "mine" : "store");
   const limit = 20;
 
   const isSearching = search.length >= 2;
@@ -177,7 +177,7 @@ export function CustomersPage({ user }: CustomersPageProps) {
           always show it; BAs see "Mi cartera" by default, managers see
           "Tienda". The toggle is suppressed while a search is active
           since search hits the global index already. */}
-      {role === "ba" && !showEmptyState && !isSearching && (
+      {role === "beauty_advisor" && !showEmptyState && !isSearching && (
         <CartViewToggle
           value={view}
           onChange={(v) => {

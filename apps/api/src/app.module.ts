@@ -8,6 +8,7 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
 import { ZonesModule } from "./modules/zones/zones.module";
 import { GeoModule } from "./modules/geo/geo.module";
 import { BrandsModule } from "./modules/brands/brands.module";
+import { DivisionsModule } from "./modules/divisions/divisions.module";
 import { StoresModule } from "./modules/stores/stores.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { CustomersModule } from "./modules/customers/customers.module";
@@ -48,6 +49,7 @@ import { HealthController } from "./health.controller";
     ZonesModule,
     GeoModule,
     BrandsModule,
+    DivisionsModule,
     StoresModule,
     ProductsModule,
     CustomersModule,

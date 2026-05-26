@@ -154,19 +154,19 @@ export function AgendaPage(props: AgendaPageProps) {
 }
 
 function AgendaPageInner({ user }: AgendaPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const [view, setView] = React.useState<CalendarView>(
-    role === "ba" ? "day" : "week",
+    role === "beauty_advisor" ? "day" : "week",
   );
   const [anchor, setAnchor] = React.useState<Date>(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return role === "ba" ? today : getMonday(today);
+    return role === "beauty_advisor" ? today : getMonday(today);
   });
   const [sheet, setSheet] = React.useState<SheetState>(null);
   const [statusUpdate, setStatusUpdate] = React.useState("");
   // Manager-only: viewing the whole store vs only their team's slice.
-  const [storeView, setStoreView] = React.useState(role !== "ba");
+  const [storeView, setStoreView] = React.useState(role !== "beauty_advisor");
 
   // Fetch window depends on view. Day = single day; week = 7 days.
   const rangeStart = view === "day" ? anchor : anchor;
@@ -176,7 +176,7 @@ function AgendaPageInner({ user }: AgendaPageProps) {
   const { data: calendarData = [], isLoading } = useAppointmentCalendar(
     rangeStart.toISOString(),
     rangeEnd.toISOString(),
-    role !== "ba" ? { storeView } : undefined,
+    role !== "beauty_advisor" ? { storeView } : undefined,
   );
 
   const updateAppointment = useUpdateAppointment();
@@ -233,7 +233,7 @@ function AgendaPageInner({ user }: AgendaPageProps) {
 
         <div className="flex items-center gap-2">
           {/* Store / Mine toggle — managers only */}
-          {role !== "ba" && (
+          {role !== "beauty_advisor" && (
             <ViewSwitch
               value={storeView ? "store" : "mine"}
               onChange={(v) => setStoreView(v === "store")}
@@ -271,7 +271,7 @@ function AgendaPageInner({ user }: AgendaPageProps) {
         anchor={anchor}
         appointments={calendarData}
         isLoading={isLoading}
-        showBa={storeView && role !== "ba"}
+        showBa={storeView && role !== "beauty_advisor"}
         onAppointmentClick={(appt) => {
           setStatusUpdate(appt.status);
           setSheet({ mode: "detail", appointment: appt });

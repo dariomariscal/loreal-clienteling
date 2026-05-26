@@ -32,7 +32,7 @@ export class CustomersController {
   constructor(@Inject(CustomersService) private customersService: CustomersService) {}
 
   @Get()
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   findAll(
     @Query() filters: CustomerFiltersDto,
     @Session() session: UserSession,
@@ -41,7 +41,7 @@ export class CustomersController {
   }
 
   @Get("search")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   search(
     @Query() query: SearchCustomerDto,
     @Session() session: UserSession,
@@ -54,7 +54,7 @@ export class CustomersController {
   }
 
   @Get("check-duplicate")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "email", required: false, type: String })
   @ApiQuery({ name: "phone", required: false, type: String })
   checkDuplicate(
@@ -65,14 +65,14 @@ export class CustomersController {
   }
 
   @Get(":id/metrics")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   getMetrics(@Param("id") id: string, @Session() session: UserSession) {
     return this.customersService.getMetrics(id, session.user);
   }
 
   @Get(":id/activity")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "before", required: false, type: String, description: "ISO timestamp cursor — return events strictly before this instant" })
@@ -89,14 +89,14 @@ export class CustomersController {
   }
 
   @Get(":id")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   findOne(@Param("id") id: string, @Session() session: UserSession) {
     return this.customersService.findOne(id, session.user);
   }
 
   @Post()
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiBody({ type: CreateCustomerDto })
   create(
     @Body() body: CreateCustomerDto,
@@ -106,7 +106,7 @@ export class CustomersController {
   }
 
   @Post("register")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiBody({ type: RegisterCustomerDto })
   register(
     @Body() body: RegisterCustomerDto,
@@ -122,7 +122,7 @@ export class CustomersController {
   }
 
   @Patch(":id")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateCustomerDto })
   update(

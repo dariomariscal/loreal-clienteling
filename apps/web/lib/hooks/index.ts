@@ -1,4 +1,5 @@
 export * from "./use-brands";
+export * from "./use-divisions";
 export * from "./use-zones";
 export * from "./use-geo";
 export * from "./use-stores";

@@ -91,7 +91,7 @@ export class AdvisorService {
       gte(appointments.startTime, startOfDay),
       lte(appointments.startTime, endOfDay),
     ];
-    if (user.role === "ba") {
+    if (user.role === "beauty_advisor") {
       conditions.push(eq(appointments.staffUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(
@@ -148,11 +148,11 @@ export class AdvisorService {
     const conditions: any[] = [
       eq(customers.isActive, true),
       // Restrict to customers the BA owns; managers see their whole store.
-      ...(user.role === "ba"
+      ...(user.role === "beauty_advisor"
         ? [eq(customers.assignedToUserId, user.id)]
         : []),
     ];
-    if (user.role !== "ba") {
+    if (user.role !== "beauty_advisor") {
       const scope = await this.scopeService.scopeByStore(
         user,
         customers.signupStoreId,
@@ -220,9 +220,9 @@ export class AdvisorService {
     const conditions: any[] = [
       eq(customers.isActive, true),
       eq(customers.lifecycleStage, "at_risk"),
-      ...(user.role === "ba" ? [eq(customers.assignedToUserId, user.id)] : []),
+      ...(user.role === "beauty_advisor" ? [eq(customers.assignedToUserId, user.id)] : []),
     ];
-    if (user.role !== "ba") {
+    if (user.role !== "beauty_advisor") {
       const scope = await this.scopeService.scopeByStore(
         user,
         customers.signupStoreId,
@@ -272,11 +272,11 @@ export class AdvisorService {
     const conditions: any[] = [
       eq(customers.isActive, true),
       gte(customers.enrolledAt, sevenDaysAgo),
-      ...(user.role === "ba"
+      ...(user.role === "beauty_advisor"
         ? [eq(customers.assignedToUserId, user.id)]
         : []),
     ];
-    if (user.role !== "ba") {
+    if (user.role !== "beauty_advisor") {
       const scope = await this.scopeService.scopeByStore(
         user,
         customers.signupStoreId,
@@ -357,7 +357,7 @@ export class AdvisorService {
    */
   private async getBaCustomerIds(user: SessionUser): Promise<string[]> {
     const conditions: any[] = [eq(customers.isActive, true)];
-    if (user.role === "ba") {
+    if (user.role === "beauty_advisor") {
       conditions.push(eq(customers.assignedToUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(

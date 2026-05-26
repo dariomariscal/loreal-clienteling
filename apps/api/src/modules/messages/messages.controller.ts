@@ -18,7 +18,7 @@ export class MessagesController {
   constructor(@Inject(MessagesService) private messagesService: MessagesService) {}
 
   @Get("messages")
-  @Roles(["ba", "manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "admin"])
   findAll(@Session() session: UserSession) {
     return this.messagesService.findAll(session.user);
   }
@@ -33,7 +33,7 @@ export class MessagesController {
   }
 
   @Post("messages")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiBody({ type: CreateMessageDto })
   create(@Body() body: CreateMessageDto, @Session() session: UserSession) {
     return this.messagesService.create(body, session.user);
@@ -55,14 +55,14 @@ export class MessagesController {
   }
 
   @Post("messages/templates")
-  @Roles(["admin", "manager"])
+  @Roles(["admin", "counter_manager"])
   @ApiBody({ type: CreateTemplateDto })
   createTemplate(@Body() body: CreateTemplateDto) {
     return this.messagesService.createTemplate(body);
   }
 
   @Patch("messages/templates/:id")
-  @Roles(["admin", "manager"])
+  @Roles(["admin", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateTemplateDto })
   updateTemplate(@Param("id") id: string, @Body() body: UpdateTemplateDto) {

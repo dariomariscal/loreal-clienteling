@@ -25,7 +25,7 @@ export class NotesController {
   ) {}
 
   @Get("customers/:customerId/notes")
-  @Roles(["ba", "manager", "supervisor", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiParam({ name: "customerId", type: String })
   findByCustomer(
     @Param("customerId") customerId: string,
@@ -35,7 +35,7 @@ export class NotesController {
   }
 
   @Post("customers/:customerId/notes")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "customerId", type: String })
   @ApiBody({ type: CreateNoteDto })
   create(
@@ -47,7 +47,7 @@ export class NotesController {
   }
 
   @Patch("notes/:id")
-  @Roles(["ba", "manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: UpdateNoteDto })
   update(
@@ -59,7 +59,7 @@ export class NotesController {
   }
 
   @Delete("notes/:id")
-  @Roles(["ba", "manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "admin"])
   @ApiParam({ name: "id", type: String })
   remove(@Param("id") id: string, @Session() session: UserSession) {
     return this.notesService.remove(id, session.user);

@@ -34,11 +34,11 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ user }: DashboardPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
 
   // BAs get a Tulip-style "Today" feed — actionable, not analytical.
   // Managers, supervisors and admins keep the KPI dashboard below.
-  if (role === "ba") {
+  if (role === "beauty_advisor") {
     return <BaTodayPage user={user} />;
   }
 
@@ -65,8 +65,8 @@ export function DashboardPage({ user }: DashboardPageProps) {
           {greeting}, {user.fullName?.split(" ")[0] ?? ""}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {role === "manager" && "Resumen de tu tienda"}
-          {role === "supervisor" && "Resumen de tu zona y marca"}
+          {role === "counter_manager" && "Resumen de tu tienda"}
+          {role === "area_manager" && "Resumen de tu zona y marca"}
           {role === "admin" && "Resumen nacional"}
         </p>
       </section>

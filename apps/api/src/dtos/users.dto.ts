@@ -13,7 +13,7 @@ import {
   OmitType,
   PartialType,
 } from "@nestjs/swagger";
-import { USER_ROLES } from "@loreal/contracts";
+import { USER_ROLES, BEAUTY_ADVISOR_SPECIALTIES } from "@loreal/contracts";
 
 export class CreateUserDto {
   @ApiProperty({ type: String, example: "user@loreal.com" })
@@ -26,7 +26,7 @@ export class CreateUserDto {
   @MaxLength(200)
   fullName: string;
 
-  @ApiProperty({ type: String, enum: USER_ROLES, example: "ba" })
+  @ApiProperty({ type: String, enum: USER_ROLES, example: "beauty_advisor" })
   @IsIn(USER_ROLES)
   role: string;
 
@@ -44,6 +44,25 @@ export class CreateUserDto {
   @IsOptional()
   @IsUUID()
   brandId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    description:
+      "L'Oréal division id. Required for area_manager and national_retail_manager.",
+  })
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    enum: BEAUTY_ADVISOR_SPECIALTIES,
+    description: "Beauty advisor specialty. Defaults to 'generalist' for BAs.",
+  })
+  @IsOptional()
+  @IsIn(BEAUTY_ADVISOR_SPECIALTIES)
+  specialty?: string;
 }
 
 export class UpdateUserDto extends PartialType(

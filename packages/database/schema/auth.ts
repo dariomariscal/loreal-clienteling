@@ -18,10 +18,18 @@ export const users = pgTable("users", {
 
   // ─── Business fields ────────────────────────────────────────────────────
   // Source of truth: Clerk publicMetadata. Mirrored here for joins/listings.
-  role: text("role").default("ba").notNull(), // ba | manager | supervisor | admin
+  role: text("role").default("beauty_advisor").notNull(),
+  // beauty_advisor | counter_manager | area_manager | national_retail_manager | admin
   storeId: text("store_id"), // logical FK to stores.id (uuid) — enforced at app level
   zoneId: text("zone_id"), // logical FK to zones.id (uuid) — enforced at app level
   brandId: text("brand_id"), // logical FK to brands.id (uuid) — enforced at app level
+  divisionId: text("division_id"), // logical FK to divisions.id (uuid) — used by area/national roles
+  /**
+   * Beauty Advisor specialization. Null for non-BA roles. Does NOT alter
+   * permissions — used for smart routing (skin concerns → skincare expert)
+   * and to display credentials in the UI.
+   */
+  specialty: text("specialty"), // generalist | makeup_artist | skincare_expert | fragrance_specialist
   isActive: boolean("is_active").default(true).notNull(),
 
   // Lifecycle

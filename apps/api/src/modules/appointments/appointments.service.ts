@@ -88,7 +88,7 @@ export class AppointmentsService {
     // BAs only ever see their own list — `staffUserId` from the query is
     // ignored for them so they can't snoop on coworkers. Managers and
     // above use it as an explicit filter on top of their store scope.
-    if (user.role === "ba") {
+    if (user.role === "beauty_advisor") {
       conditions.push(eq(appointments.staffUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
@@ -254,11 +254,11 @@ export class AppointmentsService {
     if (options?.staffUserId) {
       // Viewing a specific staff member's calendar
       conditions.push(eq(appointments.staffUserId, options.staffUserId));
-    } else if (options?.storeView && user.role !== "ba") {
+    } else if (options?.storeView && user.role !== "beauty_advisor") {
       // Store view: manager+ sees all staff in their store scope
       const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
       if (scope) conditions.push(scope);
-    } else if (user.role === "ba") {
+    } else if (user.role === "beauty_advisor") {
       conditions.push(eq(appointments.staffUserId, user.id));
     } else {
       const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
@@ -311,7 +311,7 @@ export class AppointmentsService {
   ) {
     // Authorization: BA can only check their own calendar. Manager/supervisor
     // checking a BA must share store scope. Admin sees everyone.
-    if (requester.role === "ba" && requester.id !== staffUserId) {
+    if (requester.role === "beauty_advisor" && requester.id !== staffUserId) {
       throw new BadRequestException(
         "BAs can only check their own availability",
       );

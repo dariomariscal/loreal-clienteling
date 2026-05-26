@@ -22,7 +22,7 @@ export class BeautyController {
   }
 
   @Put("beauty-profile")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "customerId", type: String })
   @ApiBody({ type: UpsertBeautyProfileDto })
   upsertProfile(
@@ -37,7 +37,7 @@ export class BeautyController {
   }
 
   @Post("shades")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "customerId", type: String })
   @ApiBody({ type: CreateShadeMatchDto })
   addShade(

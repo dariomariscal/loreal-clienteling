@@ -53,10 +53,12 @@ export class AuthGuard implements CanActivate {
       const user: SessionUser = {
         id: payload.sub,
         email: String(claims.email ?? claims.primary_email_address ?? ""),
-        role: (meta.role as SessionUser["role"]) ?? "ba",
+        role: (meta.role as SessionUser["role"]) ?? "beauty_advisor",
         storeId: (meta.storeId as string) ?? null,
         zoneId: (meta.zoneId as string) ?? null,
         brandId: (meta.brandId as string) ?? null,
+        divisionId: (meta.divisionId as string) ?? null,
+        specialty: (meta.specialty as string) ?? null,
         active: meta.active === undefined ? true : Boolean(meta.active),
         fullName: (meta.fullName as string) ?? (claims.name as string) ?? "",
       };

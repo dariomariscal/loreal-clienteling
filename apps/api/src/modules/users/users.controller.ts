@@ -27,7 +27,7 @@ export class UsersController {
   ) {}
 
   @Get()
-  @Roles(["manager", "admin"])
+  @Roles(["counter_manager", "admin"])
   @ApiQuery({ name: "role", type: String, required: false })
   @ApiQuery({ name: "storeId", type: String, required: false })
   @ApiQuery({ name: "zoneId", type: String, required: false })
@@ -98,7 +98,7 @@ export class UsersController {
   }
 
   @Get(":id")
-  @Roles(["manager", "admin"])
+  @Roles(["counter_manager", "admin"])
   findOne(@Param("id") id: string) {
     return this.usersService.findOne(id);
   }

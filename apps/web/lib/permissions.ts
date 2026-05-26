@@ -20,34 +20,39 @@ const PERMISSIONS = {
   // Products
   "product.create": ["admin"],
   "product.edit": ["admin"],
-  "product.availability": ["admin", "manager"],
+  "product.availability": ["admin", "counter_manager"],
 
   // Users
   "user.manage": ["admin"],
-  "user.view": ["manager", "admin"],
+  "user.view": ["counter_manager", "area_manager", "national_retail_manager", "admin"],
 
   // Customers
-  "customer.create": ["ba", "manager"],
-  "customer.edit": ["ba", "manager"],
+  "customer.create": ["beauty_advisor", "counter_manager"],
+  "customer.edit": ["beauty_advisor", "counter_manager"],
   "customer.delete": ["admin"], // ARCO right to be forgotten
 
   // Appointments — agenda is BA-only
-  "appointment.create": ["ba"],
-  "appointment.edit": ["ba"],
+  "appointment.create": ["beauty_advisor"],
+  "appointment.edit": ["beauty_advisor"],
 
   // Customer interactions — only the BA records what they did with the client.
-  // Admin/manager/supervisor can view the history, not create entries.
-  "purchase.create": ["ba"],
-  "recommendation.create": ["ba"],
-  "note.create": ["ba"],
-  "beauty.edit": ["ba"],
+  // Higher roles can view the history, not create entries.
+  "purchase.create": ["beauty_advisor"],
+  "recommendation.create": ["beauty_advisor"],
+  "note.create": ["beauty_advisor"],
+  "beauty.edit": ["beauty_advisor"],
 
   // Communications
-  "communication.create": ["ba"],
-  "template.manage": ["admin", "manager"],
+  "communication.create": ["beauty_advisor"],
+  "template.manage": ["admin", "national_retail_manager"],
 
-  // Analytics
-  "analytics.view": ["manager", "supervisor", "admin"],
+  // Analytics — everyone above BA can see dashboards (scope is enforced server-side).
+  "analytics.view": [
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ],
 
   // Configuration
   "config.manage": ["admin"],

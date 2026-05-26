@@ -25,7 +25,7 @@ export class RecommendationsController {
   }
 
   @Post("recommendations")
-  @Roles(["ba"])
+  @Roles(["beauty_advisor"])
   @ApiBody({ type: CreateRecommendationDto })
   create(
     @Body() body: CreateRecommendationDto,
@@ -35,7 +35,7 @@ export class RecommendationsController {
   }
 
   @Post("recommendations/ai")
-  @Roles(["ba"])
+  @Roles(["beauty_advisor"])
   @ApiBody({ type: AiRecommendationRequestDto })
   requestAi(
     @Body() body: AiRecommendationRequestDto,
@@ -49,7 +49,7 @@ export class RecommendationsController {
   }
 
   @Patch("recommendations/:id/convert")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   markConverted(
     @Param("id") id: string,

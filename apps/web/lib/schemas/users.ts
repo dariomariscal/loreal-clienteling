@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { USER_ROLES } from "@loreal/contracts";
+import { USER_ROLES, BEAUTY_ADVISOR_SPECIALTIES } from "@loreal/contracts";
 
 const baseUserSchema = z.object({
   email: z.string().email(),
@@ -8,19 +8,45 @@ const baseUserSchema = z.object({
   storeId: z.string().uuid().optional(),
   zoneId: z.string().uuid().optional(),
   brandId: z.string().uuid().optional(),
+  divisionId: z.string().uuid().optional(),
+  specialty: z
+    .enum(BEAUTY_ADVISOR_SPECIALTIES as unknown as [string, ...string[]])
+    .optional(),
 });
 
 export const createUserSchema = baseUserSchema.superRefine((data, ctx) => {
-  if (data.role === "supervisor") {
+  if (data.role === "area_manager") {
     if (!data.zoneId) {
-      ctx.addIssue({ code: "custom", path: ["zoneId"], message: "Requerido para supervisor" });
+      ctx.addIssue({
+        code: "custom",
+        path: ["zoneId"],
+        message: "Requerido para Gerente de Zona",
+      });
     }
-    if (!data.brandId) {
-      ctx.addIssue({ code: "custom", path: ["brandId"], message: "Requerido para supervisor" });
+    if (!data.divisionId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["divisionId"],
+        message: "Requerido para Gerente de Zona",
+      });
     }
   }
-  if ((data.role === "ba" || data.role === "manager") && !data.storeId) {
-    ctx.addIssue({ code: "custom", path: ["storeId"], message: "Requerido para este rol" });
+  if (data.role === "national_retail_manager" && !data.divisionId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["divisionId"],
+      message: "Requerido para Director Nacional de Retail",
+    });
+  }
+  if (
+    (data.role === "beauty_advisor" || data.role === "counter_manager") &&
+    !data.storeId
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["storeId"],
+      message: "Requerido para este rol",
+    });
   }
 });
 

@@ -32,7 +32,7 @@ import {
   SuggestedActionsQueryDto,
 } from "../../dtos/ai.dto";
 
-const BA_ROLES = ["ba", "manager", "supervisor", "admin"] as const;
+const BA_ROLES = ["beauty_advisor", "counter_manager", "area_manager", "admin"] as const;
 
 @ApiTags("AI")
 @ApiBearerAuth()

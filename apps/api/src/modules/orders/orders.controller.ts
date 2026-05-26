@@ -22,7 +22,7 @@ export class OrdersController {
   }
 
   @Post("orders")
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiBody({ type: CreateOrderDto })
   create(@Body() body: CreateOrderDto, @Session() session: UserSession) {
     return this.ordersService.create(body, session.user);

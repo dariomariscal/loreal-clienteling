@@ -2,6 +2,7 @@
 export { users, usersRelations } from "./auth";
 
 // Tenancy & geography
+export { divisions } from "./divisions";
 export { brands } from "./brands";
 export { brandConfigs } from "./brand-configs";
 export { municipalities } from "./municipalities";

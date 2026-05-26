@@ -22,7 +22,7 @@ export class ConsentsController {
   }
 
   @Post()
-  @Roles(["ba", "manager"])
+  @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "customerId", type: String })
   @ApiBody({ type: GrantConsentDto })
   grant(
@@ -37,7 +37,7 @@ export class ConsentsController {
   }
 
   @Delete(":type")
-  @Roles(["ba", "manager", "admin"])
+  @Roles(["beauty_advisor", "counter_manager", "admin"])
   @ApiParam({ name: "customerId", type: String })
   @ApiParam({ name: "type", type: String })
   revoke(

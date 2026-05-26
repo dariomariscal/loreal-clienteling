@@ -1,5 +1,6 @@
 export * from "./roles";
 export * from "./brand";
+export * from "./division";
 export * from "./store";
 export * from "./customer";
 export * from "./beauty";

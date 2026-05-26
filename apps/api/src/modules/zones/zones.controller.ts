@@ -13,13 +13,13 @@ export class ZonesController {
   constructor(@Inject(ZonesService) private zonesService: ZonesService) {}
 
   @Get()
-  @Roles(["admin", "supervisor"])
+  @Roles(["admin", "area_manager"])
   findAll(@Session() session: UserSession) {
     return this.zonesService.findAll(session.user);
   }
 
   @Get("by-point")
-  @Roles(["admin", "supervisor", "manager", "ba"])
+  @Roles(["admin", "area_manager", "counter_manager", "beauty_advisor"])
   @ApiQuery({ name: "lat", type: Number })
   @ApiQuery({ name: "lng", type: Number })
   findByPoint(@Query("lat") lat: string, @Query("lng") lng: string) {
@@ -32,7 +32,7 @@ export class ZonesController {
   }
 
   @Get(":id")
-  @Roles(["admin", "supervisor"])
+  @Roles(["admin", "area_manager"])
   @ApiParam({ name: "id", type: String })
   findOne(@Param("id") id: string) {
     return this.zonesService.findOne(id);

@@ -34,7 +34,7 @@ interface TemplatesPageProps {
 }
 
 export function TemplatesPage({ user }: TemplatesPageProps) {
-  const role = user.role ?? "ba";
+  const role = user.role ?? "beauty_advisor";
   const { data: templates = [], isLoading } = useTemplates();
   const { data: brands = [] } = useBrands();
   const createTemplate = useCreateTemplate();

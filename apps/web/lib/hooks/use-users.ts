@@ -15,6 +15,8 @@ export interface User {
   zoneName: string | null;
   brandId: string | null;
   brandName: string | null;
+  divisionId: string | null;
+  specialty: string | null;
   isActive: boolean;
   invitationStatus: string | null;
   invitedAt: string | null;
@@ -27,6 +29,7 @@ interface UserFilters {
   storeId?: string;
   zoneId?: string;
   brandId?: string;
+  divisionId?: string;
   active?: string;
   invitationStatus?: string;
   search?: string;
@@ -94,6 +97,8 @@ interface InvitePayload {
   storeId?: string;
   zoneId?: string;
   brandId?: string;
+  divisionId?: string;
+  specialty?: string;
 }
 
 interface InviteResult {
@@ -140,6 +145,8 @@ export function useUpdateUser() {
       storeId?: string | null;
       zoneId?: string | null;
       brandId?: string | null;
+      divisionId?: string | null;
+      specialty?: string | null;
       active?: boolean;
       fullName?: string;
     }) => api.patch<User>(`/users/${id}`, data),
