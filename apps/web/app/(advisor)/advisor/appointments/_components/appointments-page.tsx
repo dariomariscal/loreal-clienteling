@@ -255,8 +255,16 @@ function AppointmentsPageInner({ user }: AppointmentsPageProps) {
                   setSheet({ mode: "detail", appointment: appt });
                 }}
                 onDayClick={(day) => {
-                  setAnchor(day);
-                  setView("day");
+                  // Open the booking sheet directly with the day preselected.
+                  // We anchor at midnight local time — the sheet uses this as
+                  // a "day-only" signal and lets the BA pick the exact time
+                  // inside the wizard (no auto-time preselection).
+                  const seed = new Date(day);
+                  seed.setHours(0, 0, 0, 0);
+                  setSheet({
+                    mode: "create",
+                    defaultStartsAt: seed.toISOString(),
+                  });
                 }}
               />
             )}

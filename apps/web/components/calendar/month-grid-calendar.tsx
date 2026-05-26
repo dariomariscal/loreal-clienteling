@@ -17,9 +17,17 @@ interface MonthGridCalendarProps {
   /** Any date inside the month to render. */
   month: Date;
   appointments: CalendarAppointment[];
+  /**
+   * Fires on any click in a day cell that isn't on an existing appointment
+   * pill. The advisor uses this to open the booking sheet directly with
+   * the day preselected — no intermediate day view.
+   */
   onDayClick: (day: Date) => void;
   onAppointmentClick: (a: CalendarAppointment) => void;
-  /** Fires when the BA taps the "+N más" chip. Caller usually opens day view. */
+  /**
+   * Fires when the BA taps the "+N más" chip. Defaults to onDayClick when
+   * not provided, so the overflow is at least navigable.
+   */
   onOverflowClick?: (day: Date) => void;
   isLoading?: boolean;
   fallbackAccent?: string;
@@ -65,12 +73,14 @@ export function MonthGridCalendar({
         {cells.map((cell) => {
           const dayKey = toDayKey(cell.date);
           const dayAppointments = byDay.get(dayKey) ?? [];
+          const isToday = sameDay(cell.date, today);
           return (
             <DayCell
               key={cell.date.toISOString()}
               date={cell.date}
               inMonth={cell.inMonth}
-              isToday={sameDay(cell.date, today)}
+              isToday={isToday}
+              isPast={!isToday && cell.date.getTime() < today.getTime()}
               appointments={dayAppointments}
               onDayClick={onDayClick}
               onAppointmentClick={onAppointmentClick}
@@ -91,6 +101,7 @@ function DayCell({
   date,
   inMonth,
   isToday,
+  isPast,
   appointments,
   onDayClick,
   onAppointmentClick,
@@ -101,6 +112,7 @@ function DayCell({
   date: Date;
   inMonth: boolean;
   isToday: boolean;
+  isPast: boolean;
   appointments: CalendarAppointment[];
   onDayClick: (day: Date) => void;
   onAppointmentClick: (a: CalendarAppointment) => void;
@@ -111,36 +123,66 @@ function DayCell({
   const visible = appointments.slice(0, MAX_VISIBLE);
   const overflow = appointments.length - visible.length;
 
+  const dayLabel = date.toLocaleDateString("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
   return (
     <div
       className={cn(
         "group/cell relative flex min-h-[120px] flex-col gap-1 border-b border-r border-border/30 p-2 transition-colors",
         !inMonth && "bg-muted/10",
+        isPast && "bg-muted/10",
       )}
     >
-      {/* Day number — tappable to open the day */}
-      <button
-        type="button"
-        onClick={() => onDayClick(date)}
-        className={cn(
-          "self-start rounded-full text-left text-[12px] font-medium tabular-nums transition-colors",
-          isToday
-            ? "flex size-7 items-center justify-center bg-foreground text-background"
-            : inMonth
-              ? "px-1.5 py-0.5 text-foreground hover:bg-muted/40"
-              : "px-1.5 py-0.5 text-muted-foreground/50 hover:bg-muted/40",
-        )}
-        aria-label={`Ver día ${date.toLocaleDateString("es-MX", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })}`}
-      >
-        {date.getDate()}
-      </button>
+      {/* Full-cell click target. Lives behind the foreground (z-0) so the
+          number, pills and "+N más" stay tappable on top — they have z-10.
+          Disabled on past days so the BA doesn't try to book history. */}
+      {!isPast && (
+        <button
+          type="button"
+          onClick={() => onDayClick(date)}
+          aria-label={`Agendar cita el ${dayLabel}`}
+          className="absolute inset-0 z-0 cursor-pointer rounded-none transition-colors hover:bg-muted/30"
+        />
+      )}
+
+      {/* Day number — kept visually distinct (today gets a filled chip).
+          Past days render as a plain label, not a button, so there's no
+          pointer cursor or hover affordance. */}
+      {isPast ? (
+        <span
+          className={cn(
+            "relative z-10 self-start px-1.5 py-0.5 text-[12px] font-medium tabular-nums text-muted-foreground/50",
+          )}
+        >
+          {date.getDate()}
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDayClick(date);
+          }}
+          className={cn(
+            "relative z-10 self-start rounded-full text-left text-[12px] font-medium tabular-nums transition-colors",
+            isToday
+              ? "flex size-7 items-center justify-center bg-foreground text-background"
+              : inMonth
+                ? "px-1.5 py-0.5 text-foreground hover:bg-muted/40"
+                : "px-1.5 py-0.5 text-muted-foreground/50 hover:bg-muted/40",
+          )}
+          aria-label={`Agendar cita el ${dayLabel}`}
+        >
+          {date.getDate()}
+        </button>
+      )}
 
       {/* Appointment pills */}
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-0.5">
         {isLoading ? (
           <div className="h-4 animate-pulse rounded bg-muted/40" />
         ) : (
@@ -156,9 +198,11 @@ function DayCell({
             {overflow > 0 && (
               <button
                 type="button"
-                onClick={() =>
-                  onOverflowClick ? onOverflowClick(date) : onDayClick(date)
-                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onOverflowClick) onOverflowClick(date);
+                  else onDayClick(date);
+                }}
                 className="self-start px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
               >
                 +{overflow} más

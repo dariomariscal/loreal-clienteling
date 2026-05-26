@@ -94,11 +94,24 @@ export function AppointmentSheet({
     if (!open) return;
     setPickedCustomer(null);
     if (defaultStartsAt) {
-      setDate(toISODate(new Date(defaultStartsAt)));
-      setSlotStartsAt(defaultStartsAt);
-      // Tell the slot-reset effect below to skip its next firing — the date
-      // change we just triggered would otherwise wipe the slot we just set.
-      skipNextSlotResetRef.current = true;
+      const seed = new Date(defaultStartsAt);
+      setDate(toISODate(seed));
+      // Day-only seeds (00:00 local) come from the month grid: the BA just
+      // picked a day, no specific hour, so let them choose the time. Any
+      // other hour means the BA tapped a concrete slot on the day grid and
+      // we honor that preselection.
+      const isDayOnly =
+        seed.getHours() === 0 &&
+        seed.getMinutes() === 0 &&
+        seed.getSeconds() === 0;
+      if (isDayOnly) {
+        setSlotStartsAt(null);
+      } else {
+        setSlotStartsAt(defaultStartsAt);
+        // Tell the slot-reset effect below to skip its next firing — the
+        // date change we just triggered would otherwise wipe the slot.
+        skipNextSlotResetRef.current = true;
+      }
     } else {
       setDate(null);
       setSlotStartsAt(null);
