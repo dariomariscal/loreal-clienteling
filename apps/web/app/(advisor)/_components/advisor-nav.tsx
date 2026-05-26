@@ -12,25 +12,48 @@ import { useTaskCounts } from "@/lib/hooks/use-tasks";
 import { AdvisorBrandLogo } from "@/components/advisor/advisor-brand-logo";
 import { CustomerAvatar } from "@/components/advisor/customer-avatar";
 import { useBrandAdvisorStyle } from "@/components/advisor/use-brand-advisor-style";
+import { useApprovalRequests } from "@/lib/hooks/use-approval-requests";
 import {
   AppointmentGlyph,
+  CalendarDotGlyph,
+  CheckCircleGlyph,
   CheckGlyph,
   MessageGlyph,
   PackageGlyph,
   RoutineMorningGlyph,
   SignOutGlyph,
+  SparkleDotGlyph,
+  StoreGlyph,
   UserGlyph,
 } from "@/components/ui/glyphs";
 import type { SessionUser } from "@/lib/auth";
+import type { UserRole } from "@loreal/contracts";
 
 type GlyphComponent = typeof UserGlyph;
+
+type BadgeKey = "tasks" | "approvals";
 
 type NavItem = {
   href: string;
   label: string;
   icon: GlyphComponent;
-  badgeKey?: "tasks";
+  badgeKey?: BadgeKey;
 };
+
+/**
+ * Roles that operate the "Mostrador" (counter) section. BA never sees it.
+ * Source of truth: rfp-loreal-clienteling/10-roles-operativos.md §2-§5.
+ */
+const COUNTER_ROLES: ReadonlyArray<UserRole> = [
+  "counter_manager",
+  "area_manager",
+  "national_retail_manager",
+  "admin",
+];
+
+function isCounterRole(role: UserRole): boolean {
+  return COUNTER_ROLES.includes(role);
+}
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/advisor/today", label: "Hoy", icon: RoutineMorningGlyph },
@@ -42,6 +65,19 @@ const PRIMARY_NAV: NavItem[] = [
 
 const SECONDARY_NAV: NavItem[] = [
   { href: "/advisor/catalog", label: "Catálogo", icon: PackageGlyph },
+];
+
+const COUNTER_NAV: NavItem[] = [
+  { href: "/advisor/counter", label: "Mostrador hoy", icon: StoreGlyph },
+  { href: "/advisor/counter/team", label: "Mi equipo", icon: UserGlyph },
+  { href: "/advisor/counter/queue", label: "Cola del mostrador", icon: SparkleDotGlyph },
+  {
+    href: "/advisor/counter/approvals",
+    label: "Aprobaciones",
+    icon: CheckCircleGlyph,
+    badgeKey: "approvals",
+  },
+  { href: "/advisor/counter/schedule", label: "Turnos", icon: CalendarDotGlyph },
 ];
 
 interface Props {
@@ -65,8 +101,17 @@ export function AdvisorNav({ user, onNavigate, collapsed = false }: Props) {
   const { data: taskCounts } = useTaskCounts();
   const brandStyle = useBrandAdvisorStyle(user.brandId);
 
-  const badges: Record<string, number | undefined> = {
+  const showCounterSection = isCounterRole(user.role);
+
+  // The pending-approvals query only fires for counter roles so the BA shell
+  // never pays for an unused fetch on every render.
+  const { data: pendingApprovals } = useApprovalRequests(
+    showCounterSection ? { status: "pending" } : {},
+  );
+
+  const badges: Record<BadgeKey, number | undefined> = {
     tasks: taskCounts?.pending,
+    approvals: showCounterSection ? pendingApprovals?.length : undefined,
   };
 
   function handleSignOut() {
@@ -105,6 +150,18 @@ export function AdvisorNav({ user, onNavigate, collapsed = false }: Props) {
         onNavigate={onNavigate}
         collapsed={collapsed}
       />
+      {showCounterSection ? (
+        <>
+          <NavSectionDivider label="Mostrador" collapsed={collapsed} />
+          <NavSection
+            items={COUNTER_NAV}
+            pathname={pathname}
+            badges={badges}
+            onNavigate={onNavigate}
+            collapsed={collapsed}
+          />
+        </>
+      ) : null}
       <div className="mx-3 my-3 border-t border-[color:var(--ba-sidebar-border)]" />
       <NavSection
         items={SECONDARY_NAV}
@@ -212,6 +269,30 @@ export function AdvisorNav({ user, onNavigate, collapsed = false }: Props) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function NavSectionDivider({
+  label,
+  collapsed,
+}: {
+  label: string;
+  collapsed: boolean;
+}) {
+  if (collapsed) {
+    return (
+      <div
+        aria-hidden
+        className="mx-3 my-3 border-t border-[color:var(--ba-sidebar-border)]"
+      />
+    );
+  }
+  return (
+    <div className="mt-4 mb-1 px-6">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ba-sidebar-muted)]">
+        {label}
+      </p>
     </div>
   );
 }
