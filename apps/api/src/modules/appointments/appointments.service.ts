@@ -1,8 +1,20 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from "@nestjs/common";
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, gte, lte, desc, inArray, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { appointments, customers, users, stores, serviceTypes } from "@loreal/database";
+import {
+  appointments,
+  customers,
+  users,
+  stores,
+  serviceTypes,
+  schedulingPolicies,
+} from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { CustomerActivityService } from "../../common/services/customer-activity.service";
@@ -10,9 +22,13 @@ import {
   NotificationEvents,
   type AppointmentStatusChangedEvent,
 } from "../notifications/notification-events";
-import type { CreateAppointmentDto, UpdateAppointmentDto } from "../../dtos/appointments.dto";
-
-const SLOT_GRID_MINUTES = 30;
+import type {
+  CreateAppointmentDto,
+  UpdateAppointmentDto,
+  CancelAppointmentDto,
+  MarkNoShowDto,
+  CheckOutAppointmentDto,
+} from "../../dtos/appointments.dto";
 
 // Statuses that consume a slot. Cancelled / rescheduled / no_show free it up.
 const BLOCKING_STATUSES = ["scheduled", "confirmed", "completed"];
@@ -21,6 +37,9 @@ const BLOCKING_STATUSES = ["scheduled", "confirmed", "completed"];
 // "no availability" for a store that simply forgot to upload its schedule.
 const FALLBACK_OPEN_MINUTES = 10 * 60; // 10:00
 const FALLBACK_CLOSE_MINUTES = 21 * 60; // 21:00
+const FALLBACK_SLOT_GRANULARITY = 30;
+const FALLBACK_MIN_LEAD_MINUTES = 0;
+const FALLBACK_MAX_ADVANCE_DAYS = 90;
 
 const DAY_TOKENS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 type DayToken = (typeof DAY_TOKENS)[number];
@@ -39,6 +58,13 @@ function parseRangeMinutes(
   const close = parseInt(match[3], 10) * 60 + parseInt(match[4], 10);
   if (close <= open) return null;
   return { open, close };
+}
+
+function parseHHMM(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const m = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
 /**
@@ -65,7 +91,6 @@ function resolveDayHours(
     const startIdx = DAY_TOKENS.indexOf(match[1] as DayToken);
     const endIdx = DAY_TOKENS.indexOf(match[2] as DayToken);
     if (startIdx === -1 || endIdx === -1) continue;
-    // Ranges in seed data wrap forward only (mon-sat, mon-sun, mon-fri).
     const inRange =
       startIdx <= endIdx
         ? dayOfWeek >= startIdx && dayOfWeek <= endIdx
@@ -73,6 +98,15 @@ function resolveDayHours(
     if (inRange) return parseRangeMinutes(range);
   }
   return null;
+}
+
+interface EffectivePolicy {
+  slotGranularityMinutes: number;
+  minLeadTimeMinutes: number;
+  maxAdvanceDays: number;
+  workWindowStart: number | null;
+  workWindowEnd: number | null;
+  activeDays: Record<DayToken, boolean> | null;
 }
 
 @Injectable()
@@ -91,13 +125,13 @@ export class AppointmentsService {
   ) {
     const conditions: any[] = [];
 
-    // BAs only ever see their own list — `staffUserId` from the query is
-    // ignored for them so they can't snoop on coworkers. Managers and
-    // above use it as an explicit filter on top of their store scope.
     if (user.role === "beauty_advisor") {
       conditions.push(eq(appointments.staffUserId, user.id));
     } else {
-      const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
+      const scope = await this.scopeService.scopeByStore(
+        user,
+        appointments.storeId,
+      );
       if (scope) conditions.push(scope);
       if (filters?.staffUserId) {
         conditions.push(eq(appointments.staffUserId, filters.staffUserId));
@@ -150,13 +184,25 @@ export class AppointmentsService {
   async create(data: CreateAppointmentDto, user: SessionUser) {
     const storeId = this.scopeService.assertStore(user);
 
-    // Fall back to the first active service type if the client somehow omitted
-    // the field (e.g. the dropdown rendered empty). Without this the INSERT
-    // hits a NOT NULL violation that surfaces as an opaque 500.
+    // Resolve the service type so we can enforce lead time, horizon, and use
+    // its buffers when computing endTime. Without this the booking engine
+    // happily accepts "in 2 minutes" or "3 years ahead".
     let serviceTypeId = data.serviceTypeId;
-    if (!serviceTypeId) {
+    let serviceType:
+      | typeof serviceTypes.$inferSelect
+      | undefined;
+
+    if (serviceTypeId) {
+      const [row] = await this.db
+        .select()
+        .from(serviceTypes)
+        .where(eq(serviceTypes.id, serviceTypeId));
+      serviceType = row;
+    }
+
+    if (!serviceType) {
       const [fallback] = await this.db
-        .select({ id: serviceTypes.id })
+        .select()
         .from(serviceTypes)
         .where(eq(serviceTypes.isActive, true))
         .orderBy(serviceTypes.sortOrder)
@@ -166,11 +212,39 @@ export class AppointmentsService {
           "No hay tipos de cita configurados. Crea al menos uno antes de agendar.",
         );
       }
+      serviceType = fallback;
       serviceTypeId = fallback.id;
     }
 
     const startTime = new Date(data.startTime);
-    const endTime = new Date(startTime.getTime() + data.durationMinutes * 60_000);
+    const policy = await this.resolveEffectivePolicy(storeId, serviceTypeId!);
+
+    const now = new Date();
+    const leadMinutes = Math.max(
+      serviceType.minLeadTimeMinutes ?? 0,
+      policy.minLeadTimeMinutes,
+    );
+    if (startTime.getTime() < now.getTime() + leadMinutes * 60_000) {
+      throw new BadRequestException(
+        `Las citas requieren al menos ${leadMinutes} minutos de anticipación.`,
+      );
+    }
+    const maxAdvance = Math.min(
+      serviceType.maxAdvanceDays ?? FALLBACK_MAX_ADVANCE_DAYS,
+      policy.maxAdvanceDays,
+    );
+    if (
+      startTime.getTime() >
+      now.getTime() + maxAdvance * 24 * 60 * 60 * 1000
+    ) {
+      throw new BadRequestException(
+        `Las citas no pueden agendarse con más de ${maxAdvance} días de anticipación.`,
+      );
+    }
+
+    const endTime = new Date(
+      startTime.getTime() + data.durationMinutes * 60_000,
+    );
 
     const [appt] = await this.db
       .insert(appointments)
@@ -178,13 +252,16 @@ export class AppointmentsService {
         customerId: data.customerId,
         staffUserId: user.id,
         storeId,
-        serviceTypeId,
+        serviceTypeId: serviceTypeId!,
         startTime,
         endTime,
         durationMinutes: data.durationMinutes,
         notes: data.notes,
+        preForm: data.preForm,
         isVirtual: data.isVirtual ?? false,
         meetingUrl: data.meetingUrl,
+        seriesId: data.seriesId,
+        seriesSequence: data.seriesSequence,
       })
       .returning();
 
@@ -197,7 +274,6 @@ export class AppointmentsService {
     const existing = await this.findOne(id);
     const previousStatus = existing.status;
 
-    // If rescheduling: create new appointment linked to old one
     if (data.status === "rescheduled" && data.startTime) {
       await this.db
         .update(appointments)
@@ -237,7 +313,10 @@ export class AppointmentsService {
       return newAppt;
     }
 
-    const updateData: Record<string, unknown> = { ...data, updatedAt: new Date() };
+    const updateData: Record<string, unknown> = {
+      ...data,
+      updatedAt: new Date(),
+    };
     if (data.startTime) {
       const newStart = new Date(data.startTime);
       updateData.startTime = newStart;
@@ -270,11 +349,140 @@ export class AppointmentsService {
   }
 
   /**
+   * Cancellation flow — also stamps cancelled_at / cancelled_by / reason so
+   * the funnel analytics know *why*.
+   */
+  async cancel(id: string, data: CancelAppointmentDto, user: SessionUser) {
+    const existing = await this.findOne(id);
+    if (existing.status === "cancelled") return existing;
+
+    const [updated] = await this.db
+      .update(appointments)
+      .set({
+        status: "cancelled",
+        cancelledAt: new Date(),
+        cancelledByUserId: user.id,
+        cancellationReason: data.reason,
+        notes: data.notes
+          ? `${existing.notes ?? ""}\n[Cancel] ${data.notes}`.trim()
+          : existing.notes,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+
+    this.emitStatusChanged({
+      appointmentId: updated.id,
+      staffUserId: updated.staffUserId,
+      customerId: updated.customerId,
+      previousStatus: existing.status,
+      newStatus: "cancelled",
+      startTime: updated.startTime,
+    });
+
+    return updated;
+  }
+
+  async markNoShow(id: string, data: MarkNoShowDto) {
+    const existing = await this.findOne(id);
+
+    const [updated] = await this.db
+      .update(appointments)
+      .set({
+        status: "no_show",
+        noShowReason: data.reason,
+        notes: data.notes
+          ? `${existing.notes ?? ""}\n[No-show] ${data.notes}`.trim()
+          : existing.notes,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+
+    this.emitStatusChanged({
+      appointmentId: updated.id,
+      staffUserId: updated.staffUserId,
+      customerId: updated.customerId,
+      previousStatus: existing.status,
+      newStatus: "no_show",
+      startTime: updated.startTime,
+    });
+
+    return updated;
+  }
+
+  /**
+   * Customer-side confirmation (reply YES on the reminder SMS, link click).
+   * Distinct from confirmationSentAt which only tracks the outbound message.
+   */
+  async confirmByCustomer(id: string, confirmedAt?: Date) {
+    const [updated] = await this.db
+      .update(appointments)
+      .set({
+        confirmedByCustomerAt: confirmedAt ?? new Date(),
+        status: "confirmed",
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+    if (!updated) throw new NotFoundException("Appointment not found");
+    return updated;
+  }
+
+  async checkIn(id: string) {
+    const existing = await this.findOne(id);
+    const [updated] = await this.db
+      .update(appointments)
+      .set({
+        // Use "confirmed" as the "checked-in" signal until the explicit
+        // checked_in status is added in a follow-up migration. Frontends
+        // disambiguate via the customer_visits row created in parallel.
+        status: existing.status === "scheduled" ? "confirmed" : existing.status,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+    return updated;
+  }
+
+  async checkOut(id: string, data: CheckOutAppointmentDto) {
+    const existing = await this.findOne(id);
+
+    const [updated] = await this.db
+      .update(appointments)
+      .set({
+        status: "completed",
+        outcomeCode: data.outcomeCode,
+        serviceOutcome: data.serviceOutcome ?? existing.serviceOutcome,
+        notes: data.notes
+          ? `${existing.notes ?? ""}\n[Outcome] ${data.notes}`.trim()
+          : existing.notes,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+
+    this.emitStatusChanged({
+      appointmentId: updated.id,
+      staffUserId: updated.staffUserId,
+      customerId: updated.customerId,
+      previousStatus: existing.status,
+      newStatus: "completed",
+      startTime: updated.startTime,
+    });
+
+    return updated;
+  }
+
+  /**
    * Wrapper so listeners get a typed payload and we don't sprinkle event
    * dispatch logic across the method body.
    */
   private emitStatusChanged(payload: AppointmentStatusChangedEvent) {
-    this.eventBus.emit(NotificationEvents.APPOINTMENT_STATUS_CHANGED, payload);
+    this.eventBus.emit(
+      NotificationEvents.APPOINTMENT_STATUS_CHANGED,
+      payload,
+    );
   }
 
   async getCalendar(
@@ -289,16 +497,20 @@ export class AppointmentsService {
     ];
 
     if (options?.staffUserId) {
-      // Viewing a specific staff member's calendar
       conditions.push(eq(appointments.staffUserId, options.staffUserId));
     } else if (options?.storeView && user.role !== "beauty_advisor") {
-      // Store view: manager+ sees all staff in their store scope
-      const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
+      const scope = await this.scopeService.scopeByStore(
+        user,
+        appointments.storeId,
+      );
       if (scope) conditions.push(scope);
     } else if (user.role === "beauty_advisor") {
       conditions.push(eq(appointments.staffUserId, user.id));
     } else {
-      const scope = await this.scopeService.scopeByStore(user, appointments.storeId);
+      const scope = await this.scopeService.scopeByStore(
+        user,
+        appointments.storeId,
+      );
       if (scope) conditions.push(scope);
     }
 
@@ -335,19 +547,67 @@ export class AppointmentsService {
   }
 
   /**
-   * Resolve the staff member's store and hours, plus all of their blocking
-   * appointments inside a date range, in a single roundtrip. Reused by both
-   * availability endpoints — avoids divergent slot logic between the calendar
-   * dots view and the per-day slot picker.
+   * Resolve the highest-priority scheduling policy that applies to a
+   * (store, serviceType) pair. Falls back to (store, *), (*, serviceType),
+   * (*, *) in that order. Returns engine-friendly minutes-from-midnight.
    */
+  private async resolveEffectivePolicy(
+    storeId: string | null,
+    serviceTypeId: string | null,
+  ): Promise<EffectivePolicy> {
+    const rows = await this.db
+      .select()
+      .from(schedulingPolicies)
+      .where(eq(schedulingPolicies.isActive, true));
+
+    // Score each row by specificity (store+service > store > service > global)
+    // then priority. Higher specificity wins.
+    let best:
+      | { row: typeof schedulingPolicies.$inferSelect; score: number }
+      | null = null;
+    for (const row of rows) {
+      const storeMatch = row.storeId === storeId;
+      const serviceMatch = row.serviceTypeId === serviceTypeId;
+      const storeNull = row.storeId === null;
+      const serviceNull = row.serviceTypeId === null;
+      if (!storeMatch && !storeNull) continue;
+      if (!serviceMatch && !serviceNull) continue;
+      const specificity =
+        (storeMatch ? 2 : 0) + (serviceMatch ? 1 : 0) + row.priority * 0.01;
+      if (!best || specificity > best.score) best = { row, score: specificity };
+    }
+
+    if (!best) {
+      return {
+        slotGranularityMinutes: FALLBACK_SLOT_GRANULARITY,
+        minLeadTimeMinutes: FALLBACK_MIN_LEAD_MINUTES,
+        maxAdvanceDays: FALLBACK_MAX_ADVANCE_DAYS,
+        workWindowStart: null,
+        workWindowEnd: null,
+        activeDays: null,
+      };
+    }
+
+    return {
+      slotGranularityMinutes: best.row.slotGranularityMinutes,
+      minLeadTimeMinutes:
+        best.row.minLeadTimeMinutes ?? FALLBACK_MIN_LEAD_MINUTES,
+      maxAdvanceDays: best.row.maxAdvanceDays ?? FALLBACK_MAX_ADVANCE_DAYS,
+      workWindowStart: parseHHMM(best.row.workWindowStart),
+      workWindowEnd: parseHHMM(best.row.workWindowEnd),
+      activeDays: (best.row.activeDays ?? null) as
+        | Record<DayToken, boolean>
+        | null,
+    };
+  }
+
   private async loadAvailabilityContext(
     staffUserId: string,
     requester: SessionUser,
     from: Date,
     to: Date,
+    serviceTypeId?: string,
   ) {
-    // Authorization: BA can only check their own calendar. Manager/supervisor
-    // checking a BA must share store scope. Admin sees everyone.
     if (requester.role === "beauty_advisor" && requester.id !== staffUserId) {
       throw new BadRequestException(
         "BAs can only check their own availability",
@@ -386,8 +646,12 @@ export class AppointmentsService {
       .select({
         startTime: appointments.startTime,
         durationMinutes: appointments.durationMinutes,
+        serviceTypeId: appointments.serviceTypeId,
+        bufferBefore: serviceTypes.bufferBeforeMinutes,
+        bufferAfter: serviceTypes.bufferAfterMinutes,
       })
       .from(appointments)
+      .leftJoin(serviceTypes, eq(appointments.serviceTypeId, serviceTypes.id))
       .where(
         and(
           eq(appointments.staffUserId, staffUserId),
@@ -397,54 +661,102 @@ export class AppointmentsService {
         ),
       );
 
-    return { store, busy };
+    let service: typeof serviceTypes.$inferSelect | undefined;
+    if (serviceTypeId) {
+      const [row] = await this.db
+        .select()
+        .from(serviceTypes)
+        .where(eq(serviceTypes.id, serviceTypeId));
+      service = row;
+    }
+
+    const policy = await this.resolveEffectivePolicy(
+      staff.storeId,
+      serviceTypeId ?? null,
+    );
+
+    return { store, busy, service, policy };
   }
 
   /**
    * Enumerate slot start times for a single calendar day, respecting:
    *   - the store's opening hours for that day-of-week
-   *   - the requested service duration (last slot must END by close)
-   *   - the 30-min grid
-   *   - already-booked appointments (subtract overlaps)
-   *   - "no slots in the past" rule
-   *
-   * `now` is injected so tests can pin time without monkey-patching Date.
+   *   - the policy's working window override
+   *   - the policy's active days override
+   *   - the requested service duration + bufferBefore + bufferAfter
+   *   - the policy slot granularity
+   *   - already-booked appointments (subtract overlaps INCLUDING buffers)
+   *   - min lead time / "no slots in the past" rule
    */
   private buildDaySlots(
     day: Date,
     storeHours: { store?: Record<string, string> } | null | undefined,
-    busy: { startTime: Date; durationMinutes: number }[],
+    busy: Array<{
+      startTime: Date;
+      durationMinutes: number;
+      bufferBefore: number | null;
+      bufferAfter: number | null;
+    }>,
     durationMinutes: number,
+    service: typeof serviceTypes.$inferSelect | undefined,
+    policy: EffectivePolicy,
     now: Date,
   ): { startsAt: Date; endsAt: Date }[] {
     const dayStart = new Date(day);
     dayStart.setHours(0, 0, 0, 0);
 
-    const hours = resolveDayHours(storeHours, dayStart.getDay());
-    const openMin = hours?.open ?? FALLBACK_OPEN_MINUTES;
-    const closeMin = hours?.close ?? FALLBACK_CLOSE_MINUTES;
-
-    // If the store explicitly closed this day (we got `null` *and* there's no
-    // fallback we want to use), skip. For now `null` falls back to wide hours
-    // so the BA can still book — change here if "closed = no slots".
-    if (hours === null && !storeHours?.store) {
-      // unknown schedule → wide fallback
-    } else if (hours === null) {
-      return [];
+    // Policy active days override; if day disabled, skip
+    if (policy.activeDays) {
+      const token = DAY_TOKENS[dayStart.getDay()];
+      if (policy.activeDays[token] === false) return [];
     }
 
+    // Window: intersect store hours with policy window if both present.
+    const storeWindow = resolveDayHours(storeHours, dayStart.getDay());
+    let openMin = storeWindow?.open ?? FALLBACK_OPEN_MINUTES;
+    let closeMin = storeWindow?.close ?? FALLBACK_CLOSE_MINUTES;
+    if (storeWindow === null && !storeHours?.store) {
+      // unknown schedule → wide fallback
+    } else if (storeWindow === null) {
+      return [];
+    }
+    if (policy.workWindowStart !== null) {
+      openMin = Math.max(openMin, policy.workWindowStart);
+    }
+    if (policy.workWindowEnd !== null) {
+      closeMin = Math.min(closeMin, policy.workWindowEnd);
+    }
+    if (closeMin <= openMin) return [];
+
+    const bufBefore = service?.bufferBeforeMinutes ?? 0;
+    const bufAfter = service?.bufferAfterMinutes ?? 0;
+    const blockTotal = bufBefore + durationMinutes + bufAfter;
+    const granularity = policy.slotGranularityMinutes;
+    const leadCutoffMs = now.getTime() + policy.minLeadTimeMinutes * 60_000;
+
     const slots: { startsAt: Date; endsAt: Date }[] = [];
-    for (let m = openMin; m + durationMinutes <= closeMin; m += SLOT_GRID_MINUTES) {
-      const startsAt = new Date(dayStart);
-      startsAt.setMinutes(m);
-      const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
+    for (let m = openMin; m + blockTotal <= closeMin; m += granularity) {
+      // Customer-visible block: startsAt = openMin slot + bufBefore
+      const blockStart = new Date(dayStart);
+      blockStart.setMinutes(m);
+      const startsAt = new Date(blockStart.getTime() + bufBefore * 60_000);
+      const endsAt = new Date(
+        startsAt.getTime() + durationMinutes * 60_000,
+      );
 
-      if (startsAt.getTime() <= now.getTime()) continue;
+      if (startsAt.getTime() < leadCutoffMs) continue;
 
+      // Overlap detection: each busy event blocks
+      //   [bStart - bBufBefore, bEnd + bBufAfter]
+      // and we test against [blockStart, blockStart + blockTotal].
+      const blockEndMs = blockStart.getTime() + blockTotal * 60_000;
       const overlaps = busy.some((b) => {
-        const bStart = new Date(b.startTime).getTime();
-        const bEnd = bStart + b.durationMinutes * 60_000;
-        return startsAt.getTime() < bEnd && endsAt.getTime() > bStart;
+        const bStart =
+          new Date(b.startTime).getTime() - (b.bufferBefore ?? 0) * 60_000;
+        const bEnd =
+          new Date(b.startTime).getTime() +
+          (b.durationMinutes + (b.bufferAfter ?? 0)) * 60_000;
+        return blockStart.getTime() < bEnd && blockEndMs > bStart;
       });
       if (overlaps) continue;
 
@@ -453,20 +765,22 @@ export class AppointmentsService {
     return slots;
   }
 
-  /**
-   * Calendar dots: which days in [from, to] have ≥ 1 open slot for the
-   * requested service duration. Used by the AvailabilityCalendar to render
-   * "•" markers under each day.
-   */
   async getAvailabilityDays(
     requester: SessionUser,
-    params: { staffUserId: string; from: Date; to: Date; durationMinutes: number },
+    params: {
+      staffUserId: string;
+      from: Date;
+      to: Date;
+      durationMinutes: number;
+      serviceTypeId?: string;
+    },
   ) {
-    const { store, busy } = await this.loadAvailabilityContext(
+    const { store, busy, service, policy } = await this.loadAvailabilityContext(
       params.staffUserId,
       requester,
       params.from,
       params.to,
+      params.serviceTypeId,
     );
 
     const now = new Date();
@@ -477,54 +791,67 @@ export class AppointmentsService {
     const end = new Date(params.to);
     end.setHours(0, 0, 0, 0);
 
+    // Cap to horizon
+    const horizonMs = now.getTime() + policy.maxAdvanceDays * 86_400_000;
+
     while (cursor.getTime() <= end.getTime()) {
-      const slots = this.buildDaySlots(
-        cursor,
-        store?.hours ?? null,
-        busy,
-        params.durationMinutes,
-        now,
-      );
+      const dayMs = cursor.getTime();
+      let hasAvailability = false;
+      if (dayMs <= horizonMs) {
+        const slots = this.buildDaySlots(
+          cursor,
+          store?.hours ?? null,
+          busy,
+          params.durationMinutes,
+          service,
+          policy,
+          now,
+        );
+        hasAvailability = slots.length > 0;
+      }
       const yyyy = cursor.getFullYear();
       const mm = String(cursor.getMonth() + 1).padStart(2, "0");
       const dd = String(cursor.getDate()).padStart(2, "0");
-      days.push({
-        date: `${yyyy}-${mm}-${dd}`,
-        hasAvailability: slots.length > 0,
-      });
+      days.push({ date: `${yyyy}-${mm}-${dd}`, hasAvailability });
       cursor.setDate(cursor.getDate() + 1);
     }
 
     return days;
   }
 
-  /**
-   * Per-day slot list. Returns every viable start time as ISO instants — the
-   * UI just renders them; the spec calls for booked slots to be omitted, not
-   * greyed out, so this endpoint never emits `available: false`.
-   */
   async getAvailabilitySlots(
     requester: SessionUser,
-    params: { staffUserId: string; date: Date; durationMinutes: number },
+    params: {
+      staffUserId: string;
+      date: Date;
+      durationMinutes: number;
+      serviceTypeId?: string;
+    },
   ) {
     const dayStart = new Date(params.date);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(dayStart);
     dayEnd.setDate(dayEnd.getDate() + 1);
 
-    const { store, busy } = await this.loadAvailabilityContext(
+    const { store, busy, service, policy } = await this.loadAvailabilityContext(
       params.staffUserId,
       requester,
       dayStart,
       dayEnd,
+      params.serviceTypeId,
     );
 
     const now = new Date();
+    const horizonMs = now.getTime() + policy.maxAdvanceDays * 86_400_000;
+    if (dayStart.getTime() > horizonMs) return [];
+
     const slots = this.buildDaySlots(
       dayStart,
       store?.hours ?? null,
       busy,
       params.durationMinutes,
+      service,
+      policy,
       now,
     );
 

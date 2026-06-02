@@ -25,7 +25,8 @@
     "seed:municipalities": "tsx seed/municipalities.ts",
     "seed:stores": "tsx seed/stores/index.ts",
     "seed:privacy-notices": "tsx seed/privacy-notices.ts",
-    "seed:counter-manager": "tsx seed/counter-manager.ts"
+    "seed:counter-manager": "tsx seed/counter-manager.ts",
+    "seed:appointments-domain": "tsx seed/appointments-domain.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

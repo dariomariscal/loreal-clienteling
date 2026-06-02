@@ -1,18 +1,33 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Inject } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from "@nestjs/swagger";
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Query,
+  Inject,
+} from "@nestjs/common";
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiBody,
+  ApiParam,
+  ApiQuery,
+} from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
 import { AppointmentsService } from "./appointments.service";
-import { CreateAppointmentDto, UpdateAppointmentDto } from "../../dtos/appointments.dto";
+import {
+  CreateAppointmentDto,
+  UpdateAppointmentDto,
+  CancelAppointmentDto,
+  MarkNoShowDto,
+  ConfirmAppointmentByCustomerDto,
+  CheckOutAppointmentDto,
+} from "../../dtos/appointments.dto";
 import type { UserSession } from "../../common/types/session";
 
-/**
- * Parse a `YYYY-MM-DD` string as midnight in the server's local timezone.
- * `new Date(ymd)` parses the same string as UTC, which shifts the day in
- * any non-UTC zone (e.g. America/Mexico_City reads "2026-05-25" back as
- * 2026-05-24 18:00 local). For ISO instants ("…T…Z") fall back to the
- * standard parser so callers can still pass datetimes when they have them.
- */
 function parseLocalYmd(s: string): Date {
   const ymdMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (ymdMatch) {
@@ -26,7 +41,10 @@ function parseLocalYmd(s: string): Date {
 @ApiBearerAuth()
 @Controller("appointments")
 export class AppointmentsController {
-  constructor(@Inject(AppointmentsService) private appointmentsService: AppointmentsService) {}
+  constructor(
+    @Inject(AppointmentsService)
+    private appointmentsService: AppointmentsService,
+  ) {}
 
   @Get()
   @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
@@ -70,14 +88,26 @@ export class AppointmentsController {
   @Get("availability")
   @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "staffUserId", type: String, required: true })
-  @ApiQuery({ name: "from", type: String, required: true, description: "ISO date or datetime" })
-  @ApiQuery({ name: "to", type: String, required: true, description: "ISO date or datetime" })
+  @ApiQuery({
+    name: "from",
+    type: String,
+    required: true,
+    description: "ISO date or datetime",
+  })
+  @ApiQuery({
+    name: "to",
+    type: String,
+    required: true,
+    description: "ISO date or datetime",
+  })
   @ApiQuery({ name: "durationMinutes", type: Number, required: true })
+  @ApiQuery({ name: "serviceTypeId", type: String, required: false })
   getAvailabilityDays(
     @Query("staffUserId") staffUserId: string,
     @Query("from") from: string,
     @Query("to") to: string,
     @Query("durationMinutes") durationMinutes: string,
+    @Query("serviceTypeId") serviceTypeId: string | undefined,
     @Session() session: UserSession,
   ) {
     return this.appointmentsService.getAvailabilityDays(session.user, {
@@ -85,28 +115,33 @@ export class AppointmentsController {
       from: parseLocalYmd(from),
       to: parseLocalYmd(to),
       durationMinutes: parseInt(durationMinutes, 10),
+      serviceTypeId,
     });
   }
 
   @Get("availability/slots")
   @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "staffUserId", type: String, required: true })
-  @ApiQuery({ name: "date", type: String, required: true, description: "ISO date (YYYY-MM-DD)" })
+  @ApiQuery({
+    name: "date",
+    type: String,
+    required: true,
+    description: "ISO date (YYYY-MM-DD)",
+  })
   @ApiQuery({ name: "durationMinutes", type: Number, required: true })
+  @ApiQuery({ name: "serviceTypeId", type: String, required: false })
   getAvailabilitySlots(
     @Query("staffUserId") staffUserId: string,
     @Query("date") date: string,
     @Query("durationMinutes") durationMinutes: string,
+    @Query("serviceTypeId") serviceTypeId: string | undefined,
     @Session() session: UserSession,
   ) {
     return this.appointmentsService.getAvailabilitySlots(session.user, {
       staffUserId,
-      // Parse YYYY-MM-DD as a *local* date, not UTC. `new Date("2026-05-25")`
-      // would be parsed as 2026-05-25T00:00 UTC, which is 2026-05-24 18:00 in
-      // America/Mexico_City — the slot builder then generates slots for the
-      // previous day and filters them all as "already passed".
       date: parseLocalYmd(date),
       durationMinutes: parseInt(durationMinutes, 10),
+      serviceTypeId,
     });
   }
 
@@ -136,5 +171,51 @@ export class AppointmentsController {
     @Session() session: UserSession,
   ) {
     return this.appointmentsService.update(id, body, session.user);
+  }
+
+  @Post(":id/cancel")
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @ApiParam({ name: "id", type: String })
+  @ApiBody({ type: CancelAppointmentDto })
+  cancel(
+    @Param("id") id: string,
+    @Body() body: CancelAppointmentDto,
+    @Session() session: UserSession,
+  ) {
+    return this.appointmentsService.cancel(id, body, session.user);
+  }
+
+  @Post(":id/no-show")
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @ApiParam({ name: "id", type: String })
+  @ApiBody({ type: MarkNoShowDto })
+  noShow(@Param("id") id: string, @Body() body: MarkNoShowDto) {
+    return this.appointmentsService.markNoShow(id, body);
+  }
+
+  @Post(":id/confirm")
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @ApiParam({ name: "id", type: String })
+  @ApiBody({ type: ConfirmAppointmentByCustomerDto })
+  confirm(
+    @Param("id") id: string,
+    @Body() body: ConfirmAppointmentByCustomerDto,
+  ) {
+    return this.appointmentsService.confirmByCustomer(id, body.confirmedAt);
+  }
+
+  @Post(":id/check-in")
+  @Roles(["beauty_advisor", "counter_manager"])
+  @ApiParam({ name: "id", type: String })
+  checkIn(@Param("id") id: string) {
+    return this.appointmentsService.checkIn(id);
+  }
+
+  @Post(":id/check-out")
+  @Roles(["beauty_advisor", "counter_manager"])
+  @ApiParam({ name: "id", type: String })
+  @ApiBody({ type: CheckOutAppointmentDto })
+  checkOut(@Param("id") id: string, @Body() body: CheckOutAppointmentDto) {
+    return this.appointmentsService.checkOut(id, body);
   }
 }

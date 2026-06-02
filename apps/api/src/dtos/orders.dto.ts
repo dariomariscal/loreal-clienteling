@@ -61,4 +61,14 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   externalOrderId?: string;
+
+  /**
+   * Direct link to the appointment that generated this order. When set, the
+   * order is attributed to the appointment's BA with attributionSource =
+   * "appointment" — this is what powers the revenue-per-appointment KPI.
+   */
+  @ApiPropertyOptional({ type: String, format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  appointmentId?: string;
 }

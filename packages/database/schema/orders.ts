@@ -12,6 +12,7 @@ import { customers } from "./customers";
 import { stores } from "./stores";
 import { users } from "./auth";
 import { products } from "./products";
+import { appointments } from "./appointments";
 
 /**
  * Orders — purchases by a customer. Field names follow the Shopify /
@@ -65,6 +66,12 @@ export const orders = pgTable(
     attributedUserId: text("attributed_user_id").references(() => users.id),
     attributionSource: varchar("attribution_source", { length: 30 }),
     // last_consultation | active_recommendation | direct_assistance | tracking_link | appointment
+    /**
+     * Direct FK when the order was generated from a specific appointment.
+     * Enables revenue-per-appointment and conversion-rate KPIs without
+     * joining through customer_visits.
+     */
+    appointmentId: uuid("appointment_id").references(() => appointments.id),
 
     processedAt: timestamp("processed_at", { withTimezone: true })
       .notNull()
@@ -82,6 +89,7 @@ export const orders = pgTable(
     index("orders_store_idx").on(table.storeId),
     index("orders_attributed_idx").on(table.attributedUserId),
     index("orders_processed_idx").on(table.processedAt),
+    index("orders_appointment_idx").on(table.appointmentId),
   ],
 );
 

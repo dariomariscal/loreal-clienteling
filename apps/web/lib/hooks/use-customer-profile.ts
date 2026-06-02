@@ -148,22 +148,30 @@ export function useAvailabilityDays(params: {
   from: string;
   to: string;
   durationMinutes: number;
+  /** Pass the service id so buffers / lead time / policy apply. */
+  serviceTypeId?: string;
   enabled?: boolean;
 }) {
+  const query: Record<string, string> = {
+    staffUserId: params.staffUserId,
+    from: params.from,
+    to: params.to,
+    durationMinutes: String(params.durationMinutes),
+  };
+  if (params.serviceTypeId) query.serviceTypeId = params.serviceTypeId;
+
   return useQuery({
-    queryKey: profileKeys.availability(
-      params.staffUserId,
-      params.from,
-      params.to,
-      params.durationMinutes,
-    ),
+    queryKey: [
+      ...profileKeys.availability(
+        params.staffUserId,
+        params.from,
+        params.to,
+        params.durationMinutes,
+      ),
+      params.serviceTypeId ?? null,
+    ] as const,
     queryFn: () =>
-      api.get<AvailabilityDay[]>("/appointments/availability", {
-        staffUserId: params.staffUserId,
-        from: params.from,
-        to: params.to,
-        durationMinutes: String(params.durationMinutes),
-      }),
+      api.get<AvailabilityDay[]>("/appointments/availability", query),
     enabled:
       params.enabled !== false &&
       !!params.staffUserId &&
@@ -177,20 +185,30 @@ export function useAvailabilitySlots(params: {
   staffUserId: string;
   date: string;
   durationMinutes: number;
+  serviceTypeId?: string;
   enabled?: boolean;
 }) {
+  const query: Record<string, string> = {
+    staffUserId: params.staffUserId,
+    date: params.date,
+    durationMinutes: String(params.durationMinutes),
+  };
+  if (params.serviceTypeId) query.serviceTypeId = params.serviceTypeId;
+
   return useQuery({
-    queryKey: profileKeys.availabilitySlots(
-      params.staffUserId,
-      params.date,
-      params.durationMinutes,
-    ),
+    queryKey: [
+      ...profileKeys.availabilitySlots(
+        params.staffUserId,
+        params.date,
+        params.durationMinutes,
+      ),
+      params.serviceTypeId ?? null,
+    ] as const,
     queryFn: () =>
-      api.get<AvailabilitySlot[]>("/appointments/availability/slots", {
-        staffUserId: params.staffUserId,
-        date: params.date,
-        durationMinutes: String(params.durationMinutes),
-      }),
+      api.get<AvailabilitySlot[]>(
+        "/appointments/availability/slots",
+        query,
+      ),
     enabled:
       params.enabled !== false &&
       !!params.staffUserId &&

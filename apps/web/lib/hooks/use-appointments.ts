@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { CreateAppointment, UpdateAppointment } from "@loreal/contracts";
+import type {
+  CreateAppointment,
+  UpdateAppointment,
+  CancelAppointment,
+  MarkAppointmentNoShow,
+  ConfirmAppointmentByCustomer,
+  CheckOutAppointment,
+} from "@loreal/contracts";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -30,11 +37,19 @@ export interface Appointment {
   notes: string | null;
   preForm: AppointmentPreForm | null;
   serviceOutcome: AppointmentServiceOutcome | null;
+  outcomeCode: string | null;
   reminderSentAt: string | null;
   confirmationSentAt: string | null;
+  confirmedByCustomerAt: string | null;
+  cancelledAt: string | null;
+  cancelledByUserId: string | null;
+  cancellationReason: string | null;
+  noShowReason: string | null;
   isVirtual: boolean;
   meetingUrl: string | null;
   rescheduledFromAppointmentId: string | null;
+  seriesId: string | null;
+  seriesSequence: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,7 +59,12 @@ export interface Appointment {
 const appointmentKeys = {
   all: (from?: string, to?: string, staffUserId?: string) =>
     ["appointments", from, to, staffUserId] as const,
-  calendar: (from: string, to: string, staffUserId?: string, storeView?: boolean) =>
+  calendar: (
+    from: string,
+    to: string,
+    staffUserId?: string,
+    storeView?: boolean,
+  ) =>
     ["appointments", "calendar", from, to, staffUserId, storeView] as const,
   detail: (id: string) => ["appointments", id] as const,
 };
@@ -97,8 +117,14 @@ export function useAppointmentCalendar(
   if (options?.storeView) params.storeView = "true";
 
   return useQuery({
-    queryKey: appointmentKeys.calendar(from, to, options?.staffUserId, options?.storeView),
-    queryFn: () => api.get<CalendarAppointment[]>("/appointments/calendar", params),
+    queryKey: appointmentKeys.calendar(
+      from,
+      to,
+      options?.staffUserId,
+      options?.storeView,
+    ),
+    queryFn: () =>
+      api.get<CalendarAppointment[]>("/appointments/calendar", params),
     enabled: !!from && !!to,
   });
 }
@@ -110,6 +136,10 @@ export function useAppointment(id: string) {
     enabled: !!id,
   });
 }
+
+// Availability hooks (`useAvailabilityDays` / `useAvailabilitySlots`) live in
+// `use-customer-profile.ts` to avoid duplicate exports — they accept an
+// optional `serviceTypeId` so the booking engine applies the right policy.
 
 // ── Mutations ──────────────────────────────────────────────────────
 
@@ -128,5 +158,68 @@ export function useUpdateAppointment() {
     mutationFn: ({ id, ...data }: { id: string } & UpdateAppointment) =>
       api.patch<Appointment>(`/appointments/${id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
+  });
+}
+
+export function useCancelAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & CancelAppointment) =>
+      api.post<Appointment>(`/appointments/${id}/cancel`, data),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: appointmentKeys.detail(updated.id) });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+    },
+  });
+}
+
+export function useMarkAppointmentNoShow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & MarkAppointmentNoShow) =>
+      api.post<Appointment>(`/appointments/${id}/no-show`, data),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: appointmentKeys.detail(updated.id) });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+    },
+  });
+}
+
+export function useConfirmAppointmentByCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...data
+    }: { id: string } & ConfirmAppointmentByCustomer) =>
+      api.post<Appointment>(`/appointments/${id}/confirm`, data),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: appointmentKeys.detail(updated.id) });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+    },
+  });
+}
+
+export function useCheckInAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      api.post<Appointment>(`/appointments/${id}/check-in`, {}),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: appointmentKeys.detail(updated.id) });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+    },
+  });
+}
+
+export function useCheckOutAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & CheckOutAppointment) =>
+      api.post<Appointment>(`/appointments/${id}/check-out`, data),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: appointmentKeys.detail(updated.id) });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+    },
   });
 }

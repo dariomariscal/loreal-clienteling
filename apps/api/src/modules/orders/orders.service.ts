@@ -13,6 +13,7 @@ import {
   customers,
   samples,
   products,
+  appointments,
 } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
@@ -154,7 +155,7 @@ export class OrdersService {
 
     const orderedProductIds = data.items.map((item) => item.productId);
     const now = new Date();
-    const attribution = attributePurchaseToBa({
+    let attribution = attributePurchaseToBa({
       customerId: data.customerId,
       orderedProductIds,
       processedAt: now,
@@ -162,6 +163,35 @@ export class OrdersService {
       lastInteractionAt: customer.lastInteractionAt,
       activeRecommendations,
     });
+
+    // If the order is explicitly tied to an appointment, that wins — the
+    // appointment's BA gets credit and the source flips to "appointment".
+    // Otherwise we honor whatever the generic attributor decided.
+    let resolvedAppointmentId: string | undefined;
+    if (data.appointmentId) {
+      const [appt] = await this.db
+        .select({
+          id: appointments.id,
+          staffUserId: appointments.staffUserId,
+          customerId: appointments.customerId,
+        })
+        .from(appointments)
+        .where(eq(appointments.id, data.appointmentId));
+      if (!appt) {
+        throw new NotFoundException("Appointment not found");
+      }
+      if (appt.customerId !== data.customerId) {
+        throw new BadRequestException(
+          "Appointment does not belong to this customer",
+        );
+      }
+      resolvedAppointmentId = appt.id;
+      attribution = {
+        ...attribution,
+        attributedUserId: appt.staffUserId,
+        attributionSource: "appointment",
+      };
+    }
 
     const totalPriceStr = data.totalPrice.toFixed(2);
 
@@ -186,6 +216,7 @@ export class OrdersService {
               sourceName: data.sourceName,
               attributedUserId: attribution.attributedUserId,
               attributionSource: attribution.attributionSource ?? undefined,
+              appointmentId: resolvedAppointmentId,
               processedAt: now,
             })
             .returning();
