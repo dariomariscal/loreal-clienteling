@@ -39,7 +39,8 @@ export function TodayPage() {
 
   return (
     <SingleColumn>
-      <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-10 py-10 lg:px-12">
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-3xl px-10 py-10 lg:px-12">
         <header className="mb-8">
           <p className="font-[var(--font-heading)] text-3xl tracking-tight text-foreground">
             {greeting}
@@ -197,6 +198,7 @@ export function TodayPage() {
               </ul>
             </SectionCard>
           ) : null}
+        </div>
         </div>
       </div>
     </SingleColumn>
