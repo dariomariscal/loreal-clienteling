@@ -57,6 +57,9 @@ import { CustomerEmbeddingListener } from "./listeners/customer-embedding.listen
     ProductEmbeddingService,
     ProductSemanticSearchService,
     CustomerEmbeddingService,
+    // Listener self-registers via @OnEvent; only needs to be in providers,
+    // never in exports.
+    CustomerEmbeddingListener,
   ],
   exports: [
     CustomerSummaryService,
@@ -67,7 +70,6 @@ import { CustomerEmbeddingListener } from "./listeners/customer-embedding.listen
     ProductEmbeddingService,
     ProductSemanticSearchService,
     CustomerEmbeddingService,
-    CustomerEmbeddingListener,
     // Re-exported so the Recommendations module can compose the engine
     // without re-declaring the AI gateway dependencies.
     LLM_PROVIDER,
