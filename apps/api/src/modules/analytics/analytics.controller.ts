@@ -72,7 +72,10 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getAppointmentMetrics(session.user, this.parseDateRange(from, to));
+    return this.analyticsService.appointments.getStatusBreakdown(
+      session.user,
+      this.parseDateRange(from, to),
+    );
   }
 
   /**
@@ -88,7 +91,7 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getAppointmentOverview(
+    return this.analyticsService.appointments.getOverview(
       session.user,
       this.parseDateRange(from, to),
     );
@@ -102,7 +105,10 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getBaPerformance(session.user, this.parseDateRange(from, to));
+    return this.analyticsService.performance.getBaSummary(
+      session.user,
+      this.parseDateRange(from, to),
+    );
   }
 
   @Get("sales-breakdown")
@@ -118,7 +124,11 @@ export class AnalyticsController {
     if (groupBy !== "category" && groupBy !== "brand") {
       throw new BadRequestException("groupBy must be 'category' or 'brand'");
     }
-    return this.analyticsService.getSalesBreakdown(session.user, groupBy, this.parseDateRange(from, to));
+    return this.analyticsService.sales.getBreakdown(
+      session.user,
+      groupBy,
+      this.parseDateRange(from, to),
+    );
   }
 
   @Get("sales-trend")
@@ -132,7 +142,11 @@ export class AnalyticsController {
     @Session() session: UserSession,
   ) {
     const validInterval = interval === "day" || interval === "week" ? interval : "month";
-    return this.analyticsService.getSalesTrend(session.user, validInterval, this.parseDateRange(from, to));
+    return this.analyticsService.sales.getTrend(
+      session.user,
+      validInterval,
+      this.parseDateRange(from, to),
+    );
   }
 
   @Get("conversion")
@@ -145,7 +159,7 @@ export class AnalyticsController {
     @Query("trending") trending: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getConversion(
+    return this.analyticsService.recommendations.getConversionSummary(
       session.user,
       this.parseDateRange(from, to),
       trending === "true",
@@ -154,7 +168,7 @@ export class AnalyticsController {
 
   @Get("customers")
   getCustomerSegments(@Session() session: UserSession) {
-    return this.analyticsService.getCustomerSegments(session.user);
+    return this.analyticsService.customers.getSegmentBreakdown(session.user);
   }
 
   @Get("recommendations/conversion-by-source")
@@ -165,7 +179,7 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getRecommendationConversionBySource(
+    return this.analyticsService.recommendations.getConversionBySource(
       session.user,
       this.parseDateRange(from, to),
     );
@@ -177,7 +191,7 @@ export class AnalyticsController {
     @Param("customerId") customerId: string,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getCustomerAiConversion(
+    return this.analyticsService.recommendations.getCustomerAiConversion(
       customerId,
       session.user,
     );
@@ -200,7 +214,7 @@ export class AnalyticsController {
     @Query("limit") limit: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getAgendaReport(
+    return this.analyticsService.appointments.getAgendaReport(
       session.user,
       this.parseDateRange(from, to),
       {
@@ -221,13 +235,16 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getAppointmentsByBa(session.user, this.parseDateRange(from, to));
+    return this.analyticsService.appointments.getByBa(
+      session.user,
+      this.parseDateRange(from, to),
+    );
   }
 
   @Get("retention")
   @Roles(["counter_manager", "area_manager", "admin"])
   getRetention(@Session() session: UserSession) {
-    return this.analyticsService.getRetention(session.user);
+    return this.analyticsService.customers.getRetention(session.user);
   }
 
   @Get("zone-overview")
@@ -239,7 +256,7 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getZoneOverview(
+    return this.analyticsService.zoneManagement.getOverview(
       session.user,
       this.parseDateRange(from, to),
     );
@@ -254,7 +271,7 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getStoresRanking(
+    return this.analyticsService.zoneManagement.getStoresRanking(
       session.user,
       this.parseDateRange(from, to),
     );
@@ -269,7 +286,7 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getCounterManagersRanking(
+    return this.analyticsService.zoneManagement.getCounterManagersRanking(
       session.user,
       this.parseDateRange(from, to),
     );
@@ -284,7 +301,7 @@ export class AnalyticsController {
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getZonesRanking(
+    return this.analyticsService.zoneManagement.getZonesRanking(
       session.user,
       this.parseDateRange(from, to),
     );
@@ -300,7 +317,7 @@ export class AnalyticsController {
     @Param("storeId") storeId: string,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.getStoreBrandsComparison(
+    return this.analyticsService.zoneManagement.getStoreBrandsComparison(
       session.user,
       storeId,
       this.parseDateRange(from, to),
@@ -323,7 +340,7 @@ export class AnalyticsController {
     let data: Record<string, any>[];
 
     if (type === "agenda-report") {
-      const report = await this.analyticsService.getAgendaReport(
+      const report = await this.analyticsService.appointments.getAgendaReport(
         session.user,
         this.parseDateRange(from, to),
         { limit: 10000 },

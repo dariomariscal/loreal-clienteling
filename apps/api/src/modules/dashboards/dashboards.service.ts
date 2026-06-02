@@ -88,7 +88,7 @@ export class DashboardsService {
       this.getStockAlertCount(storeId),
       this.shiftsService.getTodayRoster(user, { storeId }),
       this.baRatingsService.getNpsByBa(user, { storeId }),
-      this.analyticsService.getBaPerformance(user, {
+      this.analyticsService.performance.getBaSummary(user, {
         from: dayStart,
         to: dayEnd,
       }),
@@ -326,11 +326,11 @@ export class DashboardsService {
 
     const [overview, ranking, operationalCounters, upcomingEvents] =
       await Promise.all([
-        this.analyticsService.getZoneOverview(user, {
+        this.analyticsService.zoneManagement.getOverview(user, {
           from: dayStart,
           to: dayEnd,
         }),
-        this.analyticsService.getStoresRanking(user, {
+        this.analyticsService.zoneManagement.getStoresRanking(user, {
           from: dayStart,
           to: dayEnd,
         }),
