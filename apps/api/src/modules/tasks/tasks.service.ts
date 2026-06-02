@@ -1,7 +1,12 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { and, eq, desc, gte, lte, isNull, not, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { suggestedActions, customers } from "@loreal/database";
+import {
+  suggestedActions,
+  customers,
+  products,
+  brands,
+} from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
@@ -49,7 +54,7 @@ export class TasksService {
       conditions.push(eq(suggestedActions.triggerType, query.triggerType));
     }
 
-    return this.db
+    const rows = await this.db
       .select({
         id: suggestedActions.id,
         customerId: suggestedActions.customerId,
@@ -69,12 +74,46 @@ export class TasksService {
         customerFirstName: customers.firstName,
         customerLastName: customers.lastName,
         customerTier: customers.loyaltyTier,
+        productTitle: products.title,
+        productImages: products.images,
+        productBrandName: brands.displayName,
       })
       .from(suggestedActions)
       .innerJoin(customers, eq(customers.id, suggestedActions.customerId))
+      .leftJoin(products, eq(products.id, suggestedActions.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(and(...conditions))
       .orderBy(desc(suggestedActions.priority), suggestedActions.dueDate)
       .limit(query.limit ?? 50);
+
+    return rows.map((r) => ({
+      id: r.id,
+      customerId: r.customerId,
+      assignedToUserId: r.assignedToUserId,
+      dueDate: r.dueDate,
+      triggerType: r.triggerType,
+      description: r.description,
+      recommendedAction: r.recommendedAction,
+      suggestedMessageDraft: r.suggestedMessageDraft,
+      productId: r.productId,
+      serviceTypeId: r.serviceTypeId,
+      priority: r.priority,
+      expiresAt: r.expiresAt,
+      dismissedAt: r.dismissedAt,
+      completedAt: r.completedAt,
+      createdAt: r.createdAt,
+      customerFirstName: r.customerFirstName,
+      customerLastName: r.customerLastName,
+      customerTier: r.customerTier,
+      product: r.productId
+        ? {
+            id: r.productId,
+            title: r.productTitle ?? "",
+            brandName: r.productBrandName,
+            images: r.productImages ?? [],
+          }
+        : null,
+    }));
   }
 
   async counts(user: SessionUser) {

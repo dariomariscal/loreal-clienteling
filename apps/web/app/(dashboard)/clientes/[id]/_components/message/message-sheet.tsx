@@ -45,6 +45,14 @@ interface MessageSheetProps {
   onOpenChange: (open: boolean) => void;
   customerId: string;
   customerName: string;
+  /**
+   * Optional pre-filled body. When set, the textarea opens with this text and
+   * an AI-provenance chip is shown next to the channel selector so the BA
+   * knows it's a draft to review before sending.
+   */
+  initialBody?: string;
+  /** Set to true when `initialBody` came from the recommendation engine. */
+  initialFromAi?: boolean;
 }
 
 export function MessageSheet({
@@ -52,6 +60,8 @@ export function MessageSheet({
   onOpenChange,
   customerId,
   customerName,
+  initialBody,
+  initialFromAi,
 }: MessageSheetProps) {
   const [channel, setChannel] = React.useState<ChannelValue>("whatsapp");
   const [body, setBody] = React.useState("");
@@ -68,7 +78,7 @@ export function MessageSheet({
 
   React.useEffect(() => {
     if (open) {
-      setBody("");
+      setBody(initialBody ?? "");
       setSubject("");
       setCampaignType("custom");
       setAttachments([]);
@@ -251,7 +261,12 @@ export function MessageSheet({
               <PaperclipIcon className="size-4" />
             </button>
 
-            <div className="flex-1">
+            <div className="flex flex-1 flex-col gap-1.5">
+              {initialFromAi && body && body === (initialBody ?? "") ? (
+                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[color:var(--ba-accent-soft)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[color:var(--ba-accent)]">
+                  ✨ Borrador sugerido — edita antes de enviar
+                </span>
+              ) : null}
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}

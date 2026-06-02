@@ -27,6 +27,8 @@ import { PurchaseHistorySection } from "./purchase-history-section";
 import { TimelineSection } from "./timeline-section";
 import { NotesSection } from "./notes-section";
 import { CustomerCloset } from "./customer-closet";
+import { RecommendedForCustomerSection } from "./recommended-for-customer-section";
+import type { EngineRecommendation } from "@loreal/contracts";
 import type { CustomerQuickActionId } from "./customer-quick-actions";
 import { BeautySection } from "@/app/(dashboard)/clientes/[id]/_components/beauty/beauty-section";
 import { NoteSheet } from "@/app/(dashboard)/clientes/[id]/_components/note-sheet";
@@ -71,6 +73,14 @@ export function CustomerProfileShell({ customerId, user }: Props) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [openSheet, setOpenSheet] =
     React.useState<CustomerQuickActionId | null>(null);
+  /**
+   * When the BA taps "Enviar por WhatsApp" on an AI recommendation, we open
+   * the MessageSheet with the engine's draft pre-loaded. Cleared on sheet
+   * close so a manual "Mensaje" tap later doesn't inherit the old draft.
+   */
+  const [aiDraft, setAiDraft] = React.useState<{
+    body: string;
+  } | null>(null);
 
   const activeTab: TabKey = React.useMemo(() => {
     const fromUrl = searchParams.get("tab");
@@ -90,11 +100,25 @@ export function CustomerProfileShell({ customerId, user }: Props) {
   );
 
   const handleQuickAction = React.useCallback(
-    (id: CustomerQuickActionId) => setOpenSheet(id),
+    (id: CustomerQuickActionId) => {
+      setAiDraft(null);
+      setOpenSheet(id);
+    },
     [],
   );
-  const closeSheet = React.useCallback(() => setOpenSheet(null), []);
+  const closeSheet = React.useCallback(() => {
+    setOpenSheet(null);
+    setAiDraft(null);
+  }, []);
   const closeMenu = React.useCallback(() => setMenuOpen(false), []);
+
+  const handleSendFromRecommendation = React.useCallback(
+    (rec: EngineRecommendation) => {
+      setAiDraft({ body: rec.messageDraft ?? "" });
+      setOpenSheet("message");
+    },
+    [],
+  );
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -140,6 +164,10 @@ export function CustomerProfileShell({ customerId, user }: Props) {
                 <TabsContent value="overview" className="flex flex-col gap-6">
                   <ActiveVisitCard customerId={customerId} />
                   <CustomerKpiCards customerId={customerId} />
+                  <RecommendedForCustomerSection
+                    customerId={customerId}
+                    onSendRecommendationMessage={handleSendFromRecommendation}
+                  />
                   <ActiveContextSection customerId={customerId} />
                   <TimelineSection customerId={customerId} />
                 </TabsContent>
@@ -226,6 +254,8 @@ export function CustomerProfileShell({ customerId, user }: Props) {
             onOpenChange={(open) => !open && closeSheet()}
             customerId={customerId}
             customerName={`${customer.firstName} ${customer.lastName}`.trim()}
+            initialBody={aiDraft?.body}
+            initialFromAi={!!aiDraft}
           />
         </>
       ) : null}

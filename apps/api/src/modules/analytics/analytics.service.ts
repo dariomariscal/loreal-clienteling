@@ -493,6 +493,94 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * AI conversion summary scoped to a single customer. Powers the
+   * AIConversionKpi tile on the customer profile. Returns the aggregate rate
+   * for the last 90 days plus a 6-month monthly sparkline so the BA can see
+   * trend at a glance without a separate request.
+   */
+  async getCustomerAiConversion(customerId: string, user: SessionUser) {
+    await this.scopeService.assertCustomerAccess(customerId, user);
+
+    const now = new Date();
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+    const aiSources = ["ai_suggested", "next_best_action", "replenishment_alert"];
+
+    const [summary] = await this.db
+      .select({
+        total: count(),
+        converted: sql<number>`COUNT(*) FILTER (WHERE ${recommendations.isConverted} = true)::int`,
+      })
+      .from(recommendations)
+      .where(
+        and(
+          eq(recommendations.customerId, customerId),
+          inArray(recommendations.source, aiSources),
+          gte(recommendations.recommendedAt, ninetyDaysAgo),
+        ),
+      );
+
+    // Previous 90d window for delta calculation.
+    const previousStart = new Date(
+      now.getTime() - 180 * 24 * 60 * 60 * 1000,
+    );
+    const [previousSummary] = await this.db
+      .select({
+        total: count(),
+        converted: sql<number>`COUNT(*) FILTER (WHERE ${recommendations.isConverted} = true)::int`,
+      })
+      .from(recommendations)
+      .where(
+        and(
+          eq(recommendations.customerId, customerId),
+          inArray(recommendations.source, aiSources),
+          gte(recommendations.recommendedAt, previousStart),
+          lte(recommendations.recommendedAt, ninetyDaysAgo),
+        ),
+      );
+
+    // 6-month sparkline.
+    const dateTrunc = sql`date_trunc('month', ${recommendations.recommendedAt})`;
+    const trendRows = await this.db
+      .select({
+        period: dateTrunc.as("period"),
+        total: count(),
+        converted: sql<number>`COUNT(*) FILTER (WHERE ${recommendations.isConverted} = true)::int`,
+      })
+      .from(recommendations)
+      .where(
+        and(
+          eq(recommendations.customerId, customerId),
+          inArray(recommendations.source, aiSources),
+          gte(recommendations.recommendedAt, sixMonthsAgo),
+        ),
+      )
+      .groupBy(dateTrunc)
+      .orderBy(dateTrunc);
+
+    const total = summary?.total ?? 0;
+    const converted = summary?.converted ?? 0;
+    const rate = total > 0 ? converted / total : 0;
+    const previousRate =
+      previousSummary && previousSummary.total > 0
+        ? previousSummary.converted / previousSummary.total
+        : null;
+    const deltaPct =
+      previousRate !== null
+        ? Math.round((rate - previousRate) * 100)
+        : null;
+
+    return {
+      rate,
+      total,
+      converted,
+      deltaPct,
+      trend: trendRows.map((r) => (r.total > 0 ? r.converted / r.total : 0)),
+    };
+  }
+
   async getCustomerSegments(user: SessionUser) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";

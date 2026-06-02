@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Param, Inject, Res, BadRequestException } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiBearerAuth, ApiQuery, ApiParam } from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
 import { Workbook } from "exceljs";
@@ -149,6 +149,18 @@ export class AnalyticsController {
     return this.analyticsService.getRecommendationConversionBySource(
       session.user,
       this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("customers/:customerId/ai-conversion")
+  @ApiParam({ name: "customerId", type: String })
+  getCustomerAiConversion(
+    @Param("customerId") customerId: string,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.getCustomerAiConversion(
+      customerId,
+      session.user,
     );
   }
 

@@ -4,8 +4,10 @@ import * as React from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { KpiCard, type KpiDeltaDirection } from "@/components/ui/kpi-card";
+import { AIConversionKpi } from "@/components/advisor/ai/ai-conversion-kpi";
 import { formatMoney } from "@/components/advisor/customer-vocabulary";
 import { useCustomerMetrics } from "@/lib/hooks";
+import { useCustomerAiConversion } from "@/lib/hooks/use-recommendation-engine";
 
 interface Props {
   customerId: string;
@@ -20,6 +22,8 @@ interface Props {
  */
 export function CustomerKpiCards({ customerId, onOpenAppointments }: Props) {
   const { data, isLoading } = useCustomerMetrics(customerId);
+  const { data: aiConversion, isLoading: aiLoading } =
+    useCustomerAiConversion(customerId);
 
   const ltvDelta = React.useMemo(() => {
     if (!data || data.ltvChangePct === null) return null;
@@ -29,7 +33,7 @@ export function CustomerKpiCards({ customerId, onOpenAppointments }: Props) {
   }, [data]);
 
   return (
-    <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-5">
       <KpiCard
         label="Lo que ha gastado"
         loading={isLoading}
@@ -61,6 +65,14 @@ export function CustomerKpiCards({ customerId, onOpenAppointments }: Props) {
             ? format(new Date(data.lastVisitAt), "d MMM yyyy", { locale: es })
             : undefined
         }
+      />
+      <AIConversionKpi
+        loading={aiLoading}
+        rate={aiConversion?.rate ?? 0}
+        converted={aiConversion?.converted ?? 0}
+        total={aiConversion?.total ?? 0}
+        deltaPct={aiConversion?.deltaPct ?? null}
+        trend={aiConversion?.trend}
       />
     </div>
   );

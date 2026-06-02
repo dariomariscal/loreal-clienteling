@@ -8,6 +8,13 @@ import type {
 
 // ── Types ──────────────────────────────────────────────────────────
 
+export interface TaskProduct {
+  id: string;
+  title: string;
+  brandName: string | null;
+  images: string[];
+}
+
 export interface Task {
   id: string;
   customerId: string;
@@ -27,6 +34,8 @@ export interface Task {
   customerFirstName: string;
   customerLastName: string;
   customerTier: string | null;
+  /** Resolved product when triggerType is product-bound. */
+  product: TaskProduct | null;
 }
 
 export interface TaskCounts {
