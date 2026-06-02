@@ -1,79 +1,20 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { es } from "date-fns/locale";
 import { SingleColumn } from "@/components/advisor/three-column-layout";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetBody,
-  SheetClose,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { APPOINTMENT_STATUSES } from "@loreal/contracts";
-import {
   useAppointmentCalendar,
-  useUpdateAppointment,
   type CalendarAppointment,
 } from "@/lib/hooks/use-appointments";
 import { AppointmentSheet } from "@/components/appointment/appointment-sheet";
+import { AppointmentDetailSheet } from "@/components/appointment/appointment-detail-sheet";
 import { TimeGridCalendar } from "@/components/calendar/time-grid-calendar";
 import { MonthGridCalendar } from "@/components/calendar/month-grid-calendar";
 import type { SessionUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-
-// ── Labels ────────────────────────────────────────────────────────
-
-const STATUS_LABEL: Record<string, string> = {
-  scheduled: "Programada",
-  confirmed: "Confirmada",
-  rescheduled: "Reagendada",
-  cancelled: "Cancelada",
-  completed: "Completada",
-  no_show: "No asistió",
-};
-
-const STATUS_VARIANT: Record<
-  string,
-  "default" | "info" | "success" | "warning" | "destructive"
-> = {
-  scheduled: "default",
-  confirmed: "info",
-  rescheduled: "warning",
-  cancelled: "destructive",
-  completed: "success",
-  no_show: "destructive",
-};
-
-const SEGMENT_LABEL: Record<string, string> = {
-  new: "Nueva",
-  returning: "Recurrente",
-  vip: "VIP",
-  at_risk: "En riesgo",
-};
-
-const SEGMENT_VARIANT: Record<
-  string,
-  "info" | "success" | "warning" | "destructive" | "secondary"
-> = {
-  new: "info",
-  returning: "secondary",
-  vip: "success",
-  at_risk: "warning",
-};
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -110,7 +51,6 @@ function AppointmentsPageInner({ user }: AppointmentsPageProps) {
     return d;
   });
   const [sheet, setSheet] = React.useState<SheetState>(null);
-  const [statusUpdate, setStatusUpdate] = React.useState("");
 
   // Day view fetches one day. Month view fetches the whole grid the user is
   // looking at, including spillover days from the prev/next month that the
@@ -136,17 +76,6 @@ function AppointmentsPageInner({ user }: AppointmentsPageProps) {
     range.from,
     range.to,
   );
-
-  const updateAppointment = useUpdateAppointment();
-  const isPending = updateAppointment.isPending;
-
-  function handleStatusChange() {
-    if (sheet?.mode !== "detail" || !statusUpdate) return;
-    updateAppointment.mutate(
-      { id: sheet.appointment.id, status: statusUpdate },
-      { onSuccess: () => setSheet(null) },
-    );
-  }
 
   function shift(direction: 1 | -1) {
     setAnchor((d) => {
@@ -236,10 +165,9 @@ function AppointmentsPageInner({ user }: AppointmentsPageProps) {
                 isLoading={isLoading}
                 hourHeight={80}
                 fallbackAccent="var(--ba-accent)"
-                onAppointmentClick={(appt) => {
-                  setStatusUpdate(appt.status);
-                  setSheet({ mode: "detail", appointment: appt });
-                }}
+                onAppointmentClick={(appt) =>
+                  setSheet({ mode: "detail", appointment: appt })
+                }
                 onSlotClick={(iso) =>
                   setSheet({ mode: "create", defaultStartsAt: iso })
                 }
@@ -250,10 +178,9 @@ function AppointmentsPageInner({ user }: AppointmentsPageProps) {
                 appointments={calendarData}
                 isLoading={isLoading}
                 fallbackAccent="var(--ba-accent)"
-                onAppointmentClick={(appt) => {
-                  setStatusUpdate(appt.status);
-                  setSheet({ mode: "detail", appointment: appt });
-                }}
+                onAppointmentClick={(appt) =>
+                  setSheet({ mode: "detail", appointment: appt })
+                }
                 onDayClick={(day) => {
                   // Open the booking sheet directly with the day preselected.
                   // We anchor at midnight local time — the sheet uses this as
@@ -272,169 +199,11 @@ function AppointmentsPageInner({ user }: AppointmentsPageProps) {
         </div>
       </div>
 
-      {/* ── Detail sheet ────────────────────────────────────────── */}
-      <Sheet
-        open={sheet?.mode === "detail"}
+      {/* ── Detail sheet (orchestrates lifecycle sub-sheets) ─── */}
+      <AppointmentDetailSheet
+        appointment={sheet?.mode === "detail" ? sheet.appointment : null}
         onOpenChange={(open) => !open && setSheet(null)}
-      >
-        <SheetContent size="default">
-          <SheetHeader>
-            <SheetTitle>Detalle de cita</SheetTitle>
-          </SheetHeader>
-          {sheet?.mode === "detail" && (
-            <SheetBody>
-              <div className="space-y-5">
-                <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-                    Clienta
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="font-heading text-lg text-foreground">
-                      {sheet.appointment.customerName ?? "Sin nombre"}
-                    </span>
-                    {sheet.appointment.customerLifecycleStage && (
-                      <Badge
-                        variant={
-                          SEGMENT_VARIANT[
-                            sheet.appointment.customerLifecycleStage
-                          ] ?? "secondary"
-                        }
-                        size="sm"
-                      >
-                        {SEGMENT_LABEL[
-                          sheet.appointment.customerLifecycleStage
-                        ] ?? sheet.appointment.customerLifecycleStage}
-                      </Badge>
-                    )}
-                  </div>
-                  {sheet.appointment.customerPhone && (
-                    <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
-                      {sheet.appointment.customerPhone}
-                    </p>
-                  )}
-                  {sheet.appointment.customerId && (
-                    <Link
-                      href={`/advisor/customers/${sheet.appointment.customerId}`}
-                      className="mt-2 inline-block text-xs font-medium text-[color:var(--ba-accent)] hover:opacity-80"
-                    >
-                      Ver perfil completo →
-                    </Link>
-                  )}
-                </div>
-
-                <dl className="space-y-3 text-sm">
-                  <Row label="Tipo de servicio">
-                    <div className="flex items-center gap-2">
-                      {sheet.appointment.serviceTypeColor && (
-                        <span
-                          className="inline-block size-2.5 rounded-full"
-                          style={{
-                            backgroundColor:
-                              sheet.appointment.serviceTypeColor,
-                          }}
-                        />
-                      )}
-                      <span>
-                        {sheet.appointment.serviceTypeName ?? "Servicio"}
-                      </span>
-                    </div>
-                  </Row>
-
-                  <Row label="Fecha y hora">
-                    <span className="first-letter:uppercase">
-                      {new Date(
-                        sheet.appointment.startTime,
-                      ).toLocaleDateString("es-MX", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </Row>
-
-                  <Row label="Duración">
-                    <span>{sheet.appointment.durationMinutes} min</span>
-                  </Row>
-
-                  <Row label="Estado">
-                    <Badge
-                      variant={
-                        STATUS_VARIANT[sheet.appointment.status] ?? "secondary"
-                      }
-                    >
-                      {STATUS_LABEL[sheet.appointment.status] ??
-                        sheet.appointment.status}
-                    </Badge>
-                  </Row>
-
-                  {sheet.appointment.isVirtual && (
-                    <Row label="Modalidad">
-                      <Badge variant="info" size="sm">
-                        Virtual
-                      </Badge>
-                    </Row>
-                  )}
-
-                  {sheet.appointment.notes && (
-                    <div>
-                      <dt className="mb-1 text-muted-foreground">
-                        Comentarios
-                      </dt>
-                      <dd className="rounded-xl bg-muted/30 p-3 text-sm">
-                        {sheet.appointment.notes}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-
-                <div className="space-y-2 border-t border-border/60 pt-4">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Cambiar estado
-                  </p>
-                  <div className="flex gap-2">
-                    <Select
-                      value={statusUpdate}
-                      onValueChange={(v) => setStatusUpdate(v ?? "")}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar estado">
-                          {statusUpdate
-                            ? STATUS_LABEL[statusUpdate] ?? statusUpdate
-                            : undefined}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {APPOINTMENT_STATUSES.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {STATUS_LABEL[s] ?? s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      disabled={
-                        isPending ||
-                        statusUpdate === sheet.appointment.status
-                      }
-                      onClick={handleStatusChange}
-                    >
-                      {isPending ? "Guardando…" : "Actualizar"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </SheetBody>
-          )}
-          <SheetFooter>
-            <SheetClose>
-              <Button variant="outline">Cerrar</Button>
-            </SheetClose>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      />
 
       {/* ── Create sheet — same wizard the dashboard uses ──────── */}
       <AppointmentSheet
@@ -496,21 +265,6 @@ function IconButton({
     >
       {children}
     </button>
-  );
-}
-
-function Row({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium text-foreground">{children}</dd>
-    </div>
   );
 }
 
