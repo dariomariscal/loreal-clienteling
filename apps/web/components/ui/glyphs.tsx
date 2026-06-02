@@ -1009,6 +1009,15 @@ export function ActivityGlyph(props: GlyphProps) {
   );
 }
 
+export function BellGlyph(props: GlyphProps) {
+  return (
+    <Glyph label="Notificaciones" {...props}>
+      <path d="M6 9a6 6 0 1 1 12 0v4l1.6 2.4A.7.7 0 0 1 19 16.5H5a.7.7 0 0 1-.6-1.1L6 13V9Z" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </Glyph>
+  );
+}
+
 export function EmailDotGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>

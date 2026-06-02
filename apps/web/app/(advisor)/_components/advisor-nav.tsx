@@ -13,6 +13,7 @@ import { AdvisorBrandLogo } from "@/components/advisor/advisor-brand-logo";
 import { CustomerAvatar } from "@/components/advisor/customer-avatar";
 import { useBrandAdvisorStyle } from "@/components/advisor/use-brand-advisor-style";
 import { useApprovalRequests } from "@/lib/hooks/use-approval-requests";
+import { NotificationsBell } from "@/components/notifications/notifications-bell";
 import {
   AppointmentGlyph,
   CalendarDotGlyph,
@@ -170,6 +171,10 @@ export function AdvisorNav({ user, onNavigate, collapsed = false }: Props) {
         onNavigate={onNavigate}
         collapsed={collapsed}
       />
+
+      <div className={cn("mt-1", collapsed ? "px-2" : "px-3")}>
+        <NotificationsBell collapsed={collapsed} />
+      </div>
 
       <div
         className={cn(

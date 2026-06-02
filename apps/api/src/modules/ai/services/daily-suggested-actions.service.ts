@@ -106,34 +106,39 @@ export class DailySuggestedActionsService {
    * Cron entry-point. For every active BA, scan their book, build signals,
    * pick top N suggested actions, replace the day's queue atomically.
    */
-  async computeForDate(dueDate: string): Promise<{ basProcessed: number }> {
+  async computeForDate(
+    dueDate: string,
+  ): Promise<{ basProcessed: number; basWithActions: string[] }> {
     const activeBas = await this.db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.isActive, true));
 
     let basProcessed = 0;
+    const basWithActions: string[] = [];
     for (const ba of activeBas) {
       try {
-        await this.computeForBa(ba.id, dueDate);
+        const insertedCount = await this.computeForBa(ba.id, dueDate);
         basProcessed++;
+        if (insertedCount > 0) basWithActions.push(ba.id);
       } catch (err) {
         this.logger.error(`Failed for BA ${ba.id}`, err as Error);
       }
     }
-    return { basProcessed };
+    return { basProcessed, basWithActions };
   }
 
+  /** Returns the number of suggested-action rows inserted for this BA. */
   private async computeForBa(
     assignedToUserId: string,
     dueDate: string,
-  ): Promise<void> {
+  ): Promise<number> {
     const signals = await this.collectSignals(assignedToUserId);
     const selected = selectDailySuggestedActions({ signals, limit: 5 });
 
     await this.suggestedActionsRepo.clearForDate(assignedToUserId, dueDate);
 
-    if (!selected.length) return;
+    if (!selected.length) return 0;
 
     await this.suggestedActionsRepo.insertMany(
       selected.map((s) => ({
@@ -147,6 +152,8 @@ export class DailySuggestedActionsService {
         priority: s.priority,
       })),
     );
+
+    return selected.length;
   }
 
   /**

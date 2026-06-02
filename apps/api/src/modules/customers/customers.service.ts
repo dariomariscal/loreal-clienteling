@@ -5,8 +5,13 @@ import {
   ForbiddenException,
   BadRequestException,
 } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, or, ilike, sql, gte, lte, asc, desc, count, sum } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
+import {
+  NotificationEvents,
+  type CustomerAssignedEvent,
+} from "../notifications/notification-events";
 import {
   customers,
   beautyProfiles,
@@ -88,6 +93,7 @@ export class CustomersService {
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
     @Inject(PrivacyNoticesService) private privacyNoticesService: PrivacyNoticesService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   async findAll(
@@ -942,6 +948,15 @@ export class CustomersService {
         reason: data.reason ?? null,
       },
     );
+
+    if (previousAssigneeId !== data.newAssignedToUserId) {
+      const payload: CustomerAssignedEvent = {
+        customerId,
+        assignedToUserId: data.newAssignedToUserId,
+        previousAssignedToUserId: previousAssigneeId,
+      };
+      this.eventBus.emit(NotificationEvents.CUSTOMER_ASSIGNED, payload);
+    }
 
     return updated;
   }

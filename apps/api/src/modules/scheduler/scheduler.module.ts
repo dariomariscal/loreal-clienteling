@@ -9,6 +9,7 @@ import { ReservationExpiringCron } from "./reservation-expiring.cron";
 import { WishlistWatcherCron } from "./wishlist-watcher.cron";
 import { SampleFollowupCron } from "./sample-followup.cron";
 import { AbandonedCartCron } from "./abandoned-cart.cron";
+import { FollowupOverdueCron } from "./followup-overdue.cron";
 import { AiModule } from "../ai/ai.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 
@@ -24,6 +25,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
     WishlistWatcherCron,
     SampleFollowupCron,
     AbandonedCartCron,
+    FollowupOverdueCron,
   ],
 })
 export class SchedulerModule {}
