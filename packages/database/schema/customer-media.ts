@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { customers } from "./customers";
 import { users } from "./auth";
+import { customerVisits } from "./customer-visits";
 
 /**
  * Photos and media captured during consultations: before / after shots,
@@ -23,6 +24,10 @@ export const customerMedia = pgTable(
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
     appointmentId: uuid("appointment_id"),
+    /** Visit during which the media was captured, if any. */
+    visitId: uuid("visit_id").references(() => customerVisits.id, {
+      onDelete: "set null",
+    }),
     capturedByUserId: text("captured_by_user_id")
       .notNull()
       .references(() => users.id),
@@ -46,5 +51,6 @@ export const customerMedia = pgTable(
   (table) => [
     index("customer_media_customer_idx").on(table.customerId),
     index("customer_media_appointment_idx").on(table.appointmentId),
+    index("customer_media_visit_idx").on(table.visitId),
   ],
 );

@@ -3,6 +3,7 @@ export type CustomerActivityType =
   | "order"
   | "recommendation"
   | "appointment"
+  | "visit"
   | "message"
   | "note";
 

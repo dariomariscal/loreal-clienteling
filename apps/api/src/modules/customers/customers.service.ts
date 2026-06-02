@@ -23,6 +23,7 @@ import {
   notes,
   users,
   stores,
+  customerVisits,
 } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
@@ -44,6 +45,41 @@ const MARKETING_CHANNEL_TO_CONSENT = {
   sms: "marketing_sms",
   whatsapp: "marketing_whatsapp",
 } as const;
+
+// Spanish labels used when serializing visit events into the timeline. Kept
+// here (not in `@loreal/contracts`) because the timeline is the only API
+// surface that needs to render strings — every other consumer (web UI,
+// future native apps) translates from the raw enum via its own vocabulary.
+const VISIT_REASON_LABEL: Record<string, string> = {
+  browsing: "Búsqueda",
+  replenishment: "Reposición",
+  new_purchase: "Nueva compra",
+  gift: "Regalo",
+  diagnostic: "Diagnóstico",
+  fragrance_discovery: "Fragancia",
+  makeup_lesson: "Lección de maquillaje",
+  bridal_event_prep: "Boda o evento",
+  return: "Devolución",
+  complaint: "Reclamo",
+  loyalty_redemption: "Canjear puntos",
+  event_attendance: "Asistencia a evento",
+  vip_private: "Atención VIP",
+  click_collect_pickup: "Recoger pedido",
+};
+
+const VISIT_OUTCOME_LABEL: Record<string, string> = {
+  purchased: "compró",
+  no_purchase: "sin compra",
+  sample_given: "muestra entregada",
+  followup_needed: "seguimiento",
+  return_processed: "devolución procesada",
+};
+
+const VISIT_SENTIMENT_EMOJI: Record<string, string> = {
+  positive: "😊",
+  neutral: "😐",
+  negative: "😞",
+};
 
 @Injectable()
 export class CustomersService {
@@ -238,9 +274,9 @@ export class CustomersService {
   }
 
   /**
-   * Unified, cursor-paginated activity timeline. Merges five event streams
-   * (synthetic registration + orders + recommendations + appointments +
-   * messages + notes) into a single chronological feed.
+   * Unified, cursor-paginated activity timeline. Merges the customer's event
+   * streams (synthetic registration + orders + recommendations + appointments
+   * + visits + messages + notes) into a single chronological feed.
    *
    * We over-fetch by `limit + 1` from each source so that after the global
    * merge we always have enough rows to fill the requested page and detect
@@ -374,6 +410,39 @@ export class CustomersService {
       .orderBy(desc(messages.sentAt))
       .limit(fetchSize);
 
+    // Visits — completed visits surface as timeline events. In-progress
+    // visits are excluded: they live in the dedicated "Visita en curso"
+    // affordance and would confuse the chronological feed (they have no
+    // outcome yet).
+    const visitRows = await this.db
+      .select({
+        id: customerVisits.id,
+        startedAt: customerVisits.startedAt,
+        endedAt: customerVisits.endedAt,
+        durationMinutes: customerVisits.durationMinutes,
+        status: customerVisits.status,
+        visitReason: customerVisits.visitReason,
+        bookedReason: customerVisits.bookedReason,
+        outcome: customerVisits.outcome,
+        sentiment: customerVisits.sentiment,
+        attendedByUserId: customerVisits.attendedByUserId,
+        attendedByName: users.fullName,
+      })
+      .from(customerVisits)
+      .leftJoin(users, eq(customerVisits.attendedByUserId, users.id))
+      .where(
+        and(
+          eq(customerVisits.customerId, customerId),
+          // Use startedAt as the canonical timeline timestamp — endedAt can be
+          // null for abandoned visits, and we still want them on the timeline.
+          ...(beforeCondition
+            ? [beforeCondition(customerVisits.startedAt)]
+            : []),
+        ),
+      )
+      .orderBy(desc(customerVisits.startedAt))
+      .limit(fetchSize);
+
     // Notes — private notes are only visible to their author or admins.
     // Everyone else just doesn't see them in the timeline; the dedicated
     // notes tab enforces the same rule server-side already.
@@ -415,6 +484,7 @@ export class CustomersService {
         | "order"
         | "recommendation"
         | "appointment"
+        | "visit"
         | "message"
         | "note";
       occurredAt: Date;
@@ -471,6 +541,40 @@ export class CustomersService {
         body: null,
         amount: null,
         metadata: { status: row.status, isPast },
+      });
+    }
+
+    for (const row of visitRows) {
+      const reason = row.visitReason ?? row.bookedReason;
+      const reasonLabel = VISIT_REASON_LABEL[reason ?? ""] ?? null;
+      const outcomeLabel = VISIT_OUTCOME_LABEL[row.outcome ?? ""] ?? null;
+      const sentimentEmoji = VISIT_SENTIMENT_EMOJI[row.sentiment ?? ""] ?? null;
+
+      const title = reasonLabel ? `Visita · ${reasonLabel}` : "Visita";
+      const bodyParts: string[] = [];
+      if (row.durationMinutes != null) {
+        bodyParts.push(`${row.durationMinutes} min`);
+      }
+      if (outcomeLabel) bodyParts.push(outcomeLabel);
+      if (row.status === "abandoned") bodyParts.push("interrumpida");
+      if (row.status === "no_show") bodyParts.push("no asistió");
+      if (sentimentEmoji) bodyParts.push(sentimentEmoji);
+
+      events.push({
+        id: `visit:${row.id}`,
+        type: "visit",
+        occurredAt: new Date(row.startedAt),
+        actor: { id: row.attendedByUserId, name: row.attendedByName },
+        title,
+        body: bodyParts.length > 0 ? bodyParts.join(" · ") : null,
+        amount: null,
+        metadata: {
+          status: row.status,
+          visitReason: row.visitReason,
+          bookedReason: row.bookedReason,
+          outcome: row.outcome,
+          sentiment: row.sentiment,
+        },
       });
     }
 

@@ -1,20 +1,31 @@
 "use client";
 
 import * as React from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   AppointmentGlyph,
   MessageGlyph,
   NoteGlyph,
   PurchaseGlyph,
   RecommendGlyph,
+  VisitGlyph,
 } from "@/components/ui/glyphs";
+import {
+  useActiveVisit,
+  useStartCustomerVisit,
+} from "@/lib/hooks/use-customer-visits";
 import type { Customer } from "@/lib/hooks/use-customers";
 
 // One "message" entry covers WhatsApp / email / SMS — the MessageSheet
 // has channel tabs inside, so surfacing each channel as its own button
 // was redundant and crowded the action row.
+//
+// "visit" is a verb action (start), not a sheet — when tapped we POST the
+// visit and let the ActiveVisitPill + ActiveContextSection take over the UI.
 export type CustomerQuickActionId =
+  | "visit"
   | "message"
   | "appointment"
   | "note"
@@ -23,11 +34,11 @@ export type CustomerQuickActionId =
 
 interface Props {
   customer: Customer;
-  onAction: (id: CustomerQuickActionId) => void;
+  onAction: (id: Exclude<CustomerQuickActionId, "visit">) => void;
 }
 
 interface ActionDef {
-  id: CustomerQuickActionId;
+  id: Exclude<CustomerQuickActionId, "visit">;
   label: string;
   Glyph: React.ComponentType<{ className?: string }>;
   isAvailable: (c: Customer) => boolean;
@@ -50,12 +61,18 @@ const ACTIONS: ActionDef[] = [
  * Inline quick-actions for the profile header. Icon-only with a native tooltip
  * (title) so the entire action row fits on the right side of the sticky bar
  * without forcing wrap on iPad landscape.
+ *
+ * "Iniciar visita" is leftmost and accent-tinted — it's the BA's first move
+ * when a customer walks up to the counter. Once a visit is open for this
+ * customer the button hides; ActiveContextSection takes over with the
+ * "Cerrar visita" affordance.
  */
 export function CustomerQuickActions({ customer, onAction }: Props) {
   const visible = ACTIONS.filter((a) => a.isAvailable(customer));
 
   return (
     <nav aria-label="Acciones rápidas" className="flex items-center gap-1">
+      <StartVisitButton customer={customer} />
       {visible.map(({ id, label, Glyph }) => (
         <Button
           key={id}
@@ -70,5 +87,56 @@ export function CustomerQuickActions({ customer, onAction }: Props) {
         </Button>
       ))}
     </nav>
+  );
+}
+
+/**
+ * Internal button isolated so we can scope the `useAuth` + active-visit query
+ * to it without leaking that dependency to every other action.
+ */
+function StartVisitButton({ customer }: { customer: Customer }) {
+  const { userId } = useAuth();
+  const { data: activeVisit, isLoading } = useActiveVisit(userId ?? undefined);
+  const startVisit = useStartCustomerVisit();
+
+  // Hide while we don't know yet — we'd rather miss one frame than show the
+  // button, have the BA tap, and create a phantom visit while another was
+  // already open with a different customer.
+  if (isLoading) return null;
+
+  // Already in this customer's visit → no duplicate start.
+  if (activeVisit && activeVisit.customerId === customer.id) return null;
+
+  // In a visit with someone else → keep the button shown but disabled with a
+  // tooltip that points to the active session, so the BA never wonders why
+  // tapping does nothing.
+  const inOtherVisit = Boolean(
+    activeVisit && activeVisit.customerId !== customer.id,
+  );
+
+  function handleClick() {
+    if (inOtherVisit || startVisit.isPending) return;
+    startVisit.mutate({ customerId: customer.id });
+  }
+
+  const label = inOtherVisit
+    ? "Termina la visita en curso para empezar otra"
+    : "Iniciar visita";
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleClick}
+      disabled={inOtherVisit || startVisit.isPending}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "size-10 text-[color:var(--ba-accent)]",
+        inOtherVisit && "opacity-40",
+      )}
+    >
+      <VisitGlyph className="size-4" />
+    </Button>
   );
 }

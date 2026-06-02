@@ -13,6 +13,7 @@ export * from "./beauty-profiles";
 export * from "./recommendations";
 export * from "./orders";
 export * from "./appointments";
+export * from "./customer-visits";
 export * from "./messages";
 export * from "./consents";
 export * from "./samples";

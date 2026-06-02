@@ -11,6 +11,7 @@ import { customers } from "./customers";
 import { products } from "./products";
 import { users } from "./auth";
 import { stores } from "./stores";
+import { customerVisits } from "./customer-visits";
 
 /**
  * Product recommendation made by an advisor (or surfaced by AI and surfaced
@@ -45,6 +46,9 @@ export const recommendations = pgTable(
     // new_purchase | rebuy | gift | concern | promotion | browsing
 
     /** Optional origin links for traceability. */
+    visitId: uuid("visit_id").references(() => customerVisits.id, {
+      onDelete: "set null",
+    }),
     appointmentId: uuid("appointment_id"),
     messageId: uuid("message_id"),
     wishlistId: uuid("wishlist_id"),
@@ -64,5 +68,6 @@ export const recommendations = pgTable(
     index("recommendations_customer_idx").on(table.customerId),
     index("recommendations_store_idx").on(table.storeId),
     index("recommendations_recommended_by_idx").on(table.recommendedByUserId),
+    index("recommendations_visit_idx").on(table.visitId),
   ],
 );

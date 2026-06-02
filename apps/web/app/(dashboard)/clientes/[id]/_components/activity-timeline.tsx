@@ -236,6 +236,7 @@ const TYPE_META: Record<CustomerActivityType, TypeMeta> = {
   order: { color: "#16A34A", icon: BagIcon },
   recommendation: { color: "#A855F7", icon: SparkleIcon },
   appointment: { color: "#3B82F6", icon: CalendarIcon },
+  visit: { color: "#D4AF37", icon: StorefrontIcon },
   message: { color: "#0EA5E9", icon: MessageIcon },
   note: { color: "#6B7280", icon: NoteIcon },
 };
@@ -368,6 +369,24 @@ function NoteIcon({ className }: { className?: string }) {
     >
       <path d="M6 4h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
       <path d="M15 4v5h5" />
+    </svg>
+  );
+}
+
+function StorefrontIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.5 8.5 5 4.5h14l1.5 4" />
+      <path d="M3.5 8.5h17V20a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V8.5Z" />
+      <path d="M9.5 21v-5.5a2.5 2.5 0 0 1 5 0V21" />
     </svg>
   );
 }

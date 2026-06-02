@@ -21,6 +21,7 @@ import { ProfileTopBar } from "./profile-top-bar";
 import { CustomerIdentityPanel } from "./customer-identity-panel";
 import { CustomerKpiCards } from "./customer-kpi-cards";
 import { ActiveContextSection } from "./active-context-section";
+import { ActiveVisitCard } from "@/components/visit/active-visit-card";
 import { WishlistSection } from "./wishlist-section";
 import { PurchaseHistorySection } from "./purchase-history-section";
 import { TimelineSection } from "./timeline-section";
@@ -137,6 +138,7 @@ export function CustomerProfileShell({ customerId, user }: Props) {
             <div className="min-w-0 min-h-0 flex-1 overflow-y-auto px-4 py-6 lg:px-10 lg:py-8">
               <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6">
                 <TabsContent value="overview" className="flex flex-col gap-6">
+                  <ActiveVisitCard customerId={customerId} />
                   <CustomerKpiCards customerId={customerId} />
                   <ActiveContextSection customerId={customerId} />
                   <TimelineSection customerId={customerId} />

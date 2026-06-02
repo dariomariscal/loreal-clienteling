@@ -19,6 +19,7 @@ import { RecommendationsModule } from "./modules/recommendations/recommendations
 import { OrdersModule } from "./modules/orders/orders.module";
 import { SamplesModule } from "./modules/samples/samples.module";
 import { AppointmentsModule } from "./modules/appointments/appointments.module";
+import { CustomerVisitsModule } from "./modules/customer-visits/customer-visits.module";
 import { ServiceTypesModule } from "./modules/service-types/service-types.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 import { NotesModule } from "./modules/notes/notes.module";
@@ -66,6 +67,7 @@ import { HealthController } from "./health.controller";
     OrdersModule,
     SamplesModule,
     AppointmentsModule,
+    CustomerVisitsModule,
     ServiceTypesModule,
     MessagesModule,
     NotesModule,

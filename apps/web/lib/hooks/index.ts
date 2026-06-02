@@ -11,6 +11,7 @@ export * from "./use-templates";
 export * from "./use-users";
 export * from "./use-customer-detail";
 export * from "./use-appointments";
+export * from "./use-customer-visits";
 export * from "./use-service-types";
 export * from "./use-messages";
 export * from "./use-privacy-notices";

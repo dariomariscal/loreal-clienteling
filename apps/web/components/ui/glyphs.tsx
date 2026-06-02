@@ -1186,3 +1186,29 @@ export function HeatmapGlyph(props: GlyphProps) {
     </Glyph>
   );
 }
+
+
+// ── Visit glyphs ────────────────────────────────────────────
+// Storefront silhouette for "iniciar visita". Pairs with the existing
+// AppointmentGlyph / PurchaseGlyph so the customer 360 quick-action row
+// reads as one editorial set.
+
+export function VisitGlyph(props: GlyphProps) {
+  return (
+    <Glyph label="Visita" {...props}>
+      <path d="M3.5 8.5 5 4.5h14l1.5 4" />
+      <path d="M3.5 8.5h17V20a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V8.5Z" />
+      <path d="M9.5 21v-5.5a2.5 2.5 0 0 1 5 0V21" />
+    </Glyph>
+  );
+}
+
+export function VisitActiveGlyph(props: GlyphProps) {
+  return (
+    <Glyph label="Visita en curso" {...props}>
+      <path d="M3.5 8.5 5 4.5h14l1.5 4" />
+      <path d="M3.5 8.5h17V20a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V8.5Z" />
+      <circle cx="12" cy="14" r="2.5" fill="currentColor" stroke="none" />
+    </Glyph>
+  );
+}

@@ -10,6 +10,7 @@ import {
   PurchaseGlyph,
   RecommendGlyph,
   UserPlusGlyph,
+  VisitGlyph,
 } from "@/components/ui/glyphs";
 import { useCustomerActivity } from "@/lib/hooks/use-customer-profile";
 import type {
@@ -26,6 +27,7 @@ const ICON: Record<CustomerActivityType, typeof NoteGlyph> = {
   order: PurchaseGlyph,
   recommendation: RecommendGlyph,
   appointment: AppointmentGlyph,
+  visit: VisitGlyph,
   message: MessageGlyph,
   note: NoteGlyph,
 };

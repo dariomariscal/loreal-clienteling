@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AdvisorSidebar } from "@/components/advisor/advisor-sidebar";
+import { ActiveVisitPill } from "@/components/visit/active-visit-pill";
 import type { SessionUser } from "@/lib/auth";
 
 interface Props {
@@ -26,6 +27,7 @@ export function AdvisorShell({ user, children }: Props) {
     <div className="flex h-dvh w-full overflow-hidden bg-[color:var(--ba-surface)] text-foreground">
       {isCustomerProfile ? null : <AdvisorSidebar user={user} />}
       <main className="advisor-scope flex flex-1 overflow-hidden">{children}</main>
+      <ActiveVisitPill user={user} />
     </div>
   );
 }

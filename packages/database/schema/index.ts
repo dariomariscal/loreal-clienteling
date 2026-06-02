@@ -32,6 +32,7 @@ export { abandonedCarts } from "./abandoned-carts";
 // Appointments & events
 export { serviceTypes } from "./service-types";
 export { appointments } from "./appointments";
+export { customerVisits } from "./customer-visits";
 export { storeEvents, eventInvitations } from "./store-events";
 export { eventAssignments } from "./event-assignments";
 

@@ -10,6 +10,7 @@ import { customers } from "./customers";
 import { products } from "./products";
 import { users } from "./auth";
 import { stores } from "./stores";
+import { customerVisits } from "./customer-visits";
 
 /**
  * Free product samples handed to a customer. Beauty-industry standard term;
@@ -31,6 +32,10 @@ export const samples = pgTable(
     storeId: uuid("store_id")
       .notNull()
       .references(() => stores.id),
+    /** The visit during which the sample was handed out, if known. */
+    visitId: uuid("visit_id").references(() => customerVisits.id, {
+      onDelete: "set null",
+    }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -43,5 +48,6 @@ export const samples = pgTable(
   (table) => [
     index("samples_customer_idx").on(table.customerId),
     index("samples_store_idx").on(table.storeId),
+    index("samples_visit_idx").on(table.visitId),
   ],
 );

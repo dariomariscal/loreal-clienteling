@@ -9,6 +9,7 @@ import {
 import { customers } from "./customers";
 import { products } from "./products";
 import { users } from "./auth";
+import { customerVisits } from "./customer-visits";
 
 /**
  * Free-form notes attached to a customer. CRM-standard pattern (Salesforce
@@ -24,6 +25,10 @@ export const notes = pgTable(
     body: text("body").notNull(),
     /** Optional pivot: a note that references a specific product. */
     productId: uuid("product_id").references(() => products.id),
+    /** Optional pivot: a note captured during a specific visit. */
+    visitId: uuid("visit_id").references(() => customerVisits.id, {
+      onDelete: "set null",
+    }),
     /** Private notes are visible only to the author + admins. */
     isPrivate: boolean("is_private").notNull().default(false),
     createdByUserId: text("created_by_user_id")
@@ -40,5 +45,6 @@ export const notes = pgTable(
   (table) => [
     index("notes_customer_idx").on(table.customerId),
     index("notes_created_by_idx").on(table.createdByUserId),
+    index("notes_visit_idx").on(table.visitId),
   ],
 );
