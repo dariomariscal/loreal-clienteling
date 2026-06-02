@@ -3,12 +3,26 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { appointments, customers } from "@loreal/database";
 import { eq, and, isNull, gte, lte, inArray } from "drizzle-orm";
+import { NotificationsService } from "../notifications/notifications.service";
 
+/**
+ * Hourly cron that picks up appointments scheduled in the next 24h and
+ * dispatches a "tu cita es mañana / hoy" notification to the assigned BA,
+ * then stamps `reminderSentAt` to prevent re-firing.
+ *
+ * Distinct from `AppointmentImminentCron` (T-30 / T-10 min) — this is the
+ * earlier, daily preparation reminder, equivalent to the standard
+ * "tomorrow you have a 10am" alert in salon SaaS.
+ */
 @Injectable()
 export class AppointmentRemindersCron {
   private readonly logger = new Logger(AppointmentRemindersCron.name);
 
-  constructor(@Inject(DATABASE_TOKEN) private db: Database) {}
+  constructor(
+    @Inject(DATABASE_TOKEN) private db: Database,
+    @Inject(NotificationsService)
+    private notifications: NotificationsService,
+  ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
   async sendReminders(): Promise<void> {
@@ -17,19 +31,17 @@ export class AppointmentRemindersCron {
     const now = new Date();
     const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    // Find appointments in the next 24 hours that haven't received a reminder
-    const upcomingAppointments = await this.db
+    const upcoming = await this.db
       .select({
         id: appointments.id,
         customerId: appointments.customerId,
         staffUserId: appointments.staffUserId,
-        storeId: appointments.storeId,
-        serviceTypeId: appointments.serviceTypeId,
         startTime: appointments.startTime,
-        durationMinutes: appointments.durationMinutes,
-        status: appointments.status,
+        firstName: customers.firstName,
+        lastName: customers.lastName,
       })
       .from(appointments)
+      .innerJoin(customers, eq(customers.id, appointments.customerId))
       .where(
         and(
           inArray(appointments.status, ["scheduled", "confirmed"]),
@@ -39,43 +51,34 @@ export class AppointmentRemindersCron {
         ),
       );
 
-    if (upcomingAppointments.length === 0) {
+    if (upcoming.length === 0) {
       this.logger.log("No hay citas pendientes de recordatorio");
       return;
     }
 
     let sent = 0;
-
-    for (const appointment of upcomingAppointments) {
-      // Fetch customer name for the reminder message
-      const [customer] = await this.db
-        .select({
-          firstName: customers.firstName,
-          lastName: customers.lastName,
-        })
-        .from(customers)
-        .where(eq(customers.id, appointment.customerId));
-
-      if (!customer) continue;
-
+    for (const appt of upcoming) {
       const hoursUntil = Math.round(
-        (appointment.startTime.getTime() - now.getTime()) / (60 * 60 * 1000),
+        (appt.startTime.getTime() - now.getTime()) / (60 * 60 * 1000),
       );
+      const customerName = `${appt.firstName} ${appt.lastName}`;
 
-      // Mark reminder as sent
-      // In production, this would also trigger a push notification to the BA
-      // and optionally a WhatsApp/SMS to the customer (if consent exists)
+      await this.notifications.create({
+        recipientUserId: appt.staffUserId,
+        kind: "appointment_imminent",
+        priority: "high", // 24h-out is high, not urgent — the imminent cron handles T-30/T-10
+        title: `Cita próxima en ~${hoursUntil}h`,
+        body: `Cita con ${customerName} el ${appt.startTime.toLocaleString("es-MX")}.`,
+        actionUrl: `/appointments/${appt.id}`,
+        appointmentId: appt.id,
+        customerId: appt.customerId,
+        groupKey: `appointment_reminder_24h:${appt.id}`,
+      });
+
       await this.db
         .update(appointments)
-        .set({
-          reminderSentAt: now,
-          updatedAt: now,
-        })
-        .where(eq(appointments.id, appointment.id));
-
-      this.logger.debug(
-        `Recordatorio: cita con ${customer.firstName} ${customer.lastName} en ~${hoursUntil}h (staff: ${appointment.staffUserId})`,
-      );
+        .set({ reminderSentAt: now, updatedAt: now })
+        .where(eq(appointments.id, appt.id));
 
       sent++;
     }

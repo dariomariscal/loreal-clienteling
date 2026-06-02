@@ -1,4 +1,5 @@
 import { Injectable, Inject, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, or, isNull, inArray, desc, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { messages, messageTemplates, consents, customers } from "@loreal/database";
@@ -8,6 +9,11 @@ import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
 import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import { ConsentsService } from "../consents/consents.service";
+import {
+  NotificationEvents,
+  type MessageReceivedEvent,
+  type MessageReadEvent,
+} from "../notifications/notification-events";
 import type { CreateMessageDto } from "../../dtos/messages.dto";
 
 const CONSENT_TO_CHANNEL: Record<string, string> = {
@@ -25,6 +31,7 @@ export class MessagesService {
     @Inject(CustomerActivityService)
     private customerActivity: CustomerActivityService,
     @Inject(ConsentsService) private consentsService: ConsentsService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   async findAll(user: SessionUser) {
@@ -145,6 +152,23 @@ export class MessagesService {
       msg.id,
       { channel: data.channel, customerId: data.customerId, direction },
     );
+
+    // Fire the reactive event for the notification listener. Done after
+    // audit so a listener failure can never corrupt the audit chain.
+    if (!isOutbound) {
+      const [customer] = await this.db
+        .select({ assignedToUserId: customers.assignedToUserId })
+        .from(customers)
+        .where(eq(customers.id, data.customerId));
+      const payload: MessageReceivedEvent = {
+        messageId: msg.id,
+        customerId: data.customerId,
+        assignedToUserId: customer?.assignedToUserId ?? null,
+        channel: data.channel,
+        preview: data.body,
+      };
+      this.eventBus.emit(NotificationEvents.MESSAGE_RECEIVED, payload);
+    }
 
     return msg;
   }
@@ -295,12 +319,40 @@ export class MessagesService {
     id: string,
     data: { deliveredAt?: Date; readAt?: Date; respondedAt?: Date },
   ) {
+    const [existing] = await this.db
+      .select({
+        id: messages.id,
+        sentByUserId: messages.sentByUserId,
+        customerId: messages.customerId,
+        readAt: messages.readAt,
+        direction: messages.direction,
+      })
+      .from(messages)
+      .where(eq(messages.id, id));
+    if (!existing) throw new NotFoundException("Message not found");
+
     const [updated] = await this.db
       .update(messages)
       .set(data)
       .where(eq(messages.id, id))
       .returning();
-    if (!updated) throw new NotFoundException("Message not found");
+
+    // Fire MESSAGE_READ only on the first read-receipt transition, only for
+    // outbound messages, and only when we know which BA sent it.
+    const justRead =
+      data.readAt &&
+      !existing.readAt &&
+      existing.direction === "outbound" &&
+      existing.sentByUserId;
+    if (justRead) {
+      const payload: MessageReadEvent = {
+        messageId: existing.id,
+        sentByUserId: existing.sentByUserId!,
+        customerId: existing.customerId,
+      };
+      this.eventBus.emit(NotificationEvents.MESSAGE_READ, payload);
+    }
+
     return updated;
   }
 }

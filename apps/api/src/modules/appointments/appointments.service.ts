@@ -1,10 +1,15 @@
 import { Injectable, Inject, NotFoundException, BadRequestException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, gte, lte, desc, inArray, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { appointments, customers, users, stores, serviceTypes } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { CustomerActivityService } from "../../common/services/customer-activity.service";
+import {
+  NotificationEvents,
+  type AppointmentStatusChangedEvent,
+} from "../notifications/notification-events";
 import type { CreateAppointmentDto, UpdateAppointmentDto } from "../../dtos/appointments.dto";
 
 const SLOT_GRID_MINUTES = 30;
@@ -77,6 +82,7 @@ export class AppointmentsService {
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(CustomerActivityService)
     private customerActivity: CustomerActivityService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   async findAll(
@@ -189,6 +195,7 @@ export class AppointmentsService {
 
   async update(id: string, data: UpdateAppointmentDto, user: SessionUser) {
     const existing = await this.findOne(id);
+    const previousStatus = existing.status;
 
     // If rescheduling: create new appointment linked to old one
     if (data.status === "rescheduled" && data.startTime) {
@@ -217,6 +224,16 @@ export class AppointmentsService {
           rescheduledFromAppointmentId: id,
         })
         .returning();
+
+      this.emitStatusChanged({
+        appointmentId: newAppt.id,
+        staffUserId: newAppt.staffUserId,
+        customerId: newAppt.customerId,
+        previousStatus,
+        newStatus: "rescheduled",
+        startTime: newAppt.startTime,
+      });
+
       return newAppt;
     }
 
@@ -237,7 +254,27 @@ export class AppointmentsService {
       .set(updateData)
       .where(eq(appointments.id, id))
       .returning();
+
+    if (data.status && data.status !== previousStatus) {
+      this.emitStatusChanged({
+        appointmentId: updated.id,
+        staffUserId: updated.staffUserId,
+        customerId: updated.customerId,
+        previousStatus,
+        newStatus: updated.status,
+        startTime: updated.startTime,
+      });
+    }
+
     return updated;
+  }
+
+  /**
+   * Wrapper so listeners get a typed payload and we don't sprinkle event
+   * dispatch logic across the method body.
+   */
+  private emitStatusChanged(payload: AppointmentStatusChangedEvent) {
+    this.eventBus.emit(NotificationEvents.APPOINTMENT_STATUS_CHANGED, payload);
   }
 
   async getCalendar(

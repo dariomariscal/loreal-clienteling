@@ -12,6 +12,11 @@ export const SUGGESTED_ACTION_TRIGGERS = [
   "new_product_match",
   "abandoned_cart",
   "post_purchase",
+  // Added in 0008 to align with the BA-relevant alert set:
+  "sample_follow_up",
+  "wishlist_back_in_stock",
+  "wishlist_price_drop",
+  "reservation_expiring",
 ] as const;
 
 export type SuggestedActionTrigger =

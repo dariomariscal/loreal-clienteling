@@ -12,3 +12,4 @@ export * from "./customer-visits";
 export * from "./message";
 export * from "./consent";
 export * from "./audit";
+export * from "./notification";

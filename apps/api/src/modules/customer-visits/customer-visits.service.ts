@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
@@ -17,6 +18,10 @@ import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
 import { CustomerActivityService } from "../../common/services/customer-activity.service";
+import {
+  NotificationEvents,
+  type CustomerVisitStartedEvent,
+} from "../notifications/notification-events";
 import type {
   StartVisitDto,
   UpdateVisitDto,
@@ -32,6 +37,7 @@ export class CustomerVisitsService {
     @Inject(AuditService) private auditService: AuditService,
     @Inject(CustomerActivityService)
     private customerActivity: CustomerActivityService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   async findAll(
@@ -198,7 +204,7 @@ export class CustomerVisitsService {
       }
     }
 
-    return this.db.transaction(async (tx) => {
+    const visit = await this.db.transaction(async (tx) => {
       const [{ count }] = await tx
         .select({
           count: sql<number>`count(*)::int`,
@@ -206,7 +212,7 @@ export class CustomerVisitsService {
         .from(customerVisits)
         .where(eq(customerVisits.customerId, data.customerId));
 
-      const [visit] = await tx
+      const [v] = await tx
         .insert(customerVisits)
         .values({
           customerId: data.customerId,
@@ -224,13 +230,35 @@ export class CustomerVisitsService {
 
       await this.customerActivity.touchInteraction(data.customerId, new Date(), tx);
 
-      await this.auditService.log(user, "start", "customer_visit", visit.id, {
+      await this.auditService.log(user, "start", "customer_visit", v.id, {
         customerId: data.customerId,
         appointmentId: data.appointmentId,
       });
 
-      return visit;
+      return v;
     });
+
+    // Look up the customer's assigned BA + lifecycle stage to decide whether
+    // the visit warrants an "arrived" alert to the owner. The lookup runs
+    // outside the transaction — best-effort, never blocks the visit insert.
+    const [customer] = await this.db
+      .select({
+        assignedToUserId: customers.assignedToUserId,
+        lifecycleStage: customers.lifecycleStage,
+      })
+      .from(customers)
+      .where(eq(customers.id, data.customerId));
+
+    const payload: CustomerVisitStartedEvent = {
+      visitId: visit.id,
+      customerId: data.customerId,
+      attendedByUserId: user.id,
+      assignedToUserId: customer?.assignedToUserId ?? null,
+      isVip: customer?.lifecycleStage === "vip",
+    };
+    this.eventBus.emit(NotificationEvents.CUSTOMER_VISIT_STARTED, payload);
+
+    return visit;
   }
 
   async update(id: string, data: UpdateVisitDto, user: SessionUser) {

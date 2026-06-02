@@ -1,4 +1,5 @@
 import { Injectable, Inject, ForbiddenException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { baRatings, users } from "@loreal/database";
@@ -6,6 +7,10 @@ import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
+import {
+  NotificationEvents,
+  type BaRatingCreatedEvent,
+} from "../notifications/notification-events";
 import type {
   CreateBaRatingDto,
   BaNpsFiltersDto,
@@ -17,6 +22,7 @@ export class BaRatingsService {
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   async create(data: CreateBaRatingDto, user: SessionUser) {
@@ -49,6 +55,14 @@ export class BaRatingsService {
       score: data.score,
       source: data.source,
     });
+
+    const payload: BaRatingCreatedEvent = {
+      baRatingId: rating.id,
+      reviewedUserId: data.reviewedUserId,
+      customerId: data.customerId,
+      score: data.score,
+    };
+    this.eventBus.emit(NotificationEvents.BA_RATING_CREATED, payload);
 
     return rating;
   }

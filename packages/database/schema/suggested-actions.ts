@@ -35,7 +35,10 @@ export const suggestedActions = pgTable(
     dueDate: date("due_date").notNull(),
 
     triggerType: varchar("trigger_type", { length: 32 }).notNull(),
-    // replenishment | life_event | win_back | birthday | vip_cadence | new_product_match | abandoned_cart | post_purchase
+    // replenishment | life_event | win_back | birthday | vip_cadence
+    // | new_product_match | abandoned_cart | post_purchase
+    // | sample_follow_up | wishlist_back_in_stock | wishlist_price_drop
+    // | reservation_expiring
 
     description: text("description").notNull(),
     recommendedAction: text("recommended_action").notNull(),

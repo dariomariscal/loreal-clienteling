@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, desc } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { approvalRequests, users } from "@loreal/database";
@@ -12,6 +13,10 @@ import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
+import {
+  NotificationEvents,
+  type ApprovalDecidedEvent,
+} from "../notifications/notification-events";
 import type {
   CreateApprovalRequestDto,
   DecideApprovalRequestDto,
@@ -24,6 +29,7 @@ export class ApprovalRequestsService {
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   async findAll(user: SessionUser, filters: ApprovalRequestFiltersDto) {
@@ -166,6 +172,15 @@ export class ApprovalRequestsService {
       id,
       { notes: data.notes },
     );
+
+    const eventPayload: ApprovalDecidedEvent = {
+      approvalRequestId: updated.id,
+      requestedByUserId: request.requestedByUserId,
+      decision: data.decision === "approve" ? "approved" : "rejected",
+      type: request.type,
+      customerId: request.customerId ?? null,
+    };
+    this.eventBus.emit(NotificationEvents.APPROVAL_DECIDED, eventPayload);
 
     return updated;
   }

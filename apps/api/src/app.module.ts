@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { ClerkModule } from "./integrations/clerk/clerk.module";
 import { AuthModule } from "./auth/auth.module";
 import { DatabaseModule } from "./config/database.module";
@@ -40,6 +41,7 @@ import { ShiftsModule } from "./modules/shifts/shifts.module";
 import { BaRatingsModule } from "./modules/ba-ratings/ba-ratings.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { DashboardsModule } from "./modules/dashboards/dashboards.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -47,6 +49,12 @@ import { HealthController } from "./health.controller";
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", "../../.env"],
+    }),
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: ".",
+      maxListeners: 20,
+      verboseMemoryLeak: false,
     }),
     DatabaseModule,
     ClerkModule,
@@ -88,6 +96,7 @@ import { HealthController } from "./health.controller";
     BaRatingsModule,
     InventoryModule,
     DashboardsModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
 })

@@ -61,3 +61,8 @@ export { productEmbeddings } from "./product-embeddings";
 export { customerAiSummaries } from "./customer-ai-summaries";
 export { voiceTranscriptions } from "./voice-transcriptions";
 export { aiUsageLogs } from "./ai-usage-logs";
+
+// Notifications — in-app + Web Push for Beauty Advisors
+export { notifications } from "./notifications";
+export { notificationPreferences } from "./notification-preferences";
+export { pushSubscriptions } from "./push-subscriptions";

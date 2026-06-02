@@ -57,6 +57,13 @@
       "when": 1780411209019,
       "tag": "0007_fuzzy_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780414727760,
+      "tag": "0008_violet_eternity",
+      "breakpoints": true
     }
   ]
 }

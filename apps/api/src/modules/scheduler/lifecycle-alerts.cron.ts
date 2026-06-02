@@ -1,109 +1,182 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import {
-  customers,
-  orders,
-  lineItems,
-  products,
-  messages,
-} from "@loreal/database";
+import { customers, orders, lineItems, products } from "@loreal/database";
 import {
   generateLifeEventAlerts,
   calculateNextPurchase,
   type ReplenishmentResult,
 } from "@loreal/domain";
-import { eq, sql, and, isNotNull } from "drizzle-orm";
-import { AuditService } from "../../common/services/audit.service";
+import { eq, and, isNotNull } from "drizzle-orm";
+import { NotificationsService } from "../notifications/notifications.service";
 
+/**
+ * Daily generator for the three lifecycle-driven alerts:
+ *
+ *   - birthday_today      → fires the day of the customer's birthday
+ *   - dormant_customer    → re-engage signal (long gap since last interaction)
+ *   - replenishment_due   → per-product, when within the replenishment window
+ *
+ * Previous version wrote these as rows in `messages` with `channel=email`,
+ * which was wrong: they're internal BA alerts, not outbound customer
+ * communications. Now they go through NotificationsService — which handles
+ * dedup, push, and respects the BA's preferences.
+ */
 @Injectable()
 export class LifecycleAlertsCron {
   private readonly logger = new Logger(LifecycleAlertsCron.name);
 
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
-    @Inject(AuditService) private auditService: AuditService,
+    @Inject(NotificationsService)
+    private notifications: NotificationsService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_6AM)
   async generateAlerts(): Promise<void> {
     this.logger.log("Generando alertas de eventos de vida...");
-
     const now = new Date();
+    const today = now.toISOString().slice(0, 10);
 
-    // Fetch all customers with their assigned BA
     const allCustomers = await this.db
       .select({
         id: customers.id,
+        firstName: customers.firstName,
+        lastName: customers.lastName,
         birthday: customers.birthday,
         enrolledAt: customers.enrolledAt,
+        lifecycleStage: customers.lifecycleStage,
         assignedToUserId: customers.assignedToUserId,
         createdByUserId: customers.createdByUserId,
       })
       .from(customers);
 
-    let totalAlerts = 0;
+    let dispatched = 0;
 
     for (const customer of allCustomers) {
-      const assignedToUserId =
+      const recipient =
         customer.assignedToUserId ?? customer.createdByUserId;
+      if (!recipient) continue;
 
-      // Calculate replenishment alerts for this customer
+      const customerName = `${customer.firstName} ${customer.lastName}`;
+
+      // Replenishment is computed per product; the domain helper returns
+      // ReplenishmentResult[] for SKUs currently inside their replenishment
+      // window.
       const replenishmentAlerts = await this.getReplenishmentAlerts(
         customer.id,
         now,
       );
 
-      const alerts = generateLifeEventAlerts(
+      // generateLifeEventAlerts maps customer signals → discrete LifeEventAlert
+      // entries with a `type` field that mirrors our notification kinds when
+      // possible (birthday, win_back, replenishment).
+      const lifeAlerts = generateLifeEventAlerts(
         {
           customerId: customer.id,
           birthday: customer.birthday ? new Date(customer.birthday) : null,
           enrolledAt: customer.enrolledAt,
-          assignedToUserId,
+          assignedToUserId: recipient,
         },
         replenishmentAlerts,
         now,
       );
 
-      // Persist alerts as messages (so they show up in the BA's workflow)
-      for (const alert of alerts) {
-        // Check if a similar alert was already sent recently (avoid duplicates)
-        const [existing] = await this.db
-          .select({ id: messages.id })
-          .from(messages)
-          .where(
-            and(
-              eq(messages.customerId, alert.customerId),
-              eq(messages.campaignType, alert.type),
-              eq(messages.channel, "email"),
-              sql`${messages.sentAt} > now() - interval '7 days'`,
-            ),
-          )
-          .limit(1);
+      for (const alert of lifeAlerts) {
+        const inserted = await this.dispatch(
+          alert.type,
+          recipient,
+          customer.id,
+          customerName,
+          alert.label,
+          today,
+        );
+        if (inserted) dispatched++;
+      }
 
-        if (existing) continue;
-
-        await this.db.insert(messages).values({
-          customerId: alert.customerId,
-          sentByUserId: alert.assignedToUserId,
-          channel: "email",
-          body: alert.label,
-          campaignType: alert.type,
-          sentAt: now,
+      // Replenishment alerts include the productId, which `generateLifeEventAlerts`
+      // strips. Iterate them separately so the notification carries the SKU.
+      for (const r of replenishmentAlerts) {
+        const inserted = await this.notifications.create({
+          recipientUserId: recipient,
+          kind: "replenishment_due",
+          title: `Replenishment: ${customerName}`,
+          body:
+            r.daysUntilDepletion <= 0
+              ? "Producto probablemente ya se acabó."
+              : `Producto se acaba en ~${r.daysUntilDepletion} días.`,
+          actionUrl: `/customers/${customer.id}`,
+          customerId: customer.id,
+          productId: r.productId,
+          groupKey: `replenishment_due:${customer.id}:${r.productId}:${today}`,
         });
+        if (inserted) dispatched++;
+      }
 
-        totalAlerts++;
+      // Independent of the domain helper, also fire `dormant_customer` for
+      // customers in lifecycleStage=dormant. Segmentation cron computes the
+      // stage at 2am, so by 6am the value is fresh.
+      if (customer.lifecycleStage === "dormant") {
+        const inserted = await this.notifications.create({
+          recipientUserId: recipient,
+          kind: "dormant_customer",
+          title: "Cliente en riesgo",
+          body: `${customerName} no ha vuelto en mucho tiempo. Re-engánchala.`,
+          actionUrl: `/customers/${customer.id}`,
+          customerId: customer.id,
+          groupKey: `dormant_customer:${customer.id}:${today}`,
+        });
+        if (inserted) dispatched++;
       }
     }
 
-    this.logger.log(`Alertas generadas: ${totalAlerts}`);
+    this.logger.log(`Alertas de lifecycle generadas: ${dispatched}`);
+  }
+
+  private async dispatch(
+    domainType: string,
+    recipient: string,
+    customerId: string,
+    customerName: string,
+    label: string,
+    today: string,
+  ): Promise<boolean> {
+    // Translate the domain alert type into a NotificationKind. Replenishment
+    // is handled outside this method (it needs the productId, which the
+    // domain helper does not propagate).
+    if (domainType === "birthday") {
+      const result = await this.notifications.create({
+        recipientUserId: recipient,
+        kind: "birthday_today",
+        title: `Cumpleaños hoy: ${customerName}`,
+        body: label,
+        actionUrl: `/customers/${customerId}`,
+        customerId,
+        groupKey: `birthday_today:${customerId}:${today}`,
+      });
+      return result != null;
+    }
+    if (domainType === "win_back") {
+      const result = await this.notifications.create({
+        recipientUserId: recipient,
+        kind: "dormant_customer",
+        title: `Win-back: ${customerName}`,
+        body: label,
+        actionUrl: `/customers/${customerId}`,
+        customerId,
+        groupKey: `dormant_customer:${customerId}:${today}`,
+      });
+      return result != null;
+    }
+    // Unknown / unsupported domain type (e.g. anniversary "special_event")
+    // is not part of the BA-only alert set — skip silently.
+    return false;
   }
 
   private async getReplenishmentAlerts(
     customerId: string,
     now: Date,
   ): Promise<ReplenishmentResult[]> {
-    // Get all ordered products for this customer with their duration info
     const customerOrders = await this.db
       .select({
         processedAt: orders.processedAt,
@@ -122,12 +195,10 @@ export class LifecycleAlertsCron {
 
     if (customerOrders.length === 0) return [];
 
-    // Group by product and calculate replenishment for each
     const byProduct = new Map<
       string,
       { processedAt: Date; replenishmentDays: number }[]
     >();
-
     for (const row of customerOrders) {
       const list = byProduct.get(row.productId) ?? [];
       list.push({
@@ -138,7 +209,6 @@ export class LifecycleAlertsCron {
     }
 
     const results: ReplenishmentResult[] = [];
-
     for (const [productId, rows] of byProduct) {
       const result = calculateNextPurchase({
         productId,
@@ -149,12 +219,8 @@ export class LifecycleAlertsCron {
         })),
         now,
       });
-
-      if (result?.isInWindow) {
-        results.push(result);
-      }
+      if (result?.isInWindow) results.push(result);
     }
-
     return results;
   }
 }
