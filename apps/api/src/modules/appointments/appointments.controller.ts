@@ -207,15 +207,19 @@ export class AppointmentsController {
   @Post(":id/check-in")
   @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
-  checkIn(@Param("id") id: string) {
-    return this.appointmentsService.checkIn(id);
+  checkIn(@Param("id") id: string, @Session() session: UserSession) {
+    return this.appointmentsService.checkIn(id, session.user);
   }
 
   @Post(":id/check-out")
   @Roles(["beauty_advisor", "counter_manager"])
   @ApiParam({ name: "id", type: String })
   @ApiBody({ type: CheckOutAppointmentDto })
-  checkOut(@Param("id") id: string, @Body() body: CheckOutAppointmentDto) {
-    return this.appointmentsService.checkOut(id, body);
+  checkOut(
+    @Param("id") id: string,
+    @Body() body: CheckOutAppointmentDto,
+    @Session() session: UserSession,
+  ) {
+    return this.appointmentsService.checkOut(id, body, session.user);
   }
 }

@@ -14,10 +14,13 @@ import {
   stores,
   serviceTypes,
   schedulingPolicies,
+  customerVisits,
+  suggestedActions,
 } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { CustomerActivityService } from "../../common/services/customer-activity.service";
+import { CustomerVisitsService } from "../customer-visits/customer-visits.service";
 import {
   NotificationEvents,
   type AppointmentStatusChangedEvent,
@@ -116,6 +119,8 @@ export class AppointmentsService {
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(CustomerActivityService)
     private customerActivity: CustomerActivityService,
+    @Inject(CustomerVisitsService)
+    private customerVisitsService: CustomerVisitsService,
     private readonly eventBus: EventEmitter2,
   ) {}
 
@@ -429,15 +434,47 @@ export class AppointmentsService {
     return updated;
   }
 
-  async checkIn(id: string) {
+  /**
+   * Check-in: customer arrived. Marks the appointment confirmed and opens a
+   * customer_visits row so the visit is auditable / counted toward the
+   * customer's history before the outcome is captured. Idempotent — if a
+   * visit already exists for this appointment, returns it.
+   */
+  async checkIn(id: string, user: SessionUser) {
     const existing = await this.findOne(id);
+
+    // Avoid double-opening a visit if the BA taps check-in twice.
+    const [openVisit] = await this.db
+      .select({ id: customerVisits.id })
+      .from(customerVisits)
+      .where(
+        and(
+          eq(customerVisits.appointmentId, id),
+          eq(customerVisits.status, "in_progress"),
+        ),
+      )
+      .limit(1);
+
+    if (!openVisit) {
+      await this.customerVisitsService.start(
+        {
+          customerId: existing.customerId,
+          appointmentId: id,
+          visitChannel: existing.isVirtual ? "virtual" : "in_store",
+          startedAt: new Date(),
+        },
+        user,
+      );
+    }
+
     const [updated] = await this.db
       .update(appointments)
       .set({
         // Use "confirmed" as the "checked-in" signal until the explicit
-        // checked_in status is added in a follow-up migration. Frontends
-        // disambiguate via the customer_visits row created in parallel.
-        status: existing.status === "scheduled" ? "confirmed" : existing.status,
+        // checked_in status is added in a follow-up migration. The visit
+        // row is the source of truth for "is the customer here right now".
+        status:
+          existing.status === "scheduled" ? "confirmed" : existing.status,
         updatedAt: new Date(),
       })
       .where(eq(appointments.id, id))
@@ -445,7 +482,17 @@ export class AppointmentsService {
     return updated;
   }
 
-  async checkOut(id: string, data: CheckOutAppointmentDto) {
+  /**
+   * Check-out: closes the appointment with an outcome, mirrors the outcome
+   * into the open customer_visits row, and seeds 3 standard follow-up
+   * suggested_actions ("thank-you today", "NPS in 2 days", "follow-up in
+   * 14 days") so the BA's "Today" screen surfaces them automatically.
+   */
+  async checkOut(
+    id: string,
+    data: CheckOutAppointmentDto,
+    user: SessionUser,
+  ) {
     const existing = await this.findOne(id);
 
     const [updated] = await this.db
@@ -462,6 +509,49 @@ export class AppointmentsService {
       .where(eq(appointments.id, id))
       .returning();
 
+    // Close the matching customer_visit (if any) so the timeline shows the
+    // visit as completed with a real duration + outcome.
+    const [openVisit] = await this.db
+      .select({ id: customerVisits.id })
+      .from(customerVisits)
+      .where(
+        and(
+          eq(customerVisits.appointmentId, id),
+          eq(customerVisits.status, "in_progress"),
+        ),
+      )
+      .limit(1);
+
+    if (openVisit) {
+      try {
+        await this.customerVisitsService.close(
+          openVisit.id,
+          {
+            visitReason: this.mapOutcomeToVisitReason(
+              data.outcomeCode,
+              existing.serviceTypeId,
+            ),
+            outcome: this.mapOutcomeCodeToVisitOutcome(data.outcomeCode),
+            sentiment: data.serviceOutcome?.satisfactionScore
+              ? this.scoreToSentiment(
+                  data.serviceOutcome.satisfactionScore,
+                )
+              : undefined,
+            notes: data.notes,
+          },
+          user,
+        );
+      } catch {
+        // Best-effort: if closing the visit fails (already closed, race),
+        // don't block the check-out. The appointment outcome is the
+        // primary source of truth.
+      }
+    }
+
+    // Seed standard follow-ups so the BA's day-after Today screen is
+    // populated without a separate "Schedule follow-up" step.
+    await this.seedPostAppointmentFollowUps(updated, user);
+
     this.emitStatusChanged({
       appointmentId: updated.id,
       staffUserId: updated.staffUserId,
@@ -472,6 +562,115 @@ export class AppointmentsService {
     });
 
     return updated;
+  }
+
+  /** Map outcome_code → customer_visits.outcome. */
+  private mapOutcomeCodeToVisitOutcome(code: string): string {
+    switch (code) {
+      case "sale_closed":
+        return "purchased";
+      case "sample_given":
+        return "sample_given";
+      case "future_intent":
+        return "followup_needed";
+      case "referred_out":
+        return "followup_needed";
+      case "no_purchase":
+      default:
+        return "no_purchase";
+    }
+  }
+
+  /**
+   * Pick a reasonable visit reason since we require one at close-out and
+   * the appointment-level taxonomy is different. Fallback to "new_purchase"
+   * for sale_closed, "diagnostic" for free consults.
+   */
+  private mapOutcomeToVisitReason(
+    outcomeCode: string,
+    _serviceTypeId: string,
+  ): string {
+    if (outcomeCode === "sale_closed") return "new_purchase";
+    if (outcomeCode === "sample_given") return "diagnostic";
+    if (outcomeCode === "referred_out") return "diagnostic";
+    return "diagnostic";
+  }
+
+  private scoreToSentiment(score: number): string {
+    if (score >= 8) return "positive";
+    if (score <= 4) return "negative";
+    return "neutral";
+  }
+
+  /**
+   * Auto-generate post-appointment follow-ups. Three rows by default:
+   *   - "thank-you" (today)        → triggerType post_purchase
+   *   - "NPS check" (+2 days)      → triggerType post_purchase
+   *   - "follow-up call" (+14d)    → triggerType post_purchase
+   *
+   * Skipped entirely when outcome is no_purchase + referred_out, where the
+   * customer either had no interaction value or is now another BA's
+   * responsibility.
+   */
+  private async seedPostAppointmentFollowUps(
+    appt: typeof appointments.$inferSelect,
+    _user: SessionUser,
+  ) {
+    if (
+      appt.outcomeCode === "referred_out" ||
+      appt.outcomeCode === null
+    ) {
+      return;
+    }
+
+    const today = new Date();
+    const in2d = new Date(today);
+    in2d.setDate(in2d.getDate() + 2);
+    const in14d = new Date(today);
+    in14d.setDate(in14d.getDate() + 14);
+
+    const toYmd = (d: Date) => d.toISOString().slice(0, 10);
+
+    const baseDescription =
+      appt.outcomeCode === "sale_closed"
+        ? "Cita completada con venta — cerrar el ciclo con la clienta"
+        : "Cita completada sin venta — mantener la relación abierta";
+
+    await this.db.insert(suggestedActions).values([
+      {
+        customerId: appt.customerId,
+        assignedToUserId: appt.staffUserId,
+        dueDate: toYmd(today),
+        triggerType: "post_purchase",
+        description: `${baseDescription}: enviar mensaje de agradecimiento`,
+        recommendedAction:
+          "Enviar 'gracias por venir' por WhatsApp o SMS hoy.",
+        priority: 1,
+      },
+      {
+        customerId: appt.customerId,
+        assignedToUserId: appt.staffUserId,
+        dueDate: toYmd(in2d),
+        triggerType: "post_purchase",
+        description:
+          "Encuesta NPS post-cita — pedir feedback de la experiencia",
+        recommendedAction: "Pedir calificación 0-10 y comentario corto.",
+        priority: 2,
+      },
+      {
+        customerId: appt.customerId,
+        assignedToUserId: appt.staffUserId,
+        dueDate: toYmd(in14d),
+        triggerType: "post_purchase",
+        description:
+          appt.outcomeCode === "sale_closed"
+            ? "Seguimiento 14 días post-compra — confirmar resultados"
+            : "Seguimiento 14 días post-consulta — recuperar interés",
+        recommendedAction:
+          "Llamar o escribir para verificar uso y agendar próxima visita.",
+        priority: 3,
+      },
+    ]);
   }
 
   /**
