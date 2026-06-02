@@ -79,9 +79,26 @@ function buildEmbeddingInput(c: CustomerRow): string {
   return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
+function parseAssignedToFlag(argv: string[]): string[] | null {
+  const flagIndex = argv.findIndex((a) => a === "--assigned-to");
+  if (flagIndex === -1) return null;
+  const value = argv[flagIndex + 1];
+  if (!value) {
+    throw new Error("--assigned-to requires a comma-separated user id list");
+  }
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 async function main() {
   const onlyMissing = !process.argv.includes("--all");
+  const assignedTo = parseAssignedToFlag(process.argv);
   console.log(`→ Mode: ${onlyMissing ? "only missing" : "all customers"}`);
+  if (assignedTo) {
+    console.log(`→ Restricted to ${assignedTo.length} BA(s): ${assignedTo.join(", ")}`);
+  }
   console.log(`→ Model: ${MODEL}`);
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL!, max: 1 });
@@ -124,12 +141,24 @@ async function main() {
       FROM customers c
       LEFT JOIN beauty_profiles bp ON bp.customer_id = c.id
     `;
-    const whereMissing = `
-      WHERE NOT EXISTS (SELECT 1 FROM customer_embeddings ce WHERE ce.customer_id = c.id)
-    `;
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    if (onlyMissing) {
+      conditions.push(
+        "NOT EXISTS (SELECT 1 FROM customer_embeddings ce WHERE ce.customer_id = c.id)",
+      );
+    }
+    if (assignedTo && assignedTo.length > 0) {
+      params.push(assignedTo);
+      conditions.push(`c.assigned_to_user_id = ANY($${params.length}::text[])`);
+    }
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
 
     const { rows: customers } = await pool.query<CustomerRow>(
-      onlyMissing ? `${baseSql} ${whereMissing} ORDER BY c.id` : `${baseSql} ORDER BY c.id`,
+      `${baseSql} ${whereClause} ORDER BY c.id`,
+      params,
     );
 
     if (customers.length === 0) {
