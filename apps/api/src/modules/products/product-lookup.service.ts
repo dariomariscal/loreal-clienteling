@@ -124,7 +124,12 @@ export class ProductLookupService {
         title: variantRow.variant.title,
         optionLabel: this.collapseOptions(variantRow.variant),
         swatchHex: variantRow.variant.swatchHex,
-        imageUrl: variantRow.variant.imageUrl,
+        // Variants rarely ship with their own image (only the launch shade
+        // gets a photo). Fall back to the parent product's first image so
+        // every scan renders a real product hero — consumer of this payload
+        // never needs to know about the products.images shape.
+        imageUrl:
+          variantRow.variant.imageUrl ?? this.firstProductImage(variantRow.product.images),
         price: Number(variantRow.variant.price),
       },
       product: {
@@ -150,6 +155,16 @@ export class ProductLookupService {
     v: typeof productVariants.$inferSelect,
   ): string | null {
     return [v.option1, v.option2, v.option3].filter(Boolean).join(" · ") || null;
+  }
+
+  /**
+   * `products.images` is stored as a jsonb string array. Drizzle returns it
+   * already parsed but typed as `unknown` — narrow before reading.
+   */
+  private firstProductImage(images: unknown): string | null {
+    if (!Array.isArray(images) || images.length === 0) return null;
+    const first = images[0];
+    return typeof first === "string" && first.length > 0 ? first : null;
   }
 
   private async resolveAccessibleStores(user: SessionUser): Promise<string[]> {
