@@ -1,11 +1,13 @@
 import { Controller, Get, Post, Patch, Param, Body, Inject } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiBody, ApiParam } from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
+import { Session } from "../../auth/decorators/session.decorator";
 import { ServiceTypesService } from "./service-types.service";
 import {
   CreateServiceTypeDto,
   UpdateServiceTypeDto,
 } from "../../dtos/service-types.dto";
+import type { UserSession } from "../../common/types/session";
 
 @ApiTags("Service Types")
 @ApiBearerAuth()
@@ -17,8 +19,8 @@ export class ServiceTypesController {
   ) {}
 
   @Get()
-  findAll() {
-    return this.serviceTypesService.findActive();
+  findAll(@Session() session: UserSession) {
+    return this.serviceTypesService.findActive(session.user);
   }
 
   @Get("all")

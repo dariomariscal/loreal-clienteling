@@ -1,7 +1,9 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, or, type SQL } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { serviceTypes } from "@loreal/database";
+import { ScopeService } from "../../common/services/scope.service";
+import type { SessionUser } from "../../common/types/session";
 import type {
   CreateServiceTypeDto,
   UpdateServiceTypeDto,
@@ -9,7 +11,10 @@ import type {
 
 @Injectable()
 export class ServiceTypesService {
-  constructor(@Inject(DATABASE_TOKEN) private db: Database) {}
+  constructor(
+    @Inject(DATABASE_TOKEN) private db: Database,
+    @Inject(ScopeService) private scopeService: ScopeService,
+  ) {}
 
   async findAll() {
     return this.db
@@ -18,11 +23,34 @@ export class ServiceTypesService {
       .orderBy(serviceTypes.displayName);
   }
 
-  async findActive() {
+  /**
+   * Active service types visible to the caller.
+   *
+   * Brand scoping: a BA assigned to Lancôme must only see Lancôme services
+   * — plus rows with `brand_id IS NULL` which are the cross-brand services
+   * (VIP private shopping, virtual consult, masterclass) any BA can offer.
+   *
+   * Managers (area / national) see every brand inside their division, again
+   * with the cross-brand rows always included. Admin sees everything.
+   */
+  async findActive(user: SessionUser) {
+    const brandScope = await this.scopeService.scopeByBrand(
+      user,
+      serviceTypes.brandId,
+    );
+
+    const where: SQL | undefined =
+      brandScope === undefined
+        ? eq(serviceTypes.isActive, true)
+        : and(
+            eq(serviceTypes.isActive, true),
+            or(brandScope, isNull(serviceTypes.brandId)),
+          );
+
     return this.db
       .select()
       .from(serviceTypes)
-      .where(eq(serviceTypes.isActive, true))
+      .where(where)
       .orderBy(serviceTypes.sortOrder, serviceTypes.displayName);
   }
 
