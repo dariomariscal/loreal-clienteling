@@ -25,13 +25,17 @@ import {
   APPOINTMENT_NO_SHOW_REASON_LABEL,
 } from "@/lib/appointments/labels";
 import { useAppointmentLifecycle } from "@/lib/appointments/use-appointment-lifecycle";
+import { useCancelAppointmentSeries } from "@/lib/hooks";
 
 type ReasonKind = "cancel" | "no_show";
+type CancelScope = "one" | "all";
 
 interface AppointmentReasonSheetProps {
   appointmentId: string;
   kind: ReasonKind | null;
   onOpenChange: (open: boolean) => void;
+  /** When set, the cancel flow offers "this one" vs. "whole series". */
+  seriesId?: string | null;
 }
 
 /**
@@ -48,29 +52,43 @@ export function AppointmentReasonSheet({
   appointmentId,
   kind,
   onOpenChange,
+  seriesId,
 }: AppointmentReasonSheetProps) {
   const lifecycle = useAppointmentLifecycle(appointmentId);
+  const cancelSeries = useCancelAppointmentSeries();
   const [reason, setReason] = React.useState<string | null>(null);
   const [notes, setNotes] = React.useState("");
+  const [scope, setScope] = React.useState<CancelScope>("one");
 
   React.useEffect(() => {
     if (kind) {
       setReason(null);
       setNotes("");
+      setScope("one");
     }
   }, [kind, appointmentId]);
 
   const open = kind !== null;
-
   const config = kind === "cancel" ? CANCEL_CONFIG : NO_SHOW_CONFIG;
+  const showSeriesScope = kind === "cancel" && !!seriesId;
+  const isPending = lifecycle.isPending || cancelSeries.isPending;
 
   async function handleSubmit() {
     if (!reason || !kind) return;
     if (kind === "cancel") {
-      await lifecycle.cancel({
-        reason: reason as AppointmentCancellationReason,
-        notes: notes.trim() ? notes.trim() : undefined,
-      });
+      if (showSeriesScope && scope === "all") {
+        await cancelSeries.mutateAsync({
+          id: appointmentId,
+          scope: "all",
+          reason: reason as AppointmentCancellationReason,
+          notes: notes.trim() ? notes.trim() : undefined,
+        });
+      } else {
+        await lifecycle.cancel({
+          reason: reason as AppointmentCancellationReason,
+          notes: notes.trim() ? notes.trim() : undefined,
+        });
+      }
     } else {
       await lifecycle.markNoShow({
         reason: reason as AppointmentNoShowReason,
@@ -89,6 +107,41 @@ export function AppointmentReasonSheet({
 
         <SheetBody>
           <div className="space-y-5">
+            {showSeriesScope && (
+              <SectionCard title="Alcance">
+                <div className="grid grid-cols-2 gap-2 px-4 pb-3 pt-1">
+                  {(
+                    [
+                      { value: "one", label: "Solo esta cita" },
+                      { value: "all", label: "Toda la serie" },
+                    ] as const
+                  ).map((opt) => {
+                    const active = scope === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        disabled={isPending}
+                        onClick={() => setScope(opt.value)}
+                        className={cn(
+                          "rounded-xl border p-3 text-left text-sm font-medium transition-all",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                          active
+                            ? "border-foreground/40 bg-foreground/[0.03] shadow-sm"
+                            : "border-border bg-card hover:border-foreground/15 hover:bg-muted/30",
+                          isPending && "cursor-not-allowed opacity-60",
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+            )}
+
             <SectionCard title={config.reasonSectionTitle}>
               <div className="grid grid-cols-1 gap-2 px-4 pb-3 pt-1 sm:grid-cols-2">
                 {config.reasons.map(({ value, label }) => {
@@ -99,7 +152,7 @@ export function AppointmentReasonSheet({
                       type="button"
                       role="radio"
                       aria-checked={active}
-                      disabled={lifecycle.isPending}
+                      disabled={isPending}
                       onClick={() => setReason(value)}
                       className={cn(
                         "rounded-xl border p-3 text-left text-sm font-medium transition-all",
@@ -107,7 +160,7 @@ export function AppointmentReasonSheet({
                         active
                           ? "border-foreground/40 bg-foreground/[0.03] shadow-sm"
                           : "border-border bg-card hover:border-foreground/15 hover:bg-muted/30",
-                        lifecycle.isPending && "cursor-not-allowed opacity-60",
+                        isPending && "cursor-not-allowed opacity-60",
                       )}
                     >
                       {label}
@@ -124,7 +177,7 @@ export function AppointmentReasonSheet({
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
                   placeholder={config.notesPlaceholder}
-                  disabled={lifecycle.isPending}
+                  disabled={isPending}
                 />
               </div>
             </SectionCard>
@@ -138,9 +191,13 @@ export function AppointmentReasonSheet({
           <Button
             variant={kind === "cancel" ? "destructive" : "default"}
             onClick={handleSubmit}
-            disabled={!reason || lifecycle.isPending}
+            disabled={!reason || isPending}
           >
-            {lifecycle.isPending ? "Guardando…" : config.confirmLabel}
+            {isPending
+              ? "Guardando…"
+              : showSeriesScope && scope === "all"
+                ? "Cancelar toda la serie"
+                : config.confirmLabel}
           </Button>
         </SheetFooter>
       </SheetContent>

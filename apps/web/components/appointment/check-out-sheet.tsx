@@ -46,6 +46,8 @@ export function CheckOutSheet({
     null,
   );
   const [notes, setNotes] = React.useState("");
+  const [satisfactionScore, setSatisfactionScore] = React.useState<number>(8);
+  const [productsUsedText, setProductsUsedText] = React.useState("");
 
   // Reset local state every time the sheet opens, so the previous appointment's
   // outcome doesn't bleed into the next close-out.
@@ -53,13 +55,28 @@ export function CheckOutSheet({
     if (open) {
       setOutcome(null);
       setNotes("");
+      setSatisfactionScore(8);
+      setProductsUsedText("");
     }
   }, [open, appointmentId]);
 
   async function handleSubmit() {
     if (!outcome) return;
+    const productsUsed = productsUsedText
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const serviceOutcome =
+      productsUsed.length > 0 || notes.trim()
+        ? {
+            satisfactionScore,
+            ...(productsUsed.length > 0 ? { productsUsed } : {}),
+            ...(notes.trim() ? { notes: notes.trim() } : {}),
+          }
+        : { satisfactionScore };
     await lifecycle.checkOut({
       outcomeCode: outcome,
+      serviceOutcome,
       notes: notes.trim() ? notes.trim() : undefined,
     });
     onOpenChange(false);
@@ -81,6 +98,37 @@ export function CheckOutSheet({
                   onChange={setOutcome}
                   disabled={lifecycle.isPending}
                 />
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Productos usados (separados por coma)">
+              <div className="px-4 pb-3 pt-1">
+                <Textarea
+                  value={productsUsedText}
+                  onChange={(e) => setProductsUsedText(e.target.value)}
+                  rows={2}
+                  placeholder="p. ej. Génifique, Teint Idole 220"
+                  disabled={lifecycle.isPending}
+                />
+              </div>
+            </SectionCard>
+
+            <SectionCard title={`Satisfacción · ${satisfactionScore}/10`}>
+              <div className="px-4 pb-3 pt-1">
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={satisfactionScore}
+                  onChange={(e) => setSatisfactionScore(Number(e.target.value))}
+                  disabled={lifecycle.isPending}
+                  className="w-full accent-foreground"
+                />
+                <div className="mt-1 flex justify-between text-[10px] uppercase tracking-widest text-muted-foreground">
+                  <span>Baja</span>
+                  <span>Alta</span>
+                </div>
               </div>
             </SectionCard>
 

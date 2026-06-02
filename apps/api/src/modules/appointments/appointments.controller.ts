@@ -20,8 +20,10 @@ import { Session } from "../../auth/decorators/session.decorator";
 import { AppointmentsService } from "./appointments.service";
 import {
   CreateAppointmentDto,
+  CreateAppointmentSeriesDto,
   UpdateAppointmentDto,
   CancelAppointmentDto,
+  CancelAppointmentSeriesDto,
   MarkNoShowDto,
   ConfirmAppointmentByCustomerDto,
   CheckOutAppointmentDto,
@@ -159,6 +161,28 @@ export class AppointmentsController {
     @Session() session: UserSession,
   ) {
     return this.appointmentsService.create(body, session.user);
+  }
+
+  @Post("series")
+  @Roles(["beauty_advisor", "counter_manager"])
+  @ApiBody({ type: CreateAppointmentSeriesDto })
+  createSeries(
+    @Body() body: CreateAppointmentSeriesDto,
+    @Session() session: UserSession,
+  ) {
+    return this.appointmentsService.createSeries(body, session.user);
+  }
+
+  @Post(":id/cancel-series")
+  @Roles(["beauty_advisor", "counter_manager", "area_manager", "admin"])
+  @ApiParam({ name: "id", type: String })
+  @ApiBody({ type: CancelAppointmentSeriesDto })
+  cancelSeries(
+    @Param("id") id: string,
+    @Body() body: CancelAppointmentSeriesDto,
+    @Session() session: UserSession,
+  ) {
+    return this.appointmentsService.cancelSeries(id, body, session.user);
   }
 
   @Patch(":id")

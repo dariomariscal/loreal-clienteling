@@ -158,6 +158,7 @@ export function AppointmentDetailSheet({
           />
           <AppointmentReasonSheet
             appointmentId={appointment.id}
+            seriesId={full?.seriesId ?? null}
             kind={
               subSheet === "cancel"
                 ? "cancel"

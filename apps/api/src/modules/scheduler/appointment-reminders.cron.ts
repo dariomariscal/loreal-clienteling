@@ -75,9 +75,17 @@ export class AppointmentRemindersCron {
         groupKey: `appointment_reminder_24h:${appt.id}`,
       });
 
+      // The 24h reminder doubles as the confirmation request ("¿confirmas?
+      // responde SÍ"). Stamp both so the funnel can compute
+      // sent → customer-confirmed conversion. Keep reminderSentAt for the
+      // imminent-cron de-dup.
       await this.db
         .update(appointments)
-        .set({ reminderSentAt: now, updatedAt: now })
+        .set({
+          reminderSentAt: now,
+          confirmationSentAt: now,
+          updatedAt: now,
+        })
         .where(eq(appointments.id, appt.id));
 
       sent++;

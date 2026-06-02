@@ -13,6 +13,8 @@ import {
   users,
   stores,
   serviceTypes,
+  serviceTypeRequiredSkills,
+  userSkills,
   schedulingPolicies,
   customerVisits,
   suggestedActions,
@@ -29,6 +31,8 @@ import type {
   CreateAppointmentDto,
   UpdateAppointmentDto,
   CancelAppointmentDto,
+  CancelAppointmentSeriesDto,
+  CreateAppointmentSeriesDto,
   MarkNoShowDto,
   CheckOutAppointmentDto,
 } from "../../dtos/appointments.dto";
@@ -251,6 +255,24 @@ export class AppointmentsService {
       startTime.getTime() + data.durationMinutes * 60_000,
     );
 
+    // Brand coherence: if the service is brand-bound, the BA must belong to
+    // the same brand. Prevents a YSL BA being booked for a Lancôme service.
+    if (serviceType.brandId) {
+      const [staff] = await this.db
+        .select({ brandId: users.brandId })
+        .from(users)
+        .where(eq(users.id, user.id));
+      if (staff?.brandId && staff.brandId !== serviceType.brandId) {
+        throw new BadRequestException(
+          "Este servicio pertenece a otra marca; el asesor asignado no está calificado para impartirlo.",
+        );
+      }
+    }
+
+    // Skills gate: the BA must hold every skill the service requires
+    // (service_type_required_skills, AND semantics, with minProficiency).
+    await this.assertStaffCanPerformService(user.id, serviceTypeId!);
+
     const [appt] = await this.db
       .insert(appointments)
       .values({
@@ -388,6 +410,181 @@ export class AppointmentsService {
     return updated;
   }
 
+  /**
+   * Create a recurring appointment series. The first occurrence's id becomes
+   * the seriesId (Salesforce / Mindbody convention). Validates skills+brand
+   * once at the series level, then materializes N occurrences atomically.
+   * Lead time / horizon are enforced against the FIRST occurrence only; the
+   * last occurrence is allowed to exceed maxAdvanceDays since it's the
+   * series the customer is committing to.
+   */
+  async createSeries(data: CreateAppointmentSeriesDto, user: SessionUser) {
+    if (data.occurrences < 2) {
+      throw new BadRequestException(
+        "Una serie debe tener al menos 2 ocurrencias.",
+      );
+    }
+    const storeId = this.scopeService.assertStore(user);
+
+    const [serviceType] = await this.db
+      .select()
+      .from(serviceTypes)
+      .where(eq(serviceTypes.id, data.serviceTypeId));
+    if (!serviceType) {
+      throw new NotFoundException("Tipo de servicio no encontrado.");
+    }
+
+    // Same gates as create(), once for the whole series.
+    if (serviceType.brandId) {
+      const [staff] = await this.db
+        .select({ brandId: users.brandId })
+        .from(users)
+        .where(eq(users.id, user.id));
+      if (staff?.brandId && staff.brandId !== serviceType.brandId) {
+        throw new BadRequestException(
+          "Este servicio pertenece a otra marca; el asesor asignado no está calificado para impartirlo.",
+        );
+      }
+    }
+    await this.assertStaffCanPerformService(user.id, data.serviceTypeId);
+
+    const policy = await this.resolveEffectivePolicy(
+      storeId,
+      data.serviceTypeId,
+    );
+    const now = new Date();
+    const firstStart = new Date(data.firstStartTime);
+    const leadMinutes = Math.max(
+      serviceType.minLeadTimeMinutes ?? 0,
+      policy.minLeadTimeMinutes,
+    );
+    if (firstStart.getTime() < now.getTime() + leadMinutes * 60_000) {
+      throw new BadRequestException(
+        `Las citas requieren al menos ${leadMinutes} minutos de anticipación.`,
+      );
+    }
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const occurrences: Array<{
+      startTime: Date;
+      endTime: Date;
+      sequence: number;
+    }> = [];
+    for (let i = 0; i < data.occurrences; i++) {
+      const startTime = new Date(
+        firstStart.getTime() + i * data.intervalDays * dayMs,
+      );
+      const endTime = new Date(
+        startTime.getTime() + data.durationMinutes * 60_000,
+      );
+      occurrences.push({ startTime, endTime, sequence: i + 1 });
+    }
+
+    // Atomic: either all rows are inserted, or none. Without the transaction
+    // a mid-flight failure leaves a half-materialized series with the
+    // template (sequence=1) orphaned.
+    const created = await this.db.transaction(async (tx) => {
+      const [first] = await tx
+        .insert(appointments)
+        .values({
+          customerId: data.customerId,
+          staffUserId: user.id,
+          storeId,
+          serviceTypeId: data.serviceTypeId,
+          startTime: occurrences[0].startTime,
+          endTime: occurrences[0].endTime,
+          durationMinutes: data.durationMinutes,
+          notes: data.notes,
+          preForm: data.preForm,
+          isVirtual: data.isVirtual ?? false,
+          seriesSequence: 1,
+        })
+        .returning();
+
+      // Backfill seriesId == first.id so the "template" matches the
+      // industry convention (first occurrence is the series root).
+      await tx
+        .update(appointments)
+        .set({ seriesId: first.id })
+        .where(eq(appointments.id, first.id));
+
+      if (occurrences.length > 1) {
+        await tx.insert(appointments).values(
+          occurrences.slice(1).map((o) => ({
+            customerId: data.customerId,
+            staffUserId: user.id,
+            storeId,
+            serviceTypeId: data.serviceTypeId,
+            startTime: o.startTime,
+            endTime: o.endTime,
+            durationMinutes: data.durationMinutes,
+            notes: data.notes,
+            preForm: data.preForm,
+            isVirtual: data.isVirtual ?? false,
+            seriesId: first.id,
+            seriesSequence: o.sequence,
+          })),
+        );
+      }
+
+      const rows = await tx
+        .select()
+        .from(appointments)
+        .where(eq(appointments.seriesId, first.id))
+        .orderBy(appointments.seriesSequence);
+      return rows;
+    });
+
+    await this.customerActivity.touchInteraction(data.customerId);
+
+    return {
+      seriesId: created[0].id,
+      occurrences: created,
+    };
+  }
+
+  /**
+   * Cancel a single occurrence OR the entire series. "all" only cancels
+   * occurrences that are still cancellable (scheduled/confirmed) — past
+   * completed/no_show rows are left alone to preserve history.
+   */
+  async cancelSeries(
+    id: string,
+    data: CancelAppointmentSeriesDto,
+    user: SessionUser,
+  ) {
+    const existing = await this.findOne(id);
+
+    if (data.scope === "one" || !existing.seriesId) {
+      return this.cancel(
+        id,
+        { reason: data.reason, notes: data.notes },
+        user,
+      );
+    }
+
+    const cancellable = await this.db
+      .select({ id: appointments.id })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.seriesId, existing.seriesId),
+          inArray(appointments.status, ["scheduled", "confirmed"]),
+        ),
+      );
+
+    const cancelled: typeof existing[] = [];
+    for (const row of cancellable) {
+      const c = await this.cancel(
+        row.id,
+        { reason: data.reason, notes: data.notes },
+        user,
+      );
+      cancelled.push(c as typeof existing);
+    }
+    return { seriesId: existing.seriesId, cancelledCount: cancelled.length };
+  }
+
   async markNoShow(id: string, data: MarkNoShowDto) {
     const existing = await this.findOne(id);
 
@@ -509,9 +706,10 @@ export class AppointmentsService {
       .where(eq(appointments.id, id))
       .returning();
 
-    // Close the matching customer_visit (if any) so the timeline shows the
-    // visit as completed with a real duration + outcome.
-    const [openVisit] = await this.db
+    // Close the matching customer_visit, or open+close one retroactively if
+    // the BA skipped check-in entirely. Without this fallback, ~95% of
+    // completed appointments never produced a visit row.
+    let [openVisit] = await this.db
       .select({ id: customerVisits.id })
       .from(customerVisits)
       .where(
@@ -521,6 +719,24 @@ export class AppointmentsService {
         ),
       )
       .limit(1);
+
+    if (!openVisit) {
+      try {
+        const created = await this.customerVisitsService.start(
+          {
+            customerId: existing.customerId,
+            appointmentId: id,
+            visitChannel: existing.isVirtual ? "virtual" : "in_store",
+            startedAt: existing.startTime,
+          },
+          user,
+        );
+        openVisit = { id: created.id };
+      } catch {
+        // Visit creation can race against a check-in completing between our
+        // SELECT and INSERT — fall through and try the close anyway.
+      }
+    }
 
     if (openVisit) {
       try {
@@ -562,6 +778,55 @@ export class AppointmentsService {
     });
 
     return updated;
+  }
+
+  /**
+   * Throws BadRequest if `staffUserId` doesn't hold every skill required by
+   * the service. Skipped when the service has no required skills (open
+   * catalog). Reused by create() and update() when staff/service changes.
+   */
+  private async assertStaffCanPerformService(
+    staffUserId: string,
+    serviceTypeId: string,
+  ) {
+    const required = await this.db
+      .select({
+        skillId: serviceTypeRequiredSkills.skillId,
+        minProficiency: serviceTypeRequiredSkills.minProficiency,
+      })
+      .from(serviceTypeRequiredSkills)
+      .where(eq(serviceTypeRequiredSkills.serviceTypeId, serviceTypeId));
+
+    if (required.length === 0) return;
+
+    const owned = await this.db
+      .select({
+        skillId: userSkills.skillId,
+        proficiency: userSkills.proficiency,
+      })
+      .from(userSkills)
+      .where(
+        and(
+          eq(userSkills.userId, staffUserId),
+          inArray(
+            userSkills.skillId,
+            required.map((r) => r.skillId),
+          ),
+        ),
+      );
+
+    const ownedMap = new Map(owned.map((o) => [o.skillId, o.proficiency ?? 0]));
+    const missing = required.filter((r) => {
+      const prof = ownedMap.get(r.skillId);
+      if (prof === undefined) return true;
+      return prof < (r.minProficiency ?? 0);
+    });
+
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        "El asesor asignado no tiene todas las certificaciones requeridas para este servicio.",
+      );
+    }
   }
 
   /** Map outcome_code → customer_visits.outcome. */

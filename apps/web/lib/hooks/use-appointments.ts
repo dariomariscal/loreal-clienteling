@@ -2,8 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type {
   CreateAppointment,
+  CreateAppointmentSeries,
   UpdateAppointment,
   CancelAppointment,
+  CancelAppointmentSeries,
   MarkAppointmentNoShow,
   ConfirmAppointmentByCustomer,
   CheckOutAppointment,
@@ -209,6 +211,30 @@ export function useCheckInAppointment() {
       qc.invalidateQueries({ queryKey: appointmentKeys.detail(updated.id) });
       qc.invalidateQueries({ queryKey: ["appointments"] });
     },
+  });
+}
+
+export function useCreateAppointmentSeries() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateAppointmentSeries) =>
+      api.post<{ seriesId: string; occurrences: Appointment[] }>(
+        "/appointments/series",
+        data,
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
+  });
+}
+
+export function useCancelAppointmentSeries() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...data
+    }: { id: string } & CancelAppointmentSeries) =>
+      api.post<unknown>(`/appointments/${id}/cancel-series`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
 }
 

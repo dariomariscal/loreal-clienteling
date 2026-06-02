@@ -61,6 +61,35 @@ export interface CancelAppointment {
   notes?: string;
 }
 
+/**
+ * POST /appointments/series — create a recurring booking. The first
+ * occurrence becomes the series root (its id == seriesId).
+ */
+export interface CreateAppointmentSeries {
+  customerId: string;
+  serviceTypeId: string;
+  firstStartTime: Date;
+  durationMinutes: number;
+  /** 7 = weekly, 14 = biweekly, etc. */
+  intervalDays: number;
+  /** Total occurrences including the first. */
+  occurrences: number;
+  notes?: string;
+  isVirtual?: boolean;
+  preForm?: AppointmentPreForm;
+}
+
+/**
+ * POST /appointments/:id/cancel-series — cancel a single occurrence
+ * (scope="one") or every still-cancellable occurrence in the series
+ * (scope="all").
+ */
+export interface CancelAppointmentSeries {
+  scope: "one" | "all";
+  reason: AppointmentCancellationReason;
+  notes?: string;
+}
+
 /** POST /appointments/:id/no-show */
 export interface MarkAppointmentNoShow {
   reason: AppointmentNoShowReason;

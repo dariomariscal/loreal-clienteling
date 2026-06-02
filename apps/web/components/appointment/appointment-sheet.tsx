@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import {
-  useServiceTypes,
+  useEligibleServiceTypes,
   useAvailabilityDays,
   useAvailabilitySlots,
   useCreateAppointment,
+  useCreateAppointmentSeries,
   type CustomerListItem,
 } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
@@ -76,10 +77,18 @@ export function AppointmentSheet({
   const [slotStartsAt, setSlotStartsAt] = React.useState<string | null>(null);
   const [isVirtual, setIsVirtual] = React.useState(false);
   const [notes, setNotes] = React.useState("");
+  const [goalsText, setGoalsText] = React.useState("");
+  const [concernsText, setConcernsText] = React.useState("");
+  const [recurring, setRecurring] = React.useState(false);
+  const [intervalDays, setIntervalDays] = React.useState(7);
+  const [occurrences, setOccurrences] = React.useState(4);
 
   const { data: serviceTypes = [], isLoading: typesLoading } =
-    useServiceTypes();
+    useEligibleServiceTypes();
   const createAppointment = useCreateAppointment();
+  const createSeries = useCreateAppointmentSeries();
+  const isSubmitting = createAppointment.isPending || createSeries.isPending;
+  const submitError = createAppointment.error ?? createSeries.error;
 
   // Set true by the open-reset effect when `defaultStartsAt` preselects a
   // slot. The slot-reset effect below honors it once and clears it, so the
@@ -118,7 +127,13 @@ export function AppointmentSheet({
     }
     setIsVirtual(false);
     setNotes("");
+    setGoalsText("");
+    setConcernsText("");
+    setRecurring(false);
+    setIntervalDays(7);
+    setOccurrences(4);
     createAppointment.reset();
+    createSeries.reset();
     setServiceTypeId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultStartsAt]);
@@ -159,6 +174,7 @@ export function AppointmentSheet({
       from: dayRange.from,
       to: dayRange.to,
       durationMinutes,
+      serviceTypeId: selectedType?.id,
       enabled: !!selectedType && open,
     });
 
@@ -167,6 +183,7 @@ export function AppointmentSheet({
       staffUserId,
       date: date ?? "",
       durationMinutes,
+      serviceTypeId: selectedType?.id,
       enabled: !!date && !!selectedType && open,
     });
 
@@ -188,22 +205,50 @@ export function AppointmentSheet({
   );
 
   const canConfirm =
-    !!customerId &&
-    !!selectedType &&
-    !!slotStartsAt &&
-    !createAppointment.isPending;
+    !!customerId && !!selectedType && !!slotStartsAt && !isSubmitting;
 
   function handleConfirm() {
     if (!canConfirm || !customerId || !selectedType || !slotStartsAt) return;
+    const goals = goalsText
+      .split(",")
+      .map((g) => g.trim())
+      .filter(Boolean);
+    const concerns = concernsText
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+    const preForm =
+      goals.length > 0 || concerns.length > 0
+        ? {
+            ...(goals.length > 0 ? { goals } : {}),
+            ...(concerns.length > 0 ? { concerns } : {}),
+          }
+        : undefined;
+
+    const commonPayload = {
+      customerId,
+      serviceTypeId: selectedType.id,
+      durationMinutes,
+      isVirtual,
+      ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(preForm ? { preForm } : {}),
+    };
+
+    if (recurring) {
+      createSeries.mutate(
+        {
+          ...commonPayload,
+          firstStartTime: new Date(slotStartsAt),
+          intervalDays,
+          occurrences,
+        },
+        { onSuccess: () => onOpenChange(false) },
+      );
+      return;
+    }
+
     createAppointment.mutate(
-      {
-        customerId,
-        serviceTypeId: selectedType.id,
-        startTime: new Date(slotStartsAt),
-        durationMinutes,
-        isVirtual,
-        ...(notes.trim() ? { notes: notes.trim() } : {}),
-      },
+      { ...commonPayload, startTime: new Date(slotStartsAt) },
       { onSuccess: () => onOpenChange(false) },
     );
   }
@@ -365,6 +410,118 @@ export function AppointmentSheet({
                 />
               </label>
 
+              <div
+                className={cn(
+                  "rounded-xl border border-border/60 px-4 py-3 text-sm transition-colors",
+                  recurring ? "bg-muted/40" : "bg-background",
+                )}
+              >
+                <label className="flex cursor-pointer items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <RepeatIcon className="size-4 text-muted-foreground" />
+                    Repetir cita
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={recurring}
+                    onChange={(e) => setRecurring(e.target.checked)}
+                    className="size-4 accent-foreground"
+                  />
+                </label>
+
+                {recurring && (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label
+                        htmlFor="appt-interval"
+                        className="text-[10px] uppercase tracking-widest text-muted-foreground"
+                      >
+                        Cada
+                      </label>
+                      <select
+                        id="appt-interval"
+                        value={intervalDays}
+                        onChange={(e) =>
+                          setIntervalDays(Number(e.target.value))
+                        }
+                        disabled={isSubmitting}
+                        className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
+                      >
+                        <option value={7}>Semana (7 días)</option>
+                        <option value={14}>Quincena (14 días)</option>
+                        <option value={28}>Mes (28 días)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label
+                        htmlFor="appt-occurrences"
+                        className="text-[10px] uppercase tracking-widest text-muted-foreground"
+                      >
+                        Ocurrencias
+                      </label>
+                      <input
+                        id="appt-occurrences"
+                        type="number"
+                        min={2}
+                        max={26}
+                        value={occurrences}
+                        onChange={(e) =>
+                          setOccurrences(
+                            Math.max(2, Math.min(26, Number(e.target.value))),
+                          )
+                        }
+                        disabled={isSubmitting}
+                        className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="appt-goals"
+                  className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground"
+                >
+                  Objetivos de la clienta (separados por coma)
+                </label>
+                <input
+                  id="appt-goals"
+                  value={goalsText}
+                  onChange={(e) => setGoalsText(e.target.value)}
+                  maxLength={300}
+                  placeholder="p. ej. hidratación, anti-edad"
+                  disabled={isSubmitting}
+                  className={cn(
+                    "w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors",
+                    "placeholder:text-muted-foreground/50",
+                    "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40",
+                  )}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="appt-concerns"
+                  className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground"
+                >
+                  Preocupaciones / alergias (separadas por coma)
+                </label>
+                <input
+                  id="appt-concerns"
+                  value={concernsText}
+                  onChange={(e) => setConcernsText(e.target.value)}
+                  maxLength={300}
+                  placeholder="p. ej. piel sensible, fragancia"
+                  disabled={isSubmitting}
+                  className={cn(
+                    "w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors",
+                    "placeholder:text-muted-foreground/50",
+                    "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40",
+                  )}
+                />
+              </div>
+
               <div className="space-y-1.5">
                 <label
                   htmlFor="appt-notes"
@@ -379,7 +536,7 @@ export function AppointmentSheet({
                   rows={2}
                   maxLength={1000}
                   placeholder="Preferencias, motivo, recordatorios…"
-                  disabled={createAppointment.isPending}
+                  disabled={isSubmitting}
                   className={cn(
                     "w-full resize-none rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors",
                     "placeholder:text-muted-foreground/50",
@@ -390,7 +547,7 @@ export function AppointmentSheet({
             </div>
           )}
 
-          {createAppointment.isError && (
+          {submitError && (
             <Badge variant="destructive" className="w-full justify-center">
               No se pudo agendar la cita. Intenta de nuevo.
             </Badge>
@@ -399,12 +556,18 @@ export function AppointmentSheet({
 
         <SheetFooter>
           <SheetClose>
-            <Button variant="ghost" disabled={createAppointment.isPending}>
+            <Button variant="ghost" disabled={isSubmitting}>
               Cancelar
             </Button>
           </SheetClose>
           <Button onClick={handleConfirm} disabled={!canConfirm}>
-            {createAppointment.isPending ? "Agendando…" : "Confirmar cita"}
+            {isSubmitting
+              ? recurring
+                ? "Agendando serie…"
+                : "Agendando…"
+              : recurring
+                ? `Confirmar ${occurrences} citas`
+                : "Confirmar cita"}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -449,6 +612,23 @@ function VideoIcon({ className }: { className?: string }) {
     >
       <rect x="2" y="4" width="9" height="8" rx="1.5" />
       <path d="m11 7 3-2v6l-3-2z" />
+    </svg>
+  );
+}
+
+function RepeatIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 6h8l-2-2" />
+      <path d="M13 10H5l2 2" />
     </svg>
   );
 }

@@ -28,6 +28,7 @@ export interface ServiceType {
 
 const serviceTypeKeys = {
   all: ["service-types"] as const,
+  eligible: ["service-types", "eligible-for-me"] as const,
   detail: (id: string) => ["service-types", id] as const,
 };
 
@@ -35,6 +36,18 @@ export function useServiceTypes() {
   return useQuery({
     queryKey: serviceTypeKeys.all,
     queryFn: () => api.get<ServiceType[]>("/service-types"),
+  });
+}
+
+/**
+ * Services the current BA is qualified to deliver — brand-scoped AND
+ * skill-filtered server-side. Use this in the booking sheet so unqualified
+ * services never appear.
+ */
+export function useEligibleServiceTypes() {
+  return useQuery({
+    queryKey: serviceTypeKeys.eligible,
+    queryFn: () => api.get<ServiceType[]>("/service-types/eligible-for-me"),
   });
 }
 

@@ -23,6 +23,16 @@ export class ServiceTypesController {
     return this.serviceTypesService.findActive(session.user);
   }
 
+  /**
+   * Active services the *caller* is qualified to deliver. BAs get a
+   * brand-scoped, skill-filtered list. Managers/admin get the same as
+   * findActive — they don't deliver themselves.
+   */
+  @Get("eligible-for-me")
+  findEligibleForMe(@Session() session: UserSession) {
+    return this.serviceTypesService.findEligibleForUser(session.user);
+  }
+
   @Get("all")
   @Roles(["admin"])
   findAllIncludingInactive() {

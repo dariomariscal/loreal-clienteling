@@ -7,6 +7,7 @@ import {
   IsDate,
   IsInt,
   IsPositive,
+  Min,
   Max,
   IsBoolean,
   IsUrl,
@@ -159,6 +160,97 @@ export class ConfirmAppointmentByCustomerDto {
   @IsDate()
   @Type(() => Date)
   confirmedAt?: Date;
+}
+
+/**
+ * Create a recurring appointment series. The base occurrence is the first
+ * row inserted (its id becomes the seriesId); subsequent occurrences are
+ * `intervalDays` apart, up to `occurrences` total.
+ */
+export class CreateAppointmentSeriesDto {
+  @ApiProperty({ type: String, format: "uuid" })
+  @IsUUID()
+  customerId: string;
+
+  @ApiProperty({ type: String, format: "uuid" })
+  @IsUUID()
+  serviceTypeId: string;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  @IsDate()
+  @Type(() => Date)
+  firstStartTime: Date;
+
+  @ApiProperty({ type: Number, example: 60, minimum: 1, maximum: 480 })
+  @IsInt()
+  @IsPositive()
+  @Max(480)
+  durationMinutes: number;
+
+  @ApiProperty({
+    type: Number,
+    example: 7,
+    description: "Days between occurrences (7 = weekly, 14 = biweekly).",
+    minimum: 1,
+    maximum: 90,
+  })
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  intervalDays: number;
+
+  @ApiProperty({
+    type: Number,
+    example: 4,
+    description: "Total occurrences including the first.",
+    minimum: 2,
+    maximum: 26,
+  })
+  @IsInt()
+  @Min(2)
+  @Max(26)
+  occurrences: number;
+
+  @ApiPropertyOptional({ type: String, maxLength: 1000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+
+  @ApiPropertyOptional({ type: Boolean, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isVirtual?: boolean = false;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  preForm?: {
+    goals?: string[];
+    concerns?: string[];
+    allergies?: string[];
+    notes?: string;
+  };
+}
+
+/**
+ * Cancel a whole series (scope=all) or a single occurrence (scope=one).
+ * "one" delegates to the single-cancel path so cancellation_reason is set.
+ */
+export class CancelAppointmentSeriesDto {
+  @ApiProperty({ type: String, enum: ["one", "all"] })
+  @IsIn(["one", "all"])
+  scope: "one" | "all";
+
+  @ApiProperty({ type: String, enum: APPOINTMENT_CANCELLATION_REASONS })
+  @IsIn(APPOINTMENT_CANCELLATION_REASONS)
+  reason: string;
+
+  @ApiPropertyOptional({ type: String, maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
 }
 
 export class CheckOutAppointmentDto {
