@@ -75,6 +75,25 @@ export class AnalyticsController {
     return this.analyticsService.getAppointmentMetrics(session.user, this.parseDateRange(from, to));
   }
 
+  /**
+   * Composite "appointment overview" — KPIs + outcome / cancel / no-show
+   * breakdowns + weekly trend + (managers only) per-BA ranking. One call,
+   * everything the metrics page needs. Role gating handled inside the service.
+   */
+  @Get("appointments/overview")
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getAppointmentOverview(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.getAppointmentOverview(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
   @Get("ba-performance")
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })

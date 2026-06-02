@@ -22,6 +22,7 @@ import {
   CheckGlyph,
   MessageGlyph,
   PackageGlyph,
+  PulseGlyph,
   RoutineMorningGlyph,
   SignOutGlyph,
   SparkleDotGlyph,
@@ -63,6 +64,11 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/advisor/scan", label: "Escáner", icon: BarcodeGlyph },
   { href: "/advisor/messages", label: "Mensajes", icon: MessageGlyph },
   { href: "/advisor/appointments", label: "Citas", icon: AppointmentGlyph },
+  {
+    href: "/advisor/appointments/metrics",
+    label: "Métricas",
+    icon: PulseGlyph,
+  },
   { href: "/advisor/tasks", label: "Tareas", icon: CheckGlyph, badgeKey: "tasks" },
 ];
 
@@ -304,6 +310,23 @@ function NavSectionDivider({
   );
 }
 
+/**
+ * An item is active when the current path starts with its href AND no other
+ * sibling item has a more specific (longer) href that also matches. This
+ * lets nested routes like /advisor/appointments/metrics light up the
+ * "Métricas" item without also lighting up its parent "Citas".
+ */
+function resolveActiveHref(items: NavItem[], pathname: string): string | null {
+  let best: string | null = null;
+  for (const item of items) {
+    const matches =
+      pathname === item.href || pathname.startsWith(`${item.href}/`);
+    if (!matches) continue;
+    if (best === null || item.href.length > best.length) best = item.href;
+  }
+  return best;
+}
+
 function NavSection({
   items,
   pathname,
@@ -317,12 +340,12 @@ function NavSection({
   onNavigate?: () => void;
   collapsed: boolean;
 }) {
+  const activeHref = resolveActiveHref(items, pathname);
   return (
     <ul className={cn("flex flex-col gap-0.5", collapsed ? "px-2" : "px-3")}>
       {items.map((item) => {
         const Icon = item.icon;
-        const active =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = item.href === activeHref;
         const badge = item.badgeKey ? badges[item.badgeKey] : undefined;
         const hasBadge = badge && badge > 0;
 

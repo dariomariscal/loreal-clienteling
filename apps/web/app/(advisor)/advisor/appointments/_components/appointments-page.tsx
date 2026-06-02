@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { es } from "date-fns/locale";
 import { SingleColumn } from "@/components/advisor/three-column-layout";
 import { Button } from "@/components/ui/button";
+import { PulseGlyph } from "@/components/ui/glyphs";
 import {
   useAppointmentCalendar,
   type CalendarAppointment,
@@ -141,6 +143,14 @@ function AppointmentsPageInner({ user }: AppointmentsPageProps) {
                   { value: "month", label: "Mes" },
                 ]}
               />
+
+              <Link
+                href="/advisor/appointments/metrics"
+                className="flex h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                <PulseGlyph className="size-4 opacity-70" aria-hidden />
+                Métricas
+              </Link>
 
               <Button
                 onClick={() =>
