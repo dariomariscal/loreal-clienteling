@@ -37,6 +37,11 @@ const FEATURE = "recommendation_reason";
 const CANDIDATES_PER_SOURCE = 20;
 const REASON_LOOKBACK_TITLES = 3;
 const DEFAULT_OUTPUT_LIMIT = 5;
+/** Env var that lets ops swap the rationale model without a code change.
+ *  Defaults to Haiku 4.5 — rationales are ≤25-word JSON, the cheaper model
+ *  performs equivalently and reduces per-customer latency by ~5x vs Sonnet. */
+const RATIONALE_MODEL_ENV = "ANTHROPIC_RECOMMENDATION_MODEL";
+const RATIONALE_MODEL_DEFAULT = "claude-haiku-4-5-20251001";
 
 export interface EngineRecommendationOutput {
   productId: string;
@@ -210,62 +215,87 @@ export class RecommendationEngineService {
     const context = await this.buildReasonContext(customerId);
     if (!context) return out;
 
-    for (const r of ranked) {
-      try {
-        const detail = await this.fetchProductDetail(r.productId);
-        if (!detail) continue;
-        const display = displayMetadata[r.productId];
-        const prompt = buildRecommendationReasonPrompt({
-          customerFirstName: context.firstName,
-          preferredLanguage: context.preferredLanguage,
-          product: {
-            title: detail.title,
-            brandName: display?.brandName ?? null,
-            talkingPoints: detail.talkingPoints,
-            targetConcerns: detail.targetConcerns,
-          },
-          customerContext: {
-            skinConcerns: context.skinConcerns,
-            avoidedIngredients: context.avoidedIngredients,
-            lastPurchasedTitles: context.lastPurchasedTitles,
-          },
-          signals: r.signals,
-        });
-
-        const result = await this.llm.generate({
-          system: prompt.system,
-          user: prompt.user,
-          feature: FEATURE,
-          maxOutputTokens: 300,
-          temperature: 0.4,
-        });
-
-        await this.usageLogs.record({
-          userId: null,
-          feature: FEATURE,
-          provider: "anthropic",
-          model: result.model,
-          inputTokens: result.inputTokens,
-          outputTokens: result.outputTokens,
-          cachedTokens: result.cachedTokens,
-          latencyMs: result.latencyMs,
-          costUsd: estimateCostUsd(
-            result.model,
-            result.inputTokens,
-            result.outputTokens,
-            result.cachedTokens,
-          ),
-        });
-
-        const parsed = parseReasonResponse(result.text);
-        if (parsed) out.set(r.productId, parsed);
-      } catch (err) {
+    // Fan out per-product LLM calls in parallel. Each call is independent
+    // (no shared state, no race on the LLM provider), so a 5-product batch
+    // resolves in ~1 LLM round-trip instead of ~5.
+    const settled = await Promise.allSettled(
+      ranked.map((r) => this.generateRationaleFor(r, context, displayMetadata)),
+    );
+    settled.forEach((result, i) => {
+      const r = ranked[i];
+      if (result.status === "fulfilled" && result.value) {
+        out.set(r.productId, result.value);
+      } else if (result.status === "rejected") {
         this.logger.warn(
-          `Rationale generation failed for product ${r.productId}: ${err instanceof Error ? err.message : String(err)}`,
+          `Rationale generation failed for product ${r.productId}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
         );
       }
-    }
+    });
     return out;
+  }
+
+  private async generateRationaleFor(
+    r: RankedProductRecommendation,
+    context: {
+      firstName: string;
+      preferredLanguage: string;
+      skinConcerns: string[];
+      avoidedIngredients: string[];
+      lastPurchasedTitles: string[];
+    },
+    displayMetadata: Awaited<
+      ReturnType<RecommendationsRepository["findDisplayMetadata"]>
+    >,
+  ): Promise<{ rationale: string; messageDraft: string } | null> {
+    const detail = await this.fetchProductDetail(r.productId);
+    if (!detail) return null;
+
+    const display = displayMetadata[r.productId];
+    const prompt = buildRecommendationReasonPrompt({
+      customerFirstName: context.firstName,
+      preferredLanguage: context.preferredLanguage,
+      product: {
+        title: detail.title,
+        brandName: display?.brandName ?? null,
+        talkingPoints: detail.talkingPoints,
+        targetConcerns: detail.targetConcerns,
+      },
+      customerContext: {
+        skinConcerns: context.skinConcerns,
+        avoidedIngredients: context.avoidedIngredients,
+        lastPurchasedTitles: context.lastPurchasedTitles,
+      },
+      signals: r.signals,
+    });
+
+    const result = await this.llm.generate({
+      system: prompt.system,
+      user: prompt.user,
+      feature: FEATURE,
+      modelOverride:
+        process.env[RATIONALE_MODEL_ENV] ?? RATIONALE_MODEL_DEFAULT,
+      maxOutputTokens: 300,
+      temperature: 0.4,
+    });
+
+    await this.usageLogs.record({
+      userId: null,
+      feature: FEATURE,
+      provider: "anthropic",
+      model: result.model,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      cachedTokens: result.cachedTokens,
+      latencyMs: result.latencyMs,
+      costUsd: estimateCostUsd(
+        result.model,
+        result.inputTokens,
+        result.outputTokens,
+        result.cachedTokens,
+      ),
+    });
+
+    return parseReasonResponse(result.text);
   }
 
   private async buildReasonContext(customerId: string): Promise<{
