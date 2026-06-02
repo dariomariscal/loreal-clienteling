@@ -7,7 +7,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { customers } from "./customers";
-import { products } from "./products";
+import { products, productVariants } from "./products";
 import { users } from "./auth";
 import { stores } from "./stores";
 import { customerVisits } from "./customer-visits";
@@ -26,6 +26,8 @@ export const samples = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id),
+    /** Specific variant (shade/size) handed out, when known. */
+    variantId: uuid("variant_id").references(() => productVariants.id),
     deliveredByUserId: text("delivered_by_user_id")
       .notNull()
       .references(() => users.id),

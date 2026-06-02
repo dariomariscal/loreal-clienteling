@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiBody, ApiParam, ApiOperation } from "@nestjs
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
 import { ProductsService } from "./products.service";
+import { ProductLookupService } from "./product-lookup.service";
 import { ProductSemanticSearchService } from "../ai/services/product-semantic-search.service";
 import {
   BulkCreateProductsDto,
@@ -12,6 +13,7 @@ import {
   ProductFiltersDto,
   ProductSemanticSearchDto,
 } from "../../dtos/products.dto";
+import { ProductLookupQueryDto } from "../../dtos/scan.dto";
 import type { UserSession } from "../../common/types/session";
 
 const BA_ROLES = ["beauty_advisor", "counter_manager", "area_manager", "admin"] as const;
@@ -24,6 +26,8 @@ export class ProductsController {
     @Inject(ProductsService) private productsService: ProductsService,
     @Inject(ProductSemanticSearchService)
     private semanticSearch: ProductSemanticSearchService,
+    @Inject(ProductLookupService)
+    private lookupService: ProductLookupService,
   ) {}
 
   @Get()
@@ -36,6 +40,24 @@ export class ProductsController {
 
   // Declared before the :id route so the literal path doesn't collide with the
   // UUID param matcher.
+  @Get("lookup")
+  @Roles([...BA_ROLES])
+  @ApiOperation({
+    summary: "Resolve a scanned barcode/SKU into the scan bottom-sheet payload",
+    description:
+      "Returns variant + product + brand + stock across the BA's accessible stores + customer signals (when customerId is passed) + the ordered list of suggested actions. Single round-trip for the scan UI.",
+  })
+  lookup(
+    @Query() query: ProductLookupQueryDto,
+    @Session() session: UserSession,
+  ) {
+    return this.lookupService.lookupByBarcode(
+      session.user,
+      query.barcode,
+      query.customerId,
+    );
+  }
+
   @Get("semantic-search")
   @Roles([...BA_ROLES])
   @ApiOperation({

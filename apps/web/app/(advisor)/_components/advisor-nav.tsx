@@ -16,6 +16,7 @@ import { useApprovalRequests } from "@/lib/hooks/use-approval-requests";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
 import {
   AppointmentGlyph,
+  BarcodeGlyph,
   CalendarDotGlyph,
   CheckCircleGlyph,
   CheckGlyph,
@@ -59,6 +60,7 @@ function isCounterRole(role: UserRole): boolean {
 const PRIMARY_NAV: NavItem[] = [
   { href: "/advisor/today", label: "Hoy", icon: RoutineMorningGlyph },
   { href: "/advisor/customers", label: "Mis clientas", icon: UserGlyph },
+  { href: "/advisor/scan", label: "Escáner", icon: BarcodeGlyph },
   { href: "/advisor/messages", label: "Mensajes", icon: MessageGlyph },
   { href: "/advisor/appointments", label: "Citas", icon: AppointmentGlyph },
   { href: "/advisor/tasks", label: "Tareas", icon: CheckGlyph, badgeKey: "tasks" },

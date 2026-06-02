@@ -44,6 +44,7 @@ export class SamplesService {
       .values({
         customerId: data.customerId,
         productId: data.productId,
+        variantId: data.variantId ?? null,
         deliveredByUserId: user.id,
         storeId,
       })
@@ -54,6 +55,7 @@ export class SamplesService {
     await this.auditService.log(user, "create", "sample", sample.id, {
       customerId: data.customerId,
       productId: data.productId,
+      variantId: data.variantId ?? null,
     });
 
     return sample;

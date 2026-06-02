@@ -94,11 +94,19 @@ export interface Sample {
   id: string;
   customerId: string;
   productId: string;
+  /** Specific shade/size handed out, when the BA scanned a variant. */
+  variantId: string | null;
   deliveredByUserId: string;
   storeId: string;
   deliveredAt: string;
   isConverted: boolean;
   convertedOrderId: string | null;
+}
+
+export interface CreateSampleInput {
+  customerId: string;
+  productId: string;
+  variantId?: string;
 }
 
 /**
@@ -250,6 +258,21 @@ export function useCustomerSamples(customerId: string) {
     queryFn: () =>
       api.get<Sample[]>(`/customers/${customerId}/samples`),
     enabled: !!customerId,
+  });
+}
+
+/**
+ * Log a sample handed to a customer. variantId is optional but should be set
+ * when the BA scanned a specific shade so conversion attribution is precise.
+ */
+export function useCreateSample() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateSampleInput) =>
+      api.post<Sample>("/samples", input),
+    onSuccess: (sample) => {
+      qc.invalidateQueries({ queryKey: detailKeys.samples(sample.customerId) });
+    },
   });
 }
 

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { CloseGlyph } from "@/components/ui/glyphs"
 
-type Side = "right" | "left"
+type Side = "right" | "left" | "bottom"
 type Size = "sm" | "default" | "lg" | "xl"
 
 const SIZE_CLASSES: Record<Size, string> = {
@@ -15,6 +15,16 @@ const SIZE_CLASSES: Record<Size, string> = {
   default: "sm:max-w-[480px]",
   lg: "sm:max-w-[640px]",
   xl: "sm:max-w-[800px]",
+}
+
+// Bottom sheets are width-bound rather than width-restricted: they hug the
+// viewport on phones and cap on tablets so the camera stage behind remains
+// visible on landscape iPad — the scan flow's defining peek behavior.
+const BOTTOM_SIZE_CLASSES: Record<Size, string> = {
+  sm: "sm:max-w-[480px]",
+  default: "sm:max-w-[560px]",
+  lg: "sm:max-w-[720px]",
+  xl: "sm:max-w-[920px]",
 }
 
 function Sheet({ ...props }: DialogPrimitive.Root.Props) {
@@ -80,7 +90,13 @@ function SheetContent({
   const sideClasses =
     side === "right"
       ? "inset-y-0 right-0 border-l data-open:slide-in-from-right data-closed:slide-out-to-right"
-      : "inset-y-0 left-0 border-r data-open:slide-in-from-left data-closed:slide-out-to-left"
+      : side === "left"
+        ? "inset-y-0 left-0 border-r data-open:slide-in-from-left data-closed:slide-out-to-left"
+        // Bottom: anchored bottom-center, rounded top corners, max 92dvh so the
+        // camera behind stays peekable on iPad landscape.
+        : "inset-x-0 bottom-0 mx-auto max-h-[92dvh] rounded-t-3xl border-t data-open:slide-in-from-bottom data-closed:slide-out-to-bottom"
+
+  const isBottom = side === "bottom"
 
   return (
     <SheetPortal>
@@ -89,13 +105,20 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex h-full w-full flex-col gap-0 bg-popover text-sm text-popover-foreground shadow-xl ring-1 ring-foreground/6 outline-none duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] data-open:animate-in data-closed:animate-out",
+          "fixed z-50 flex w-full flex-col gap-0 bg-popover text-sm text-popover-foreground shadow-xl ring-1 ring-foreground/6 outline-none duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] data-open:animate-in data-closed:animate-out",
+          isBottom ? "h-auto" : "h-full",
           sideClasses,
-          SIZE_CLASSES[size],
+          isBottom ? BOTTOM_SIZE_CLASSES[size] : SIZE_CLASSES[size],
           className
         )}
         {...props}
       >
+        {isBottom ? (
+          <div
+            aria-hidden
+            className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-foreground/15"
+          />
+        ) : null}
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close

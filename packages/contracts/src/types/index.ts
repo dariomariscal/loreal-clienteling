@@ -34,3 +34,4 @@ export * from "./event-assignments";
 export * from "./notifications";
 export * from "./notification-preferences";
 export * from "./push-subscriptions";
+export * from "./scan";

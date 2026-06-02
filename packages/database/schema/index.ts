@@ -24,6 +24,7 @@ export { inventoryLevels } from "./inventory-levels";
 // Commerce
 export { orders, lineItems } from "./orders";
 export { samples } from "./samples";
+export { scanEvents } from "./scan-events";
 export { recommendations } from "./recommendations";
 export { wishlists, wishlistItems } from "./wishlists";
 export { productReservations } from "./product-reservations";

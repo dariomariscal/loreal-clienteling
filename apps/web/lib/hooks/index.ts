@@ -32,3 +32,4 @@ export * from "./use-ai";
 export * from "./use-notifications";
 export * from "./use-notification-preferences";
 export * from "./use-push-subscriptions";
+export * from "./use-scans";

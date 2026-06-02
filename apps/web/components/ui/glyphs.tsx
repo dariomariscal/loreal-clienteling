@@ -1221,3 +1221,38 @@ export function VisitActiveGlyph(props: GlyphProps) {
     </Glyph>
   );
 }
+
+export function BarcodeGlyph(props: GlyphProps) {
+  return (
+    <Glyph label="Escáner" {...props}>
+      <path d="M4 7V5.5a1.5 1.5 0 0 1 1.5-1.5H7" />
+      <path d="M17 4h1.5A1.5 1.5 0 0 1 20 5.5V7" />
+      <path d="M20 17v1.5a1.5 1.5 0 0 1-1.5 1.5H17" />
+      <path d="M7 20H5.5A1.5 1.5 0 0 1 4 18.5V17" />
+      <path d="M7.5 8v8" />
+      <path d="M10.5 8v8" />
+      <path d="M13.5 8v8" />
+      <path d="M16.5 8v8" />
+    </Glyph>
+  );
+}
+
+export function FlashlightGlyph(props: GlyphProps) {
+  return (
+    <Glyph label="Linterna" {...props}>
+      <path d="M16.5 3.5 20.5 7.5l-9 9-4-4 9-9Z" />
+      <path d="M8 12l4 4" />
+      <path d="m6 18 1.5 1.5" />
+      <path d="m3.5 20.5 1-1" />
+    </Glyph>
+  );
+}
+
+export function ShadeSwatchGlyph(props: GlyphProps) {
+  return (
+    <Glyph label="Tono" {...props}>
+      <circle cx="12" cy="12" r="7.5" />
+      <path d="M12 4.5a7.5 7.5 0 0 0 0 15" fill="currentColor" stroke="none" />
+    </Glyph>
+  );
+}
