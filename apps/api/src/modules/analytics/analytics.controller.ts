@@ -138,6 +138,20 @@ export class AnalyticsController {
     return this.analyticsService.getCustomerSegments(session.user);
   }
 
+  @Get("recommendations/conversion-by-source")
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getRecommendationConversionBySource(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.getRecommendationConversionBySource(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
   @Get("agenda-report")
   @Roles(["counter_manager", "area_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })

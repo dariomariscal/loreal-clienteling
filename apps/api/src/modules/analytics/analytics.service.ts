@@ -442,6 +442,57 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * Conversion broken down by `recommendations.source`. Lets the dashboard
+   * answer "how do AI-suggested recommendations compare to manual ones?".
+   * Returns one row per source actually present in the period so the UI
+   * doesn't have to know the full enum.
+   */
+  async getRecommendationConversionBySource(
+    user: SessionUser,
+    range?: DateRange,
+  ) {
+    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const isAdmin = user.role === "admin";
+    const { from, to } = this.getDefaultDateRange(range);
+
+    const conditions: any[] = [
+      gte(recommendations.recommendedAt, from),
+      lte(recommendations.recommendedAt, to),
+    ];
+    const storeFilter = this.buildStoreFilter(
+      isAdmin,
+      storeIds,
+      recommendations.storeId,
+    );
+    if (storeFilter) conditions.push(storeFilter);
+
+    const rows = await this.db
+      .select({
+        source: recommendations.source,
+        total: count(),
+        converted: sql<number>`COUNT(*) FILTER (WHERE ${recommendations.isConverted} = true)::int`,
+        avgEngineScore: sql<string | null>`AVG(${recommendations.engineScore})`,
+      })
+      .from(recommendations)
+      .where(and(...conditions))
+      .groupBy(recommendations.source);
+
+    const data = rows.map((r) => ({
+      source: r.source,
+      total: r.total,
+      converted: r.converted,
+      conversionRate: r.total > 0 ? r.converted / r.total : 0,
+      avgEngineScore:
+        r.avgEngineScore !== null ? Number(r.avgEngineScore) : null,
+    }));
+
+    return {
+      period: { from, to },
+      data: data.sort((a, b) => b.total - a.total),
+    };
+  }
+
   async getCustomerSegments(user: SessionUser) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";
