@@ -111,14 +111,18 @@ export function AppointmentMetricsPage({ user }: AppointmentMetricsPageProps) {
 // ── Range presets ──────────────────────────────────────────────────
 
 function computeRange(preset: RangePreset): { from: string; to: string } {
-  const to = new Date();
+  const now = new Date();
   let from: Date;
+  let to: Date;
   if (preset === "this_month") {
-    from = new Date(to.getFullYear(), to.getMonth(), 1);
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   } else if (preset === "last_30d") {
-    from = new Date(to.getTime() - 30 * 86_400_000);
+    from = new Date(now.getTime() - 30 * 86_400_000);
+    to = now;
   } else {
-    from = new Date(to.getFullYear(), 0, 1);
+    from = new Date(now.getFullYear(), 0, 1);
+    to = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
   }
   from.setHours(0, 0, 0, 0);
   return { from: from.toISOString(), to: to.toISOString() };
