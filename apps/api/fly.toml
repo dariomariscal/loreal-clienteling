@@ -20,6 +20,7 @@ primary_region = "dfw"
 [env]
   NODE_ENV = "production"
   PORT = "3001"
+  TZ = "America/Mexico_City"
 
 [http_service]
   internal_port = 3001
