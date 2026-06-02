@@ -1,7 +1,13 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { and, eq, desc, isNull, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../../config/database.provider";
-import { suggestedActions, customers, users } from "@loreal/database";
+import {
+  suggestedActions,
+  customers,
+  users,
+  products,
+  brands,
+} from "@loreal/database";
 import type { SuggestedActionTrigger } from "@loreal/contracts";
 
 export interface InsertSuggestedActionInput {
@@ -54,9 +60,15 @@ export class SuggestedActionsRepository {
         customerLastName: customers.lastName,
         customerLastInteractionAt: customers.lastInteractionAt,
         customerLastOrderAt: customers.lastOrderAt,
+        productId: suggestedActions.productId,
+        productTitle: products.title,
+        productImages: products.images,
+        productBrandName: brands.displayName,
       })
       .from(suggestedActions)
       .innerJoin(customers, eq(customers.id, suggestedActions.customerId))
+      .leftJoin(products, eq(products.id, suggestedActions.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
         and(
           eq(suggestedActions.assignedToUserId, assignedToUserId),
@@ -112,10 +124,16 @@ export class SuggestedActionsRepository {
         customerLoyaltyTier: customers.loyaltyTier,
         customerLastInteractionAt: customers.lastInteractionAt,
         customerLastOrderAt: customers.lastOrderAt,
+        productId: suggestedActions.productId,
+        productTitle: products.title,
+        productImages: products.images,
+        productBrandName: brands.displayName,
       })
       .from(suggestedActions)
       .innerJoin(customers, eq(customers.id, suggestedActions.customerId))
       .leftJoin(users, eq(users.id, suggestedActions.assignedToUserId))
+      .leftJoin(products, eq(products.id, suggestedActions.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(and(...conditions))
       .orderBy(desc(suggestedActions.priority))
       .limit(opts.limit ?? 200);
@@ -132,6 +150,48 @@ export class SuggestedActionsRepository {
     await this.db
       .update(suggestedActions)
       .set({ completedAt: new Date() })
+      .where(eq(suggestedActions.id, id));
+  }
+
+  /**
+   * Returns product-bound suggested actions for a given date that still need
+   * a concrete `productId` / message draft attached. Used by the post-NBA
+   * enrichment step so the engine resolves the actual product.
+   */
+  async findUnresolvedProductBound(dueDate: string) {
+    const PRODUCT_BOUND_TRIGGERS: SuggestedActionTrigger[] = [
+      "replenishment",
+      "new_product_match",
+      "wishlist_back_in_stock",
+      "wishlist_price_drop",
+    ];
+    return this.db
+      .select({
+        id: suggestedActions.id,
+        customerId: suggestedActions.customerId,
+        assignedToUserId: suggestedActions.assignedToUserId,
+        triggerType: suggestedActions.triggerType,
+      })
+      .from(suggestedActions)
+      .where(
+        and(
+          eq(suggestedActions.dueDate, dueDate),
+          isNull(suggestedActions.productId),
+          isNull(suggestedActions.dismissedAt),
+          isNull(suggestedActions.completedAt),
+          inArray(suggestedActions.triggerType, PRODUCT_BOUND_TRIGGERS),
+        ),
+      );
+  }
+
+  async attachProductSuggestion(
+    id: string,
+    productId: string,
+    suggestedMessageDraft: string | null,
+  ): Promise<void> {
+    await this.db
+      .update(suggestedActions)
+      .set({ productId, suggestedMessageDraft })
       .where(eq(suggestedActions.id, id));
   }
 }

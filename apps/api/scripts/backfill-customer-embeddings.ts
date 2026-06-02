@@ -12,11 +12,17 @@ const MODEL =
   process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
 const BATCH_SIZE = 50;
 
+/**
+ * Mirrors the runtime `CustomerEmbeddingService` so backfill vectors are
+ * byte-identical to those produced on write. If the service serialisation
+ * changes, this builder MUST change in lockstep — otherwise the vector
+ * space becomes inconsistent (same customer, two embeddings, different
+ * sentences) and similarity scores get noisy.
+ */
 type CustomerRow = {
   id: string;
   first_name: string;
   last_name: string;
-  gender: string | null;
   lifecycle_stage: string;
   loyalty_tier: string | null;
   skin_type: string | null;
@@ -28,32 +34,49 @@ type CustomerRow = {
   avoided_ingredients: string[] | null;
   fragrance_families: string[] | null;
   interests: string[] | null;
-  recent_notes: string[] | null;
-  bought_skus: string[] | null;
+  recent_note_snippets: string[] | null;
+  recent_product_titles: string[] | null;
+  recent_visit_reasons: string[] | null;
 };
 
-function buildEmbeddingInput(c: CustomerRow): string {
-  const skin = [c.skin_type, c.skin_tone, c.undertone].filter(Boolean).join(" / ");
-  const concerns = c.skin_concerns?.length ? `Preocupaciones: ${c.skin_concerns.join(", ")}.` : "";
-  const prefers = c.preferred_ingredients?.length ? `Prefiere: ${c.preferred_ingredients.join(", ")}.` : "";
-  const avoids = c.avoided_ingredients?.length ? `Evita: ${c.avoided_ingredients.join(", ")}.` : "";
-  const fragrances = c.fragrance_families?.length ? `Familias olfativas: ${c.fragrance_families.join(", ")}.` : "";
-  const interests = c.interests?.length ? `Intereses: ${c.interests.join(", ")}.` : "";
-  const notes = c.recent_notes?.length ? `Notas BA: ${c.recent_notes.join(" | ")}` : "";
-  const bought = c.bought_skus?.length ? `Compras previas: ${c.bought_skus.join(", ")}.` : "";
+const NOTE_SNIPPET_MAX = 200;
 
-  return [
-    `${c.first_name} ${c.last_name}.`,
-    c.gender ? `Género: ${c.gender}.` : "",
-    `Stage: ${c.lifecycle_stage}${c.loyalty_tier ? ` (${c.loyalty_tier})` : ""}.`,
-    skin ? `Piel: ${skin}.` : "",
-    c.hair_type ? `Cabello: ${c.hair_type}.` : "",
-    concerns, prefers, avoids, fragrances, interests, bought, notes,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+function truncate(input: string, max: number): string {
+  if (input.length <= max) return input;
+  return `${input.slice(0, max)}…`;
+}
+
+function buildEmbeddingInput(c: CustomerRow): string {
+  const parts: string[] = [];
+  parts.push(`Cliente: ${c.first_name} ${c.last_name}.`);
+  parts.push(`Etapa: ${c.lifecycle_stage}.`);
+  if (c.loyalty_tier) parts.push(`Lealtad: ${c.loyalty_tier}.`);
+
+  if (c.skin_type) parts.push(`Piel: ${c.skin_type}.`);
+  if (c.skin_tone) parts.push(`Tono: ${c.skin_tone}.`);
+  if (c.undertone) parts.push(`Subtono: ${c.undertone}.`);
+  if (c.skin_concerns?.length)
+    parts.push(`Preocupaciones de piel: ${c.skin_concerns.join(", ")}.`);
+  if (c.preferred_ingredients?.length)
+    parts.push(`Ingredientes preferidos: ${c.preferred_ingredients.join(", ")}.`);
+  if (c.avoided_ingredients?.length)
+    parts.push(`Ingredientes evitados: ${c.avoided_ingredients.join(", ")}.`);
+  if (c.hair_type) parts.push(`Cabello: ${c.hair_type}.`);
+  if (c.fragrance_families?.length)
+    parts.push(`Fragancias: ${c.fragrance_families.join(", ")}.`);
+  if (c.interests?.length)
+    parts.push(`Intereses: ${c.interests.join(", ")}.`);
+
+  if (c.recent_product_titles?.length)
+    parts.push(`Compras recientes: ${c.recent_product_titles.join("; ")}.`);
+  if (c.recent_visit_reasons?.length)
+    parts.push(`Motivos de visita: ${c.recent_visit_reasons.join(", ")}.`);
+  if (c.recent_note_snippets?.length)
+    parts.push(
+      `Notas: ${c.recent_note_snippets.map((n) => truncate(n, NOTE_SNIPPET_MAX)).join(" | ")}.`,
+    );
+
+  return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 async function main() {
@@ -65,9 +88,13 @@ async function main() {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
+    // Lookback windows match the runtime service:
+    //   - last 10 product titles within the last year
+    //   - last 5 visit reasons (any age)
+    //   - last 5 note bodies (any age)
     const baseSql = `
       SELECT
-        c.id, c.first_name, c.last_name, c.gender,
+        c.id, c.first_name, c.last_name,
         c.lifecycle_stage, c.loyalty_tier,
         bp.skin_type, bp.skin_tone, bp.undertone, bp.hair_type,
         COALESCE(bp.skin_concerns, '[]'::jsonb)::text::json AS skin_concerns,
@@ -77,13 +104,23 @@ async function main() {
         COALESCE(bp.interests, '[]'::jsonb)::text::json AS interests,
         ARRAY(
           SELECT n.body FROM notes n
-          WHERE n.customer_id = c.id ORDER BY n.created_at DESC LIMIT 5
-        ) AS recent_notes,
+          WHERE n.customer_id = c.id
+          ORDER BY n.created_at DESC LIMIT 5
+        ) AS recent_note_snippets,
         ARRAY(
-          SELECT DISTINCT li.sku FROM orders o
-          JOIN line_items li ON li.order_id = o.id
-          WHERE o.customer_id = c.id LIMIT 20
-        ) AS bought_skus
+          SELECT p.title
+          FROM line_items li
+          JOIN orders o ON o.id = li.order_id
+          JOIN products p ON p.id = li.product_id
+          WHERE o.customer_id = c.id
+            AND o.processed_at >= NOW() - INTERVAL '365 days'
+          ORDER BY o.processed_at DESC LIMIT 10
+        ) AS recent_product_titles,
+        ARRAY(
+          SELECT cv.visit_reason FROM customer_visits cv
+          WHERE cv.customer_id = c.id AND cv.visit_reason IS NOT NULL
+          ORDER BY cv.started_at DESC LIMIT 5
+        ) AS recent_visit_reasons
       FROM customers c
       LEFT JOIN beauty_profiles bp ON bp.customer_id = c.id
     `;

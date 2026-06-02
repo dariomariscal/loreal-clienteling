@@ -10,11 +10,18 @@ import { WishlistWatcherCron } from "./wishlist-watcher.cron";
 import { SampleFollowupCron } from "./sample-followup.cron";
 import { AbandonedCartCron } from "./abandoned-cart.cron";
 import { FollowupOverdueCron } from "./followup-overdue.cron";
+import { CustomerEmbeddingsRefreshCron } from "./customer-embeddings-refresh.cron";
 import { AiModule } from "../ai/ai.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { RecommendationsModule } from "../recommendations/recommendations.module";
 
 @Module({
-  imports: [ScheduleModule.forRoot(), AiModule, NotificationsModule],
+  imports: [
+    ScheduleModule.forRoot(),
+    AiModule,
+    NotificationsModule,
+    RecommendationsModule,
+  ],
   providers: [
     SegmentationCron,
     LifecycleAlertsCron,
@@ -26,6 +33,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
     SampleFollowupCron,
     AbandonedCartCron,
     FollowupOverdueCron,
+    CustomerEmbeddingsRefreshCron,
   ],
 })
 export class SchedulerModule {}

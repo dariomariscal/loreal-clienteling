@@ -1,4 +1,5 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
@@ -15,12 +16,17 @@ import type {
 } from "../../dtos/beauty.dto";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
+import {
+  EmbeddingEvents,
+  type CustomerChangedEvent,
+} from "../ai/embedding-events";
 
 @Injectable()
 export class BeautyService {
   constructor(
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   async findProfile(customerId: string, user?: SessionUser) {
@@ -80,6 +86,7 @@ export class BeautyService {
         .set({ ...updateData, updatedAt: new Date() })
         .where(eq(beautyProfiles.id, existing.id))
         .returning();
+      this.emitCustomerChanged(data.customerId, "beauty_profile_updated");
       return updated;
     }
 
@@ -87,7 +94,13 @@ export class BeautyService {
       .insert(beautyProfiles)
       .values(data)
       .returning();
+    this.emitCustomerChanged(data.customerId, "beauty_profile_created");
     return created;
+  }
+
+  private emitCustomerChanged(customerId: string, reason: string): void {
+    const payload: CustomerChangedEvent = { customerId, reason };
+    this.eventBus.emit(EmbeddingEvents.CUSTOMER_CHANGED, payload);
   }
 
   async addShade(

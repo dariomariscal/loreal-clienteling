@@ -1,4 +1,14 @@
-import { IsString, MaxLength, IsOptional, IsIn, IsUUID } from "class-validator";
+import {
+  IsString,
+  MaxLength,
+  IsOptional,
+  IsIn,
+  IsUUID,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+} from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { RECOMMENDATION_SOURCES, VISIT_PURPOSES } from "@loreal/contracts";
 
@@ -42,4 +52,42 @@ export class AiRecommendationRequestDto {
   @IsString()
   @MaxLength(2000)
   context?: string;
+}
+
+export class GenerateEngineRecommendationsDto {
+  @ApiProperty({ type: String, format: "uuid" })
+  @IsUUID()
+  customerId: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    minimum: 1,
+    maximum: 20,
+    default: 5,
+    description: "Maximum number of products to return.",
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  limit?: number;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: true,
+    description: "Generate LLM rationale + WhatsApp draft per product.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  withRationale?: boolean;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: true,
+    description:
+      "Persist the ranked output to the recommendations table (source = ai_suggested).",
+  })
+  @IsOptional()
+  @IsBoolean()
+  persist?: boolean;
 }

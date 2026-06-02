@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
@@ -19,6 +20,10 @@ import { AuditService } from "../../common/services/audit.service";
 import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import { RecommendationsService } from "../recommendations/recommendations.service";
 import { SamplesService } from "../samples/samples.service";
+import {
+  EmbeddingEvents,
+  type CustomerChangedEvent,
+} from "../ai/embedding-events";
 import {
   attributePurchaseToBa,
   type RecommendationRecord,
@@ -43,6 +48,7 @@ export class OrdersService {
     @Inject(RecommendationsService)
     private recommendationsService: RecommendationsService,
     @Inject(SamplesService) private samplesService: SamplesService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   async findByCustomer(customerId: string, user: SessionUser) {
@@ -250,6 +256,15 @@ export class OrdersService {
 
       return { order, itemRows };
     });
+
+    const customerChangedPayload: CustomerChangedEvent = {
+      customerId: data.customerId,
+      reason: "order_created",
+    };
+    this.eventBus.emit(
+      EmbeddingEvents.CUSTOMER_CHANGED,
+      customerChangedPayload,
+    );
 
     await this.auditService.log(user, "create", "order", result.order.id, {
       customerId: data.customerId,

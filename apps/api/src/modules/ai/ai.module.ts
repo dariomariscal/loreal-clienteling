@@ -24,6 +24,8 @@ import { SemanticSearchService } from "./services/semantic-search.service";
 import { DailySuggestedActionsService } from "./services/daily-suggested-actions.service";
 import { ProductEmbeddingService } from "./services/product-embedding.service";
 import { ProductSemanticSearchService } from "./services/product-semantic-search.service";
+import { CustomerEmbeddingService } from "./services/customer-embedding.service";
+import { CustomerEmbeddingListener } from "./listeners/customer-embedding.listener";
 
 /**
  * The AI module is the "AI Gateway" — the rest of the API talks only to the
@@ -54,6 +56,7 @@ import { ProductSemanticSearchService } from "./services/product-semantic-search
     DailySuggestedActionsService,
     ProductEmbeddingService,
     ProductSemanticSearchService,
+    CustomerEmbeddingService,
   ],
   exports: [
     CustomerSummaryService,
@@ -63,6 +66,16 @@ import { ProductSemanticSearchService } from "./services/product-semantic-search
     DailySuggestedActionsService,
     ProductEmbeddingService,
     ProductSemanticSearchService,
+    CustomerEmbeddingService,
+    CustomerEmbeddingListener,
+    // Re-exported so the Recommendations module can compose the engine
+    // without re-declaring the AI gateway dependencies.
+    LLM_PROVIDER,
+    EMBEDDINGS_PROVIDER,
+    CustomerEmbeddingsRepository,
+    ProductEmbeddingsRepository,
+    AiUsageLogsRepository,
+    SuggestedActionsRepository,
   ],
 })
 export class AiModule {}

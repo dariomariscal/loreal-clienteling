@@ -11,6 +11,7 @@ export * from "./customer-activity";
 export * from "./notes";
 export * from "./beauty-profiles";
 export * from "./recommendations";
+export * from "./recommendation-engine";
 export * from "./orders";
 export * from "./appointments";
 export * from "./customer-visits";

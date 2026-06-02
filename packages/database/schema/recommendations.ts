@@ -4,6 +4,8 @@ import {
   text,
   varchar,
   boolean,
+  jsonb,
+  numeric,
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
@@ -12,6 +14,19 @@ import { products } from "./products";
 import { users } from "./auth";
 import { stores } from "./stores";
 import { customerVisits } from "./customer-visits";
+
+/**
+ * Shape of `recommendations.reason_signals`. Kept here (not imported from
+ * @loreal/contracts) so the database package stays dependency-free; the
+ * contracts package re-declares the same shape for the public API surface.
+ */
+interface ReasonSignalsShape {
+  contentAffinity?: number;
+  semanticMatch?: number;
+  lookalikePurchase?: number;
+  replenishmentDue?: number;
+  replenishmentDaysUntilDepletion?: number;
+}
 
 /**
  * Product recommendation made by an advisor (or surfaced by AI and surfaced
@@ -40,6 +55,15 @@ export const recommendations = pgTable(
     source: varchar("source", { length: 30 }).notNull(),
     // manual | ai_suggested | replenishment_alert | next_best_action
     aiReasoning: text("ai_reasoning"),
+    /**
+     * Per-signal-source contribution captured when the engine produced this
+     * recommendation. Powers explainability chips ("Replenishment 0.9 ·
+     * Semantic 0.7") and conversion attribution by signal. Null for
+     * manually-created recommendations.
+     */
+    reasonSignals: jsonb("reason_signals").$type<ReasonSignalsShape>(),
+    /** Fused engine score 0..1. Null for manual recommendations. */
+    engineScore: numeric("engine_score", { precision: 4, scale: 3 }),
     notes: text("notes"),
 
     visitPurpose: varchar("visit_purpose", { length: 30 }),

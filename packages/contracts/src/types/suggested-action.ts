@@ -43,6 +43,20 @@ export interface SuggestedAction {
   dismissedAt?: Date | null;
   completedAt?: Date | null;
   createdAt: Date;
+  /**
+   * Product the engine attached during the post-NBA enrichment pass for
+   * product-bound triggers (replenishment, new_product_match,
+   * wishlist_back_in_stock, wishlist_price_drop). Null on relational
+   * triggers (birthday, win_back, vip_cadence).
+   */
+  product?: SuggestedActionProduct | null;
+}
+
+export interface SuggestedActionProduct {
+  id: string;
+  title: string;
+  brandName: string | null;
+  images: string[];
 }
 
 export interface SuggestedActionWithCustomer extends SuggestedAction {
@@ -50,6 +64,24 @@ export interface SuggestedActionWithCustomer extends SuggestedAction {
     id: string;
     firstName: string;
     lastName: string;
+    lastInteractionAt?: Date | null;
+    lastOrderAt?: Date | null;
+  };
+}
+
+export interface SuggestedActionStoreRow
+  extends Omit<SuggestedAction, "dismissedAt" | "completedAt"> {
+  assignedTo: {
+    id: string;
+    name: string | null;
+    specialty: string | null;
+  };
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    lifecycleStage: string | null;
+    loyaltyTier: string | null;
     lastInteractionAt?: Date | null;
     lastOrderAt?: Date | null;
   };

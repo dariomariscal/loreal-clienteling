@@ -1,0 +1,110 @@
+/**
+ * Recommendation Engine — public contracts.
+ *
+ * The engine produces ranked product candidates for a customer by fusing
+ * four signal sources and emitting reason codes so the BA can explain the
+ * suggestion at the counter. Naming follows the clienteling vocabulary
+ * already used in this codebase (BA, counter, customer, visit).
+ *
+ * The "candidate / ranked" split mirrors the standard recsys pipeline:
+ *   - Candidate: a product surfaced by one (or more) signal sources.
+ *   - Ranked: candidates after fusion, hard-filtering and re-ranking.
+ *
+ * Signal sources are independent inputs the orchestrator gathers in parallel
+ * and feeds to the pure domain ranker.
+ */
+
+/** Why a product showed up in the candidate pool. */
+export const RECOMMENDATION_SIGNAL_SOURCES = [
+  "content_affinity", // attribute overlap with beauty_profile / routine
+  "semantic_match", // customer-embedding ↔ product-embedding
+  "lookalike_purchase", // bought by similar customers
+  "replenishment_due", // depletion window from order history
+] as const;
+
+export type RecommendationSignalSource =
+  (typeof RECOMMENDATION_SIGNAL_SOURCES)[number];
+
+/**
+ * Quantitative attribution per signal source. Stored on the recommendation
+ * row so the UI can render "Why?" chips ("Replenishment 0.9 · Semantic 0.7")
+ * and so analytics can attribute conversions back to a signal source.
+ */
+export interface RecommendationReasonSignals {
+  contentAffinity?: number; // 0..1
+  semanticMatch?: number; // 0..1
+  lookalikePurchase?: number; // 0..1
+  replenishmentDue?: number; // 0..1
+  /** Days until the customer is expected to run out — populated when the
+   *  replenishment signal contributed. */
+  replenishmentDaysUntilDepletion?: number;
+}
+
+/**
+ * One product surfaced by one signal source. Each source produces 0..N of
+ * these; the domain ranker fuses them by productId.
+ */
+export interface ProductRecommendationCandidate {
+  productId: string;
+  source: RecommendationSignalSource;
+  /** Raw 0..1 score from the source (already normalised). */
+  score: number;
+  /** Optional extra fields kept for the re-ranker. */
+  replenishmentDaysUntilDepletion?: number;
+}
+
+/**
+ * Catalog metadata the ranker needs to apply hard filters and content-based
+ * scoring without re-hitting the DB. Kept narrow on purpose.
+ */
+export interface ProductRankingMetadata {
+  productId: string;
+  brandId: string;
+  category: string;
+  productType: string | null;
+  price: number;
+  ingredients: string[];
+  targetConcerns: string[];
+  tags: string[];
+  hasStock: boolean;
+}
+
+/**
+ * Customer-side preference snapshot used by content-based scoring. Sourced
+ * from beauty_profiles + denormalised order metrics; nullable everywhere so
+ * a brand-new customer still ranks.
+ */
+export interface CustomerPreferenceSnapshot {
+  customerId: string;
+  skinConcerns: string[];
+  preferredIngredients: string[];
+  avoidedIngredients: string[];
+  /** Per-brand purchase counts — drives brand_affinity score. */
+  brandAffinity: Record<string, number>;
+  /** Average ticket — drives price_band_match score. */
+  averageOrderValue: number;
+  /** Product IDs already in the customer's daily routine — used to penalise
+   *  cannibalising suggestions. */
+  routineProductIds: string[];
+  /** Product IDs the customer already bought — excluded from suggestions. */
+  purchasedProductIds: string[];
+}
+
+/** A single ranked product ready to persist as a recommendation row. */
+export interface RankedProductRecommendation {
+  productId: string;
+  /** Final fused score after re-ranking, 0..1. */
+  score: number;
+  /** Per-source contribution. Stored on `recommendations.reason_signals`. */
+  signals: RecommendationReasonSignals;
+  /** Stable list of source codes that contributed — drives "Why?" chips. */
+  contributingSources: RecommendationSignalSource[];
+}
+
+/** Input bundle the orchestrator hands to the pure ranker. */
+export interface RankProductRecommendationsInput {
+  customer: CustomerPreferenceSnapshot;
+  candidates: ProductRecommendationCandidate[];
+  productMetadata: Record<string, ProductRankingMetadata>;
+  limit?: number;
+}

@@ -49,6 +49,14 @@ export class DailySuggestedActionsService {
         lastInteractionAt: r.customerLastInteractionAt,
         lastOrderAt: r.customerLastOrderAt,
       },
+      product: r.productId
+        ? {
+            id: r.productId,
+            title: r.productTitle ?? "",
+            brandName: r.productBrandName,
+            images: r.productImages ?? [],
+          }
+        : null,
     }));
   }
 
@@ -91,6 +99,14 @@ export class DailySuggestedActionsService {
         lastInteractionAt: r.customerLastInteractionAt,
         lastOrderAt: r.customerLastOrderAt,
       },
+      product: r.productId
+        ? {
+            id: r.productId,
+            title: r.productTitle ?? "",
+            brandName: r.productBrandName,
+            images: r.productImages ?? [],
+          }
+        : null,
     }));
   }
 

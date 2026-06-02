@@ -13,6 +13,10 @@ import {
   type CustomerAssignedEvent,
 } from "../notifications/notification-events";
 import {
+  EmbeddingEvents,
+  type CustomerChangedEvent,
+} from "../ai/embedding-events";
+import {
   customers,
   beautyProfiles,
   shadeMatches,
@@ -675,6 +679,7 @@ export class CustomersService {
       })
       .returning();
 
+    this.emitCustomerChanged(customer.id, "created");
     return customer;
   }
 
@@ -766,6 +771,7 @@ export class CustomersService {
       meta,
     );
 
+    this.emitCustomerChanged(customer.id, "registered");
     return customer;
   }
 
@@ -857,9 +863,20 @@ export class CustomersService {
         id,
         changes,
       );
+      this.emitCustomerChanged(id, "updated");
     }
 
     return updated;
+  }
+
+  /**
+   * Notify the AI gateway that the customer's identity (profile, orders,
+   * notes, visits) likely changed so it can refresh the embedding. Fire-and-
+   * forget — the listener never blocks this caller.
+   */
+  private emitCustomerChanged(customerId: string, reason: string): void {
+    const payload: CustomerChangedEvent = { customerId, reason };
+    this.eventBus.emit(EmbeddingEvents.CUSTOMER_CHANGED, payload);
   }
 
   /**

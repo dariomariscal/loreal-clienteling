@@ -1,7 +1,8 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte, desc } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
-import { recommendations } from "@loreal/database";
+import { recommendations, products, brands } from "@loreal/database";
+import type { RecommendationListItem } from "@loreal/contracts";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
@@ -18,7 +19,10 @@ export class RecommendationsService {
     private customerActivity: CustomerActivityService,
   ) {}
 
-  async findByCustomer(customerId: string, user: SessionUser) {
+  async findByCustomer(
+    customerId: string,
+    user: SessionUser,
+  ): Promise<RecommendationListItem[]> {
     const storeScope = await this.scopeService.scopeByStore(
       user,
       recommendations.storeId,
@@ -29,11 +33,60 @@ export class RecommendationsService {
       ...(storeScope ? [storeScope] : []),
     ];
 
-    return this.db
-      .select()
+    const rows = await this.db
+      .select({
+        id: recommendations.id,
+        customerId: recommendations.customerId,
+        productId: recommendations.productId,
+        recommendedByUserId: recommendations.recommendedByUserId,
+        storeId: recommendations.storeId,
+        recommendedAt: recommendations.recommendedAt,
+        source: recommendations.source,
+        aiReasoning: recommendations.aiReasoning,
+        reasonSignals: recommendations.reasonSignals,
+        engineScore: recommendations.engineScore,
+        notes: recommendations.notes,
+        visitPurpose: recommendations.visitPurpose,
+        isConverted: recommendations.isConverted,
+        convertedOrderId: recommendations.convertedOrderId,
+        productSku: products.sku,
+        productTitle: products.title,
+        productPrice: products.price,
+        productImages: products.images,
+        brandName: brands.displayName,
+      })
       .from(recommendations)
+      .leftJoin(products, eq(products.id, recommendations.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
       .where(and(...conditions))
-      .orderBy(recommendations.recommendedAt);
+      .orderBy(desc(recommendations.recommendedAt));
+
+    return rows.map((r) => ({
+      id: r.id,
+      customerId: r.customerId,
+      productId: r.productId,
+      recommendedByUserId: r.recommendedByUserId,
+      storeId: r.storeId,
+      recommendedAt: r.recommendedAt.toISOString(),
+      source: r.source,
+      aiReasoning: r.aiReasoning,
+      notes: r.notes,
+      visitPurpose: r.visitPurpose,
+      isConverted: r.isConverted,
+      convertedOrderId: r.convertedOrderId,
+      reasonSignals: r.reasonSignals ?? null,
+      engineScore: r.engineScore !== null ? Number(r.engineScore) : null,
+      product: r.productSku
+        ? {
+            id: r.productId,
+            sku: r.productSku,
+            title: r.productTitle ?? "",
+            brandName: r.brandName,
+            price: r.productPrice ?? "0",
+            images: r.productImages ?? [],
+          }
+        : null,
+    }));
   }
 
   async create(data: CreateRecommendationDto, user: SessionUser) {

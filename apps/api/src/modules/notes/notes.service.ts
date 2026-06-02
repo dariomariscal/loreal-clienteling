@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { eq, and, or, desc } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { notes, users, products } from "@loreal/database";
@@ -12,6 +13,10 @@ import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
 import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import type { CreateNoteDto, UpdateNoteDto } from "../../dtos/notes.dto";
+import {
+  EmbeddingEvents,
+  type CustomerChangedEvent,
+} from "../ai/embedding-events";
 
 @Injectable()
 export class NotesService {
@@ -21,6 +26,7 @@ export class NotesService {
     @Inject(AuditService) private auditService: AuditService,
     @Inject(CustomerActivityService)
     private customerActivity: CustomerActivityService,
+    private readonly eventBus: EventEmitter2,
   ) {}
 
   /**
@@ -86,6 +92,12 @@ export class NotesService {
       .returning();
 
     await this.customerActivity.touchInteraction(customerId);
+
+    const payload: CustomerChangedEvent = {
+      customerId,
+      reason: "note_created",
+    };
+    this.eventBus.emit(EmbeddingEvents.CUSTOMER_CHANGED, payload);
 
     await this.auditService.log(
       user,

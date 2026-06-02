@@ -59,6 +59,13 @@ export {
 } from "./ai-prompts/build-message-suggestion-prompt";
 
 export {
+  buildRecommendationReasonPrompt,
+  RECOMMENDATION_REASON_PROMPT_VERSION,
+  type RecommendationReasonPrompt,
+  type RecommendationReasonPromptInput,
+} from "./ai-prompts/build-recommendation-reason-prompt";
+
+export {
   parseExtractedNote,
   type ParseExtractedNoteResult,
 } from "./ai-extraction/parse-extracted-note";
@@ -78,3 +85,7 @@ export {
   rankProductSearchResults,
   type RankProductSearchInput,
 } from "./semantic-search/rank-product-search-results";
+
+export {
+  rankProductRecommendations,
+} from "./product-recommendations/rank-product-recommendations";
