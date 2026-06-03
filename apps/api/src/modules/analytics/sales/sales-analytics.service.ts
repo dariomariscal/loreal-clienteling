@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { eq, and, gte, lte, sql, count, sum } from "drizzle-orm";
+import { eq, and, gte, lte, sql, count, sum, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../../config/database.provider";
 import { orders, lineItems, products } from "@loreal/database";
 import type { SessionUser } from "../../../common/types/session";
@@ -7,9 +7,9 @@ import { ScopeService } from "../../../common/services/scope.service";
 import {
   getDefaultDateRange,
   getTrendDefaultDateRange,
-  type DateRange,
 } from "../shared/analytics-date.util";
-import { buildStoreScopeFilter } from "../shared/analytics-scope.util";
+import type { ReportFiltersInput } from "../shared/report-filters";
+import { resolveScopedFilters } from "../shared/filter-resolution";
 
 @Injectable()
 export class SalesAnalyticsService {
@@ -21,18 +21,57 @@ export class SalesAnalyticsService {
   async getTrend(
     user: SessionUser,
     interval: "day" | "week" | "month",
-    range?: DateRange,
+    filters?: ReportFiltersInput,
   ) {
-    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const accessible = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";
+    const { from, to } = getTrendDefaultDateRange(filters);
 
-    const { from, to } = getTrendDefaultDateRange(range);
+    const { storeIds, baUserId, brandId } = await resolveScopedFilters(
+      this.db,
+      isAdmin,
+      accessible,
+      filters ?? {},
+    );
 
-    const conditions = [gte(orders.processedAt, from), lte(orders.processedAt, to)];
-    const storeFilter = buildStoreScopeFilter(isAdmin, storeIds, orders.storeId);
-    if (storeFilter) conditions.push(storeFilter as any);
+    if (storeIds != null && storeIds.length === 0) {
+      return { interval, data: [], period: { from, to } };
+    }
+
+    const conditions: any[] = [
+      gte(orders.processedAt, from),
+      lte(orders.processedAt, to),
+    ];
+    if (storeIds != null) conditions.push(inArray(orders.storeId, storeIds));
+    if (baUserId) conditions.push(eq(orders.attributedUserId, baUserId));
 
     const dateTrunc = sql`date_trunc(${sql.raw(`'${interval}'`)}, ${orders.processedAt})`;
+
+    // When brandId is set we have to aggregate through line_items + products
+    // (orders rows aren't per-brand). Otherwise the order-level sum is faster.
+    if (brandId) {
+      const rows = await this.db
+        .select({
+          period: dateTrunc.as("period"),
+          totalAmount: sql<string>`coalesce(sum(${lineItems.price} * ${lineItems.quantity}), 0)`,
+          orderCount: sql<number>`count(distinct ${orders.id})::int`,
+        })
+        .from(lineItems)
+        .innerJoin(orders, eq(orders.id, lineItems.orderId))
+        .innerJoin(products, eq(products.id, lineItems.productId))
+        .where(and(...conditions, eq(products.brandId, brandId)))
+        .groupBy(dateTrunc)
+        .orderBy(dateTrunc);
+      return {
+        interval,
+        data: rows.map((r) => ({
+          date: r.period,
+          totalAmount: r.totalAmount ?? "0",
+          orderCount: r.orderCount,
+        })),
+        period: { from, to },
+      };
+    }
 
     const rows = await this.db
       .select({
@@ -59,15 +98,30 @@ export class SalesAnalyticsService {
   async getBreakdown(
     user: SessionUser,
     groupBy: "category" | "brand",
-    range?: DateRange,
+    filters?: ReportFiltersInput,
   ) {
-    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const accessible = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";
-    const { from, to } = getDefaultDateRange(range);
+    const { from, to } = getDefaultDateRange(filters);
 
-    const conditions = [gte(orders.processedAt, from), lte(orders.processedAt, to)];
-    const storeFilter = buildStoreScopeFilter(isAdmin, storeIds, orders.storeId);
-    if (storeFilter) conditions.push(storeFilter as any);
+    const { storeIds, baUserId, brandId } = await resolveScopedFilters(
+      this.db,
+      isAdmin,
+      accessible,
+      filters ?? {},
+    );
+
+    if (storeIds != null && storeIds.length === 0) {
+      return { groupBy, data: [], period: { from, to } };
+    }
+
+    const conditions: any[] = [
+      gte(orders.processedAt, from),
+      lte(orders.processedAt, to),
+    ];
+    if (storeIds != null) conditions.push(inArray(orders.storeId, storeIds));
+    if (baUserId) conditions.push(eq(orders.attributedUserId, baUserId));
+    if (brandId) conditions.push(eq(products.brandId, brandId));
 
     if (groupBy === "category") {
       const rows = await this.db

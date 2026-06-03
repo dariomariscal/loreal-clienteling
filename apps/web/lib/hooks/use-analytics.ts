@@ -13,7 +13,22 @@ import type {
   FollowUpKPIsResponse,
   BannersRankingAnalyticsResponse,
   CustomerExportRow,
+  ReportFilters,
 } from "@loreal/contracts";
+
+/**
+ * Serialises a ReportFilters object into a query-string params record. Drops
+ * empty / undefined values so the URL and React Query cache key stay clean.
+ * Every hook in this file pipes its filters through this helper so the shape
+ * sent to the API is consistent.
+ */
+function paramsFrom(filters: ReportFilters): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(filters)) {
+    if (v != null && v !== "") out[k] = String(v);
+  }
+  return out;
+}
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -136,41 +151,49 @@ export interface RetentionData {
 // ── Query keys ─────────────────────────────────────────────────────
 
 export const analyticsKeys = {
-  dashboard: (from?: string, to?: string) => ["analytics", "dashboard", from, to] as const,
-  salesTrend: (interval: string, from?: string, to?: string) => ["analytics", "sales-trend", interval, from, to] as const,
-  salesBreakdown: (groupBy: string, from?: string, to?: string) => ["analytics", "sales-breakdown", groupBy, from, to] as const,
-  baPerformance: (from?: string, to?: string) => ["analytics", "ba-performance", from, to] as const,
-  appointmentMetrics: (from?: string, to?: string) => ["analytics", "appointments", from, to] as const,
-  appointmentsByBa: (from?: string, to?: string) => ["analytics", "appointments-by-ba", from, to] as const,
-  agendaReport: (filters: Record<string, string | undefined>) => ["analytics", "agenda-report", filters] as const,
-  conversion: (from?: string, to?: string, trending?: boolean) => ["analytics", "conversion", from, to, trending] as const,
+  dashboard: (filters: ReportFilters) => ["analytics", "dashboard", filters] as const,
+  salesTrend: (interval: string, filters: ReportFilters) =>
+    ["analytics", "sales-trend", interval, filters] as const,
+  salesBreakdown: (groupBy: string, filters: ReportFilters) =>
+    ["analytics", "sales-breakdown", groupBy, filters] as const,
+  baPerformance: (filters: ReportFilters) =>
+    ["analytics", "ba-performance", filters] as const,
+  appointmentMetrics: (filters: ReportFilters) =>
+    ["analytics", "appointments", filters] as const,
+  appointmentsByBa: (filters: ReportFilters) =>
+    ["analytics", "appointments-by-ba", filters] as const,
+  agendaReport: (filters: Record<string, string | undefined>) =>
+    ["analytics", "agenda-report", filters] as const,
+  conversion: (filters: ReportFilters, trending?: boolean) =>
+    ["analytics", "conversion", filters, trending] as const,
   customers: ["analytics", "customers"] as const,
   retention: ["analytics", "retention"] as const,
-  zoneOverview: (from?: string, to?: string) => ["analytics", "zone-overview", from, to] as const,
+  zoneOverview: (filters: ReportFilters) =>
+    ["analytics", "zone-overview", filters] as const,
   storesRanking: (filters: StoresRankingFilters) =>
     ["analytics", "stores-ranking", filters] as const,
-  bannersRanking: (from?: string, to?: string) =>
-    ["analytics", "banners-ranking", from, to] as const,
-  counterManagersRanking: (from?: string, to?: string) =>
-    ["analytics", "counter-managers-ranking", from, to] as const,
-  zonesRanking: (from?: string, to?: string) => ["analytics", "zones-ranking", from, to] as const,
+  bannersRanking: (filters: ReportFilters) =>
+    ["analytics", "banners-ranking", filters] as const,
+  counterManagersRanking: (filters: ReportFilters) =>
+    ["analytics", "counter-managers-ranking", filters] as const,
+  zonesRanking: (filters: ReportFilters) =>
+    ["analytics", "zones-ranking", filters] as const,
   appointmentTargets: (
-    from?: string,
-    to?: string,
+    filters: ReportFilters,
     metricKind?: "appointments_booked" | "appointments_completed",
-  ) => ["analytics", "appointment-targets", from, to, metricKind] as const,
-  followUps: (from?: string, to?: string) =>
-    ["analytics", "follow-ups", from, to] as const,
-  brandsComparison: (storeId: string, from?: string, to?: string) =>
-    ["analytics", "brands-comparison", storeId, from, to] as const,
-  salesTargetsAnalytics: (from?: string, to?: string) =>
-    ["analytics", "sales-targets", from, to] as const,
-  baRatingsAnalytics: (from?: string, to?: string) =>
-    ["analytics", "ba-ratings", from, to] as const,
-  aiUsage: (from?: string, to?: string) =>
-    ["analytics", "ai-usage", from, to] as const,
-  zoneHeatmap: (from?: string, to?: string) =>
-    ["analytics", "zone-heatmap", from, to] as const,
+  ) => ["analytics", "appointment-targets", filters, metricKind] as const,
+  followUps: (filters: ReportFilters) =>
+    ["analytics", "follow-ups", filters] as const,
+  brandsComparison: (storeId: string, filters: ReportFilters) =>
+    ["analytics", "brands-comparison", storeId, filters] as const,
+  salesTargetsAnalytics: (filters: ReportFilters) =>
+    ["analytics", "sales-targets", filters] as const,
+  baRatingsAnalytics: (filters: ReportFilters) =>
+    ["analytics", "ba-ratings", filters] as const,
+  aiUsage: (filters: ReportFilters) =>
+    ["analytics", "ai-usage", filters] as const,
+  zoneHeatmap: (filters: ReportFilters) =>
+    ["analytics", "zone-heatmap", filters] as const,
   pipeline: ["analytics", "pipeline"] as const,
   vipBreakdown: ["analytics", "vip-breakdown"] as const,
   vipCustomers: (limit?: number) =>
@@ -179,90 +202,100 @@ export const analyticsKeys = {
 
 // ── Queries ────────────────────────────────────────────────────────
 
-export function useDashboardMetrics(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useDashboardMetrics(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.dashboard(from, to),
-    queryFn: () => api.get<DashboardMetrics>("/analytics/dashboard", Object.keys(params).length ? params : undefined),
+    queryKey: analyticsKeys.dashboard(filters),
+    queryFn: () =>
+      api.get<DashboardMetrics>(
+        "/analytics/dashboard",
+        Object.keys(params).length ? params : undefined,
+      ),
   });
 }
 
-export function useSalesTrend(interval = "month", from?: string, to?: string) {
-  const params: Record<string, string> = { interval };
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useSalesTrend(interval: "day" | "week" | "month", filters: ReportFilters) {
+  const params = { interval, ...paramsFrom(filters) };
   return useQuery({
-    queryKey: analyticsKeys.salesTrend(interval, from, to),
+    queryKey: analyticsKeys.salesTrend(interval, filters),
     queryFn: () => api.get<SalesTrendData>("/analytics/sales-trend", params),
   });
 }
 
-export function useSalesBreakdown(groupBy: "category" | "brand" = "category", from?: string, to?: string) {
-  const params: Record<string, string> = { groupBy };
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useSalesBreakdown(
+  groupBy: "category" | "brand",
+  filters: ReportFilters,
+) {
+  const params = { groupBy, ...paramsFrom(filters) };
   return useQuery({
-    queryKey: analyticsKeys.salesBreakdown(groupBy, from, to),
-    queryFn: () => api.get<{ groupBy: string; data: SalesBreakdownItem[] }>("/analytics/sales-breakdown", params),
+    queryKey: analyticsKeys.salesBreakdown(groupBy, filters),
+    queryFn: () =>
+      api.get<{ groupBy: string; data: SalesBreakdownItem[] }>(
+        "/analytics/sales-breakdown",
+        params,
+      ),
   });
 }
 
-export function useBaPerformance(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useBaPerformance(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.baPerformance(from, to),
-    queryFn: () => api.get<BaPerformanceRow[]>("/analytics/ba-performance", Object.keys(params).length ? params : undefined),
+    queryKey: analyticsKeys.baPerformance(filters),
+    queryFn: () =>
+      api.get<BaPerformanceRow[]>(
+        "/analytics/ba-performance",
+        Object.keys(params).length ? params : undefined,
+      ),
   });
 }
 
-export function useAppointmentMetrics(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useAppointmentMetrics(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.appointmentMetrics(from, to),
-    queryFn: () => api.get<AppointmentMetrics>("/analytics/appointments", Object.keys(params).length ? params : undefined),
+    queryKey: analyticsKeys.appointmentMetrics(filters),
+    queryFn: () =>
+      api.get<AppointmentMetrics>(
+        "/analytics/appointments",
+        Object.keys(params).length ? params : undefined,
+      ),
   });
 }
 
-export function useAppointmentsByBa(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useAppointmentsByBa(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.appointmentsByBa(from, to),
-    queryFn: () => api.get<{ data: AppointmentByBaRow[] }>("/analytics/appointments-by-ba", Object.keys(params).length ? params : undefined),
+    queryKey: analyticsKeys.appointmentsByBa(filters),
+    queryFn: () =>
+      api.get<{ data: AppointmentByBaRow[] }>(
+        "/analytics/appointments-by-ba",
+        Object.keys(params).length ? params : undefined,
+      ),
   });
 }
 
-export function useAgendaReport(filters: {
-  from?: string;
-  to?: string;
-  baUserId?: string;
+export function useAgendaReport(filters: ReportFilters & {
   status?: string;
   page?: string;
   limit?: string;
 }) {
   const params: Record<string, string> = {};
-  Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+  Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = String(v); });
   return useQuery({
     queryKey: analyticsKeys.agendaReport(params),
     queryFn: () => api.get<{ data: AgendaReportRow[]; total: number; page: number; limit: number }>("/analytics/agenda-report", Object.keys(params).length ? params : undefined),
   });
 }
 
-export function useConversionMetrics(from?: string, to?: string, trending = false) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useConversionMetrics(filters: ReportFilters, trending = false) {
+  const params = paramsFrom(filters);
   if (trending) params.trending = "true";
   return useQuery({
-    queryKey: analyticsKeys.conversion(from, to, trending),
-    queryFn: () => api.get<ConversionMetrics>("/analytics/conversion", Object.keys(params).length ? params : undefined),
+    queryKey: analyticsKeys.conversion(filters, trending),
+    queryFn: () =>
+      api.get<ConversionMetrics>(
+        "/analytics/conversion",
+        Object.keys(params).length ? params : undefined,
+      ),
   });
 }
 
@@ -362,12 +395,10 @@ export interface BrandComparisonRow {
   };
 }
 
-export function useZoneOverview(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useZoneOverview(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.zoneOverview(from, to),
+    queryKey: analyticsKeys.zoneOverview(filters),
     queryFn: () =>
       api.get<ZoneOverview>(
         "/analytics/zone-overview",
@@ -396,12 +427,10 @@ export function useStoresRanking(filters: StoresRankingFilters = {}) {
  * Top Franquicias — ranking aggregated by `stores.banner`. Visible to
  * area_manager / national_retail_manager / admin.
  */
-export function useBannersRanking(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useBannersRanking(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.bannersRanking(from, to),
+    queryKey: analyticsKeys.bannersRanking(filters),
     queryFn: () =>
       api.get<BannersRankingAnalyticsResponse>(
         "/analytics/banners-ranking",
@@ -415,15 +444,12 @@ export function useBannersRanking(from?: string, to?: string) {
  * switches between booked and completed appointments.
  */
 export function useAppointmentTargetsAnalytics(
-  from?: string,
-  to?: string,
+  filters: ReportFilters,
   metricKind: "appointments_booked" | "appointments_completed" = "appointments_booked",
 ) {
-  const params: Record<string, string> = { metricKind };
-  if (from) params.from = from;
-  if (to) params.to = to;
+  const params = { metricKind, ...paramsFrom(filters) };
   return useQuery({
-    queryKey: analyticsKeys.appointmentTargets(from, to, metricKind),
+    queryKey: analyticsKeys.appointmentTargets(filters, metricKind),
     queryFn: () =>
       api.get<AppointmentTargetsAnalyticsResponse>(
         "/analytics/appointment-targets",
@@ -436,12 +462,10 @@ export function useAppointmentTargetsAnalytics(
  * Follow-up KPIs (Tulip 5-bucket pattern). Scope: BA sees self, manager+ sees
  * their accessible BAs.
  */
-export function useFollowUpKPIs(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useFollowUpKPIs(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.followUps(from, to),
+    queryKey: analyticsKeys.followUps(filters),
     queryFn: () =>
       api.get<FollowUpKPIsResponse>(
         "/analytics/follow-ups",
@@ -450,12 +474,10 @@ export function useFollowUpKPIs(from?: string, to?: string) {
   });
 }
 
-export function useCounterManagersRanking(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useCounterManagersRanking(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.counterManagersRanking(from, to),
+    queryKey: analyticsKeys.counterManagersRanking(filters),
     queryFn: () =>
       api.get<{
         period: { from: string; to: string };
@@ -467,12 +489,10 @@ export function useCounterManagersRanking(from?: string, to?: string) {
   });
 }
 
-export function useZonesRanking(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useZonesRanking(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.zonesRanking(from, to),
+    queryKey: analyticsKeys.zonesRanking(filters),
     queryFn: () =>
       api.get<{
         period: { from: string; to: string };
@@ -484,12 +504,10 @@ export function useZonesRanking(from?: string, to?: string) {
   });
 }
 
-export function useBrandsComparison(storeId: string, from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useBrandsComparison(storeId: string, filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.brandsComparison(storeId, from, to),
+    queryKey: analyticsKeys.brandsComparison(storeId, filters),
     queryFn: () =>
       api.get<{
         storeId: string;
@@ -505,12 +523,10 @@ export function useBrandsComparison(storeId: string, from?: string, to?: string)
 
 // ── New role-aware analytics endpoints ────────────────────────────
 
-export function useSalesTargetsAnalytics(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useSalesTargetsAnalytics(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.salesTargetsAnalytics(from, to),
+    queryKey: analyticsKeys.salesTargetsAnalytics(filters),
     queryFn: () =>
       api.get<SalesTargetsAnalyticsResponse>(
         "/analytics/sales-targets",
@@ -519,12 +535,10 @@ export function useSalesTargetsAnalytics(from?: string, to?: string) {
   });
 }
 
-export function useBaRatingsAnalytics(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useBaRatingsAnalytics(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.baRatingsAnalytics(from, to),
+    queryKey: analyticsKeys.baRatingsAnalytics(filters),
     queryFn: () =>
       api.get<BaRatingsAnalyticsResponse>(
         "/analytics/ba-ratings",
@@ -533,12 +547,10 @@ export function useBaRatingsAnalytics(from?: string, to?: string) {
   });
 }
 
-export function useAiUsage(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useAiUsage(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.aiUsage(from, to),
+    queryKey: analyticsKeys.aiUsage(filters),
     queryFn: () =>
       api.get<AiUsageAnalyticsResponse>(
         "/analytics/ai-usage",
@@ -547,12 +559,10 @@ export function useAiUsage(from?: string, to?: string) {
   });
 }
 
-export function useZoneHeatmap(from?: string, to?: string) {
-  const params: Record<string, string> = {};
-  if (from) params.from = from;
-  if (to) params.to = to;
+export function useZoneHeatmap(filters: ReportFilters) {
+  const params = paramsFrom(filters);
   return useQuery({
-    queryKey: analyticsKeys.zoneHeatmap(from, to),
+    queryKey: analyticsKeys.zoneHeatmap(filters),
     queryFn: () =>
       api.get<ZoneHeatmapResponse>(
         "/analytics/zone-heatmap",
@@ -588,32 +598,22 @@ export function useVipCustomers(limit?: number) {
   });
 }
 
-export interface AnalyticsExportParams {
+export type AnalyticsExportParams = ReportFilters & {
   type: "customers" | "sales" | "appointments" | "agenda-report" | string;
   format?: "csv" | "xlsx";
-  from?: string;
-  to?: string;
-  /** Filter customer export to a specific banner (`stores.banner`). */
-  banner?: string;
-  /** Filter to clients whose `lastBaUserId` matches. */
-  baUserId?: string;
-}
+};
 
 export function useAnalyticsExport() {
   return useMutation({
     mutationFn: async ({
       type,
       format = "csv",
-      from,
-      to,
-      banner,
-      baUserId,
+      ...filters
     }: AnalyticsExportParams) => {
       const params = new URLSearchParams({ type, format });
-      if (from) params.set("from", from);
-      if (to) params.set("to", to);
-      if (banner) params.set("banner", banner);
-      if (baUserId) params.set("baUserId", baUserId);
+      for (const [k, v] of Object.entries(paramsFrom(filters))) {
+        params.set(k, v);
+      }
 
       const url = `${API_URL}/analytics/export?${params.toString()}`;
       const res = await fetch(url, { credentials: "include" });
@@ -636,18 +636,12 @@ export function useAnalyticsExport() {
  * table before downloading the CSV/XLSX. The backend returns the same wide
  * row shape as the file export.
  */
-export function useCustomerExportPreview(filters: {
-  from?: string;
-  to?: string;
-  banner?: string;
-  baUserId?: string;
-} = {}) {
-  const params: Record<string, string> = { type: "customers", format: "json" };
-  if (filters.from) params.from = filters.from;
-  if (filters.to) params.to = filters.to;
-  if (filters.banner) params.banner = filters.banner;
-  if (filters.baUserId) params.baUserId = filters.baUserId;
-
+export function useCustomerExportPreview(filters: ReportFilters = {}) {
+  const params: Record<string, string> = {
+    type: "customers",
+    format: "json",
+    ...paramsFrom(filters),
+  };
   return useQuery({
     queryKey: ["analytics", "export", "customers", filters] as const,
     queryFn: () => api.get<CustomerExportRow[]>("/analytics/export", params),

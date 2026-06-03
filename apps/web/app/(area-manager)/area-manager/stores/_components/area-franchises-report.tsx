@@ -24,14 +24,10 @@ import { useFilters } from "@/lib/filters/use-filters";
  */
 export function AreaFranchisesReport() {
   const { filters, setFilter } = useFilters();
-  const { from, to } = filters;
 
-  const { data: banners, isLoading: bannersLoading } = useBannersRanking(
-    from,
-    to,
-  );
-  const { data: brandsBreakdown } = useSalesBreakdown("brand", from, to);
-  const { data: categoryBreakdown } = useSalesBreakdown("category", from, to);
+  const { data: banners, isLoading: bannersLoading } = useBannersRanking(filters);
+  const { data: brandsBreakdown } = useSalesBreakdown("brand", filters);
+  const { data: categoryBreakdown } = useSalesBreakdown("category", filters);
   const { data: brands } = useBrands();
 
   const brandName = React.useCallback(

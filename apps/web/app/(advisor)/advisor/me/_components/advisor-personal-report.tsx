@@ -19,11 +19,10 @@ import { useFilters } from "@/lib/filters/use-filters";
  */
 export function AdvisorPersonalReport() {
   const { filters } = useFilters();
-  const { from, to } = filters;
 
-  const { data: metrics, isLoading } = useDashboardMetrics(from, to);
-  const { data: followUps, isLoading: fuLoading } = useFollowUpKPIs(from, to);
-  const { data: trend } = useSalesTrend("day", from, to);
+  const { data: metrics, isLoading } = useDashboardMetrics(filters);
+  const { data: followUps, isLoading: fuLoading } = useFollowUpKPIs(filters);
+  const { data: trend } = useSalesTrend("day", filters);
 
   const totalSales = Number(metrics?.sales.totalAmount ?? 0);
   const sparkPoints = trend?.data.map((d) => Number(d.totalAmount)) ?? [];

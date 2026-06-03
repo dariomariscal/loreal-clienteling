@@ -21,6 +21,8 @@ import type { SessionUser } from "../../../common/types/session";
 import { ScopeService } from "../../../common/services/scope.service";
 import { getDefaultDateRange, type DateRange } from "../shared/analytics-date.util";
 import { buildStoreScopeFilter } from "../shared/analytics-scope.util";
+import type { ReportFiltersInput } from "../shared/report-filters";
+import { resolveScopedFilters } from "../shared/filter-resolution";
 
 @Injectable()
 export class ZoneAnalyticsService {
@@ -33,8 +35,11 @@ export class ZoneAnalyticsService {
    * Aggregated multi-store dashboard for the Area / National Retail Manager.
    * Fans out the same KPIs as the counter dashboard but across every store
    * the user can see (scope resolved by ScopeService).
+   *
+   * `filters` lets the caller narrow by banner, brand, store, BA or zone.
+   * Each narrows the underlying SQL WHERE on top of the role-based scope.
    */
-  async getOverview(user: SessionUser, range?: DateRange) {
+  async getOverview(user: SessionUser, filters?: ReportFiltersInput) {
     if (
       user.role !== UserRole.AREA_MANAGER &&
       user.role !== UserRole.NATIONAL_RETAIL_MANAGER &&
@@ -45,11 +50,15 @@ export class ZoneAnalyticsService {
       );
     }
 
-    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const accessible = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === UserRole.ADMIN;
-    const { from, to } = getDefaultDateRange(range);
+    const { from, to } = getDefaultDateRange(filters);
 
-    if (!isAdmin && storeIds.length === 0) {
+    const resolved = await resolveScopedFilters(this.db, isAdmin, accessible, filters ?? {});
+    const { storeIds, baUserId, brandId } = resolved;
+
+    const emptyScope = storeIds != null && storeIds.length === 0;
+    if (emptyScope) {
       return {
         period: { from, to },
         scope: { storeCount: 0, storeIds: [] },
@@ -58,48 +67,50 @@ export class ZoneAnalyticsService {
         appointments: { total: 0, completed: 0, noShow: 0 },
         recommendations: { total: 0, converted: 0, conversionPct: null },
         samples: { delivered: 0, converted: 0 },
-        operations: { pendingApprovals: 0, stockAlerts: 0, upcomingEventsCount: 0 },
       };
     }
 
-    const orderStoreFilter = buildStoreScopeFilter(isAdmin, storeIds, orders.storeId);
-    const customerStoreFilter = buildStoreScopeFilter(
-      isAdmin,
-      storeIds,
-      customers.signupStoreId,
-    );
-    const apptStoreFilter = buildStoreScopeFilter(
-      isAdmin,
-      storeIds,
-      appointments.storeId,
-    );
-    const recStoreFilter = buildStoreScopeFilter(
-      isAdmin,
-      storeIds,
-      recommendations.storeId,
-    );
-    const sampleStoreFilter = buildStoreScopeFilter(
-      isAdmin,
-      storeIds,
-      samples.storeId,
-    );
+    const storeIn = (col: any) =>
+      storeIds == null ? undefined : inArray(col, storeIds);
 
+    // Sales: aggregated from line_items when brandId is set (we need product.brandId);
+    // otherwise from orders directly for performance.
     const orderConds: any[] = [
       gte(orders.processedAt, from),
       lte(orders.processedAt, to),
     ];
-    if (orderStoreFilter) orderConds.push(orderStoreFilter);
+    const sIn = storeIn(orders.storeId);
+    if (sIn) orderConds.push(sIn);
+    if (baUserId) orderConds.push(eq(orders.attributedUserId, baUserId));
 
-    const [salesAgg] = await this.db
-      .select({
-        totalAmount: sql<string>`coalesce(sum(${orders.totalPrice}), 0)`,
-        orderCount: count(),
-        uniqueCustomers: sql<number>`count(distinct ${orders.customerId})::int`,
-      })
-      .from(orders)
-      .where(and(...orderConds));
+    let salesAgg: { totalAmount: string | number; orderCount: number; uniqueCustomers: number } | undefined;
+    if (brandId) {
+      const [row] = await this.db
+        .select({
+          totalAmount: sql<string>`coalesce(sum(${lineItems.price} * ${lineItems.quantity}), 0)`,
+          orderCount: sql<number>`count(distinct ${orders.id})::int`,
+          uniqueCustomers: sql<number>`count(distinct ${orders.customerId})::int`,
+        })
+        .from(lineItems)
+        .innerJoin(orders, eq(orders.id, lineItems.orderId))
+        .innerJoin(products, eq(products.id, lineItems.productId))
+        .where(and(...orderConds, eq(products.brandId, brandId)));
+      salesAgg = row;
+    } else {
+      const [row] = await this.db
+        .select({
+          totalAmount: sql<string>`coalesce(sum(${orders.totalPrice}), 0)`,
+          orderCount: count(),
+          uniqueCustomers: sql<number>`count(distinct ${orders.customerId})::int`,
+        })
+        .from(orders)
+        .where(and(...orderConds));
+      salesAgg = row;
+    }
 
-    const totalCustConds: any[] = customerStoreFilter ? [customerStoreFilter] : [];
+    const totalCustConds: any[] = [];
+    const cIn = storeIn(customers.signupStoreId);
+    if (cIn) totalCustConds.push(cIn);
     const [totalCust] = await this.db
       .select({ count: count() })
       .from(customers)
@@ -109,7 +120,7 @@ export class ZoneAnalyticsService {
       gte(customers.enrolledAt, from),
       lte(customers.enrolledAt, to),
     ];
-    if (customerStoreFilter) newCustConds.push(customerStoreFilter);
+    if (cIn) newCustConds.push(cIn);
     const [newCust] = await this.db
       .select({ count: count() })
       .from(customers)
@@ -119,7 +130,9 @@ export class ZoneAnalyticsService {
       gte(appointments.startTime, from),
       lte(appointments.startTime, to),
     ];
-    if (apptStoreFilter) apptConds.push(apptStoreFilter);
+    const aIn = storeIn(appointments.storeId);
+    if (aIn) apptConds.push(aIn);
+    if (baUserId) apptConds.push(eq(appointments.staffUserId, baUserId));
     const [apptAgg] = await this.db
       .select({
         total: count(),
@@ -133,20 +146,38 @@ export class ZoneAnalyticsService {
       gte(recommendations.recommendedAt, from),
       lte(recommendations.recommendedAt, to),
     ];
-    if (recStoreFilter) recConds.push(recStoreFilter);
-    const [recAgg] = await this.db
-      .select({
-        total: count(),
-        converted: sql<number>`count(*) filter (where ${recommendations.isConverted} = true)::int`,
-      })
-      .from(recommendations)
-      .where(and(...recConds));
+    const rIn = storeIn(recommendations.storeId);
+    if (rIn) recConds.push(rIn);
+    if (baUserId) recConds.push(eq(recommendations.recommendedByUserId, baUserId));
+
+    let recAgg: { total: number; converted: number } | undefined;
+    if (brandId) {
+      const [row] = await this.db
+        .select({
+          total: count(),
+          converted: sql<number>`count(*) filter (where ${recommendations.isConverted} = true)::int`,
+        })
+        .from(recommendations)
+        .innerJoin(products, eq(products.id, recommendations.productId))
+        .where(and(...recConds, eq(products.brandId, brandId)));
+      recAgg = row;
+    } else {
+      const [row] = await this.db
+        .select({
+          total: count(),
+          converted: sql<number>`count(*) filter (where ${recommendations.isConverted} = true)::int`,
+        })
+        .from(recommendations)
+        .where(and(...recConds));
+      recAgg = row;
+    }
 
     const sampleConds: any[] = [
       gte(samples.deliveredAt, from),
       lte(samples.deliveredAt, to),
     ];
-    if (sampleStoreFilter) sampleConds.push(sampleStoreFilter);
+    const smIn = storeIn(samples.storeId);
+    if (smIn) sampleConds.push(smIn);
     const [sampleAgg] = await this.db
       .select({
         delivered: count(),
@@ -162,8 +193,8 @@ export class ZoneAnalyticsService {
     return {
       period: { from, to },
       scope: {
-        storeCount: isAdmin ? null : storeIds.length,
-        storeIds: isAdmin ? null : storeIds,
+        storeCount: storeIds == null ? null : storeIds.length,
+        storeIds: storeIds,
       },
       sales: {
         totalAmount: Number(salesAgg?.totalAmount ?? 0),

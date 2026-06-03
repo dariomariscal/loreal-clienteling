@@ -282,3 +282,21 @@ export interface VipCustomerRow {
 export interface VipCustomersResponse {
   data: VipCustomerRow[];
 }
+
+// ── Report filters (shared across all analytics endpoints) ────────────
+
+/**
+ * The full filter set every report endpoint must accept. Each field is
+ * optional — server-side role scoping still applies regardless of which
+ * filters the caller sends. Keep this type as the single source of truth
+ * for both the API controller and the web hooks.
+ */
+export interface ReportFilters {
+  from?: string;
+  to?: string;
+  banner?: string;
+  brandId?: string;
+  storeId?: string;
+  baUserId?: string;
+  zoneId?: string;
+}

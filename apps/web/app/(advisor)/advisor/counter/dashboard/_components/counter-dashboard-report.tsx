@@ -25,19 +25,12 @@ import { useFilters } from "@/lib/filters/use-filters";
  */
 export function CounterDashboardReport() {
   const { filters } = useFilters();
-  const { from, to } = filters;
 
-  const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(
-    from,
-    to,
-  );
+  const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(filters);
   const { data: targets, isLoading: targetsLoading } =
-    useSalesTargetsAnalytics(from, to);
-  const { data: followUps, isLoading: followUpsLoading } = useFollowUpKPIs(
-    from,
-    to,
-  );
-  const { data: trend } = useSalesTrend("day", from, to);
+    useSalesTargetsAnalytics(filters);
+  const { data: followUps, isLoading: followUpsLoading } = useFollowUpKPIs(filters);
+  const { data: trend } = useSalesTrend("day", filters);
 
   const counterTarget = targets?.data[0]; // CM scope returns single row
   const totalSales = Number(metrics?.sales.totalAmount ?? 0);

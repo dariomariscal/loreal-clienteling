@@ -14,7 +14,9 @@ import {
 import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../../common/types/session";
 import { ScopeService } from "../../../common/services/scope.service";
-import { getDefaultDateRange, type DateRange } from "../shared/analytics-date.util";
+import { getDefaultDateRange } from "../shared/analytics-date.util";
+import type { ReportFiltersInput } from "../shared/report-filters";
+import { resolveScopedFilters } from "../shared/filter-resolution";
 
 /**
  * Target vs. actual per (storeId, brandId) for the period. Counter managers see
@@ -30,7 +32,7 @@ export class SalesTargetsAnalyticsService {
     @Inject(ScopeService) private scopeService: ScopeService,
   ) {}
 
-  async getTargetsVsActual(user: SessionUser, range?: DateRange) {
+  async getTargetsVsActual(user: SessionUser, filters?: ReportFiltersInput) {
     if (user.role === UserRole.BEAUTY_ADVISOR) {
       throw new ForbiddenException(
         "Sales targets are visible to counter_manager and above",
@@ -38,10 +40,17 @@ export class SalesTargetsAnalyticsService {
     }
 
     const isAdmin = user.role === UserRole.ADMIN;
-    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
-    const { from, to } = getDefaultDateRange(range);
+    const accessible = await this.scopeService.getAccessibleStoreIds(user);
+    const { from, to } = getDefaultDateRange(filters);
 
-    if (!isAdmin && storeIds.length === 0) {
+    const { storeIds, brandId, baUserId } = await resolveScopedFilters(
+      this.db,
+      isAdmin,
+      accessible,
+      filters ?? {},
+    );
+
+    if (storeIds != null && storeIds.length === 0) {
       return { period: { from, to }, data: [] };
     }
 
@@ -51,7 +60,8 @@ export class SalesTargetsAnalyticsService {
       gte(salesTargets.periodStart, from.toISOString().slice(0, 10)),
       lte(salesTargets.periodEnd, to.toISOString().slice(0, 10)),
     ];
-    if (!isAdmin) targetConds.push(inArray(salesTargets.storeId, storeIds));
+    if (storeIds != null) targetConds.push(inArray(salesTargets.storeId, storeIds));
+    if (brandId) targetConds.push(eq(salesTargets.brandId, brandId));
 
     const targetRows = await this.db
       .select({
@@ -74,7 +84,9 @@ export class SalesTargetsAnalyticsService {
       gte(orders.processedAt, from),
       lte(orders.processedAt, to),
     ];
-    if (!isAdmin) actualConds.push(inArray(orders.storeId, storeIds));
+    if (storeIds != null) actualConds.push(inArray(orders.storeId, storeIds));
+    if (baUserId) actualConds.push(eq(orders.attributedUserId, baUserId));
+    if (brandId) actualConds.push(eq(products.brandId, brandId));
 
     const actualRows = await this.db
       .select({
@@ -141,7 +153,7 @@ export class SalesTargetsAnalyticsService {
    */
   async getAppointmentTargetsVsActual(
     user: SessionUser,
-    range?: DateRange,
+    filters?: ReportFiltersInput,
     metricKind: "appointments_booked" | "appointments_completed" = "appointments_booked",
   ) {
     if (user.role === UserRole.BEAUTY_ADVISOR) {
@@ -150,10 +162,17 @@ export class SalesTargetsAnalyticsService {
     }
 
     const isAdmin = user.role === UserRole.ADMIN;
-    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
-    const { from, to } = getDefaultDateRange(range);
+    const accessible = await this.scopeService.getAccessibleStoreIds(user);
+    const { from, to } = getDefaultDateRange(filters);
 
-    if (!isAdmin && storeIds.length === 0) {
+    const { storeIds, baUserId, brandId } = await resolveScopedFilters(
+      this.db,
+      isAdmin,
+      accessible,
+      filters ?? {},
+    );
+
+    if (storeIds != null && storeIds.length === 0) {
       return { period: { from, to }, metricKind, data: [] };
     }
 
@@ -162,7 +181,9 @@ export class SalesTargetsAnalyticsService {
       gte(salesTargets.periodStart, from.toISOString().slice(0, 10)),
       lte(salesTargets.periodEnd, to.toISOString().slice(0, 10)),
     ];
-    if (!isAdmin) targetConds.push(inArray(salesTargets.storeId, storeIds));
+    if (storeIds != null) targetConds.push(inArray(salesTargets.storeId, storeIds));
+    if (brandId) targetConds.push(eq(salesTargets.brandId, brandId));
+    if (baUserId) targetConds.push(eq(salesTargets.ownerUserId, baUserId));
 
     const targetRows = await this.db
       .select({
@@ -187,7 +208,8 @@ export class SalesTargetsAnalyticsService {
             lte(appointments.startTime, to),
             eq(appointments.status, "completed"),
           ];
-    if (!isAdmin) actualConds.push(inArray(appointments.storeId, storeIds));
+    if (storeIds != null) actualConds.push(inArray(appointments.storeId, storeIds));
+    if (baUserId) actualConds.push(eq(appointments.staffUserId, baUserId));
 
     const byStore = await this.db
       .select({

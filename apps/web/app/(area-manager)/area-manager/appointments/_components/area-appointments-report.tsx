@@ -36,15 +36,10 @@ const STATUS_SERIES = [
  */
 export function AreaAppointmentsReport() {
   const { filters } = useFilters();
-  const { from, to } = filters;
 
-  const { data: metrics, isLoading: metricsLoading } = useAppointmentMetrics(
-    from,
-    to,
-  );
+  const { data: metrics, isLoading: metricsLoading } = useAppointmentMetrics(filters);
   const { data: targets } = useAppointmentTargetsAnalytics(
-    from,
-    to,
+    filters,
     "appointments_booked",
   );
 

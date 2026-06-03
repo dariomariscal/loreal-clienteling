@@ -4,8 +4,24 @@ import { Roles } from "../../auth/decorators/roles.decorator";
 import { Session } from "../../auth/decorators/session.decorator";
 import { Workbook } from "exceljs";
 import { AnalyticsService } from "./analytics.service";
+import type { ReportFiltersInput } from "./shared/report-filters";
 import type { UserSession } from "../../common/types/session";
 import type { Response } from "express";
+
+/**
+ * Query-string filters every analytics endpoint accepts. Each is optional; the
+ * controller wraps them as `ReportFiltersInput` so services receive a single
+ * canonical object instead of a long list of @Query() params.
+ */
+interface AnalyticsQuery {
+  from?: string;
+  to?: string;
+  banner?: string;
+  brandId?: string;
+  storeId?: string;
+  baUserId?: string;
+  zoneId?: string;
+}
 
 const COLUMN_LABELS: Record<string, string> = {
   id: "ID",
@@ -66,28 +82,50 @@ export class AnalyticsController {
     };
   }
 
+  /**
+   * Canonical parser for analytics query params. Folds the date range and
+   * entity filters (banner / brand / store / BA / zone) into a single
+   * `ReportFiltersInput` that downstream services consume. Empty strings are
+   * dropped so query keys stay stable across the cache.
+   */
+  private parseFilters(q: AnalyticsQuery): ReportFiltersInput {
+    const range = this.parseDateRange(q.from, q.to);
+    return {
+      ...range,
+      banner: q.banner || undefined,
+      brandId: q.brandId || undefined,
+      storeId: q.storeId || undefined,
+      baUserId: q.baUserId || undefined,
+      zoneId: q.zoneId || undefined,
+    };
+  }
+
   @Get("dashboard")
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
-  getDashboard(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
-    @Session() session: UserSession,
-  ) {
-    return this.analyticsService.getDashboard(session.user, this.parseDateRange(from, to));
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
+  getDashboard(@Query() q: AnalyticsQuery, @Session() session: UserSession) {
+    return this.analyticsService.getDashboard(session.user, this.parseFilters(q));
   }
 
   @Get("appointments")
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getAppointmentMetrics(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.appointments.getStatusBreakdown(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -99,14 +137,17 @@ export class AnalyticsController {
   @Get("appointments/overview")
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getAppointmentOverview(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.appointments.getOverview(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -114,14 +155,17 @@ export class AnalyticsController {
   @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getBaPerformance(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.performance.getBaSummary(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -129,10 +173,14 @@ export class AnalyticsController {
   @ApiQuery({ name: "groupBy", enum: ["category", "brand"], required: true })
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getSalesBreakdown(
     @Query("groupBy") groupBy: string,
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     if (groupBy !== "category" && groupBy !== "brand") {
@@ -141,7 +189,7 @@ export class AnalyticsController {
     return this.analyticsService.sales.getBreakdown(
       session.user,
       groupBy,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -149,17 +197,21 @@ export class AnalyticsController {
   @ApiQuery({ name: "interval", enum: ["day", "week", "month"], required: false })
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getSalesTrend(
     @Query("interval") interval: string | undefined,
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     const validInterval = interval === "day" || interval === "week" ? interval : "month";
     return this.analyticsService.sales.getTrend(
       session.user,
       validInterval,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -167,15 +219,19 @@ export class AnalyticsController {
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   @ApiQuery({ name: "trending", type: Boolean, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getConversion(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
     @Query("trending") trending: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.recommendations.getConversionSummary(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
       trending === "true",
     );
   }
@@ -188,14 +244,18 @@ export class AnalyticsController {
   @Get("recommendations/conversion-by-source")
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getRecommendationConversionBySource(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.recommendations.getConversionBySource(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -219,20 +279,20 @@ export class AnalyticsController {
   @ApiQuery({ name: "status", type: String, required: false })
   @ApiQuery({ name: "page", type: Number, required: false })
   @ApiQuery({ name: "limit", type: Number, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getAgendaReport(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
-    @Query("baUserId") baUserId: string | undefined,
     @Query("status") status: string | undefined,
     @Query("page") page: string | undefined,
     @Query("limit") limit: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.appointments.getAgendaReport(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
       {
-        staffUserId: baUserId,
         status,
         page: page ? parseInt(page) : undefined,
         limit: limit ? parseInt(limit) : undefined,
@@ -244,14 +304,17 @@ export class AnalyticsController {
   @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getAppointmentsByBa(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.appointments.getByBa(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -265,14 +328,18 @@ export class AnalyticsController {
   @Roles(["area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getZoneOverview(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.zoneManagement.getOverview(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -281,18 +348,20 @@ export class AnalyticsController {
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   @ApiQuery({ name: "retailGroupId", type: String, required: false })
   getStoresRanking(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
-    @Query("banner") banner: string | undefined,
     @Query("retailGroupId") retailGroupId: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.zoneManagement.getStoresRanking(
       session.user,
-      this.parseDateRange(from, to),
-      { banner, retailGroupId },
+      this.parseFilters(q),
+      { retailGroupId },
     );
   }
 
@@ -300,14 +369,15 @@ export class AnalyticsController {
   @Roles(["area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getBannersRanking(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.zoneManagement.getBannersRanking(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -315,15 +385,19 @@ export class AnalyticsController {
   @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   @ApiQuery({
     name: "metricKind",
     enum: ["appointments_booked", "appointments_completed"],
     required: false,
   })
   getAppointmentTargets(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
     @Query("metricKind") metricKind: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     const kind =
@@ -332,20 +406,26 @@ export class AnalyticsController {
         : "appointments_booked";
     return this.analyticsService.salesTargets.getAppointmentTargetsVsActual(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
       kind,
     );
   }
 
   @Get("follow-ups")
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getFollowUpKPIs(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.performance.getFollowUpKPIs(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -353,14 +433,15 @@ export class AnalyticsController {
   @Roles(["area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getCounterManagersRanking(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.zoneManagement.getCounterManagersRanking(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -368,14 +449,14 @@ export class AnalyticsController {
   @Roles(["national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
   getZonesRanking(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.zoneManagement.getZonesRanking(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -383,14 +464,18 @@ export class AnalyticsController {
   @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getSalesTargets(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.salesTargets.getTargetsVsActual(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -398,14 +483,17 @@ export class AnalyticsController {
   @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getBaRatings(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.ratings.getNpsByBa(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -414,13 +502,12 @@ export class AnalyticsController {
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   getAiUsage(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.aiUsage.getOverview(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -428,14 +515,16 @@ export class AnalyticsController {
   @Roles(["area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   getZoneHeatmap(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.heatmap.getZoneHeatmap(
       session.user,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 
@@ -467,16 +556,17 @@ export class AnalyticsController {
   @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
   getStoreBrandsComparison(
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
     @Param("storeId") storeId: string,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
   ) {
     return this.analyticsService.zoneManagement.getStoreBrandsComparison(
       session.user,
       storeId,
-      this.parseDateRange(from, to),
+      this.parseFilters(q),
     );
   }
 

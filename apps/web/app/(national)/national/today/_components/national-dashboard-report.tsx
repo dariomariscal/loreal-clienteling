@@ -21,12 +21,11 @@ import { useFilters } from "@/lib/filters/use-filters";
  */
 export function NationalDashboardReport() {
   const { filters } = useFilters();
-  const { from, to } = filters;
 
-  const { data: zone, isLoading: zoneLoading } = useZoneOverview(from, to);
-  const { data: targets } = useSalesTargetsAnalytics(from, to);
-  const { data: followUps, isLoading: fuLoading } = useFollowUpKPIs(from, to);
-  const { data: trend } = useSalesTrend("day", from, to);
+  const { data: zone, isLoading: zoneLoading } = useZoneOverview(filters);
+  const { data: targets } = useSalesTargetsAnalytics(filters);
+  const { data: followUps, isLoading: fuLoading } = useFollowUpKPIs(filters);
+  const { data: trend } = useSalesTrend("day", filters);
 
   const aggregate = aggregateTargets(targets?.data);
   const sparkPoints = trend?.data.map((d) => Number(d.totalAmount)) ?? [];

@@ -18,9 +18,8 @@ import { useFilters } from "@/lib/filters/use-filters";
  */
 export function NationalZonesReport() {
   const { filters, setFilter } = useFilters();
-  const { from, to } = filters;
 
-  const { data, isLoading } = useZonesRanking(from, to);
+  const { data, isLoading } = useZonesRanking(filters);
 
   const rows = React.useMemo<RankingDatum[]>(
     () =>

@@ -19,8 +19,7 @@ import { useFilters } from "@/lib/filters/use-filters";
  */
 export function AreaPerformanceReport() {
   const { filters } = useFilters();
-  const { from, to } = filters;
-  const { data, isLoading } = useBaPerformance(from, to);
+  const { data, isLoading } = useBaPerformance(filters);
 
   const rows = React.useMemo<BaPerformanceRowVM[]>(() => {
     if (!data) return [];

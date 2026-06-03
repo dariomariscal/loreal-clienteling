@@ -29,7 +29,12 @@ export function ReportShell({
   className,
 }: ReportShellProps) {
   return (
-    <div className={cn("flex flex-col gap-6 px-6 py-6 lg:px-8", className)}>
+    <div
+      className={cn(
+        "flex h-full w-full min-w-0 flex-col gap-6 overflow-y-auto overscroll-contain px-6 py-6 lg:px-8",
+        className,
+      )}
+    >
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-[family-name:var(--font-heading)] text-2xl font-semibold tracking-tight text-foreground">

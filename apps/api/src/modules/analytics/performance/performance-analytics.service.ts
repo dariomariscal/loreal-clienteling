@@ -1,18 +1,22 @@
 import { Injectable, Inject, ForbiddenException } from "@nestjs/common";
-import { eq, and, gte, lte, sql, count, sum } from "drizzle-orm";
+import { eq, and, gte, lte, sql, count, sum, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../../config/database.provider";
 import {
   customers,
   orders,
+  lineItems,
   recommendations,
   messages,
+  products,
   suggestedActions,
   users,
 } from "@loreal/database";
 import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../../common/types/session";
 import { ScopeService } from "../../../common/services/scope.service";
-import { getDefaultDateRange, type DateRange } from "../shared/analytics-date.util";
+import { getDefaultDateRange } from "../shared/analytics-date.util";
+import type { ReportFiltersInput } from "../shared/report-filters";
+import { resolveScopedFilters } from "../shared/filter-resolution";
 
 @Injectable()
 export class PerformanceAnalyticsService {
@@ -26,23 +30,32 @@ export class PerformanceAnalyticsService {
    * messages sent, and recommendation conversion. Scoped to BAs reachable
    * by the caller.
    */
-  async getBaSummary(user: SessionUser, range?: DateRange) {
+  async getBaSummary(user: SessionUser, filters?: ReportFiltersInput) {
     if (user.role === UserRole.BEAUTY_ADVISOR) {
       throw new ForbiddenException(
         "BA performance summary is restricted to counter_manager and above",
       );
     }
-    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const accessible = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === UserRole.ADMIN;
-    const { from, to } = getDefaultDateRange(range);
+    const { from, to } = getDefaultDateRange(filters);
 
-    // Get BAs accessible to this user
-    const baConditions = [eq(users.role, "beauty_advisor"), eq(users.isActive, true)];
-    if (!isAdmin && storeIds.length > 0) {
-      baConditions.push(
-        sql`${users.storeId} IN (${sql.join(storeIds.map((id) => sql`${id}`), sql`, `)})` as any,
-      );
-    }
+    const { storeIds, baUserId, brandId } = await resolveScopedFilters(
+      this.db,
+      isAdmin,
+      accessible,
+      filters ?? {},
+    );
+
+    if (storeIds != null && storeIds.length === 0) return [];
+
+    // Get BAs accessible to this user, narrowed by filter scope.
+    const baConditions: any[] = [
+      eq(users.role, "beauty_advisor"),
+      eq(users.isActive, true),
+    ];
+    if (storeIds != null) baConditions.push(inArray(users.storeId, storeIds));
+    if (baUserId) baConditions.push(eq(users.id, baUserId));
 
     const bas = await this.db
       .select({ id: users.id, fullName: users.fullName, storeId: users.storeId })
@@ -53,22 +66,35 @@ export class PerformanceAnalyticsService {
 
     const baIds = bas.map((b) => b.id);
 
-    // Sales per BA
-    const salesRows = await this.db
-      .select({
-        baId: orders.attributedUserId,
-        totalAmount: sum(orders.totalPrice),
-        orderCount: count(),
-      })
-      .from(orders)
-      .where(
-        and(
-          sql`${orders.attributedUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
-          gte(orders.processedAt, from),
-          lte(orders.processedAt, to),
-        ),
-      )
-      .groupBy(orders.attributedUserId);
+    // Sales per BA — when brandId is set we sum line_items joined on products.
+    const baseSalesConds: any[] = [
+      inArray(orders.attributedUserId, baIds),
+      gte(orders.processedAt, from),
+      lte(orders.processedAt, to),
+    ];
+    if (storeIds != null) baseSalesConds.push(inArray(orders.storeId, storeIds));
+
+    const salesRows = brandId
+      ? await this.db
+          .select({
+            baId: orders.attributedUserId,
+            totalAmount: sql<string>`coalesce(sum(${lineItems.price} * ${lineItems.quantity}), 0)`.mapWith(String),
+            orderCount: sql<number>`count(distinct ${orders.id})::int`,
+          })
+          .from(orders)
+          .innerJoin(lineItems, eq(lineItems.orderId, orders.id))
+          .innerJoin(products, eq(products.id, lineItems.productId))
+          .where(and(...baseSalesConds, eq(products.brandId, brandId)))
+          .groupBy(orders.attributedUserId)
+      : await this.db
+          .select({
+            baId: orders.attributedUserId,
+            totalAmount: sum(orders.totalPrice),
+            orderCount: count(),
+          })
+          .from(orders)
+          .where(and(...baseSalesConds))
+          .groupBy(orders.attributedUserId);
 
     const salesMap = new Map(salesRows.map((r) => [r.baId, r]));
 
@@ -187,11 +213,14 @@ export class PerformanceAnalyticsService {
    * Tulip "Follow-ups dashboard" — aggregated KPIs across the caller's scope.
    * Returns the 5-bucket status breakdown the BA / counter dashboard renders.
    */
-  async getFollowUpKPIs(user: SessionUser, range?: DateRange) {
-    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+  async getFollowUpKPIs(user: SessionUser, filters?: ReportFiltersInput) {
+    const accessible = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === UserRole.ADMIN;
     const isBA = user.role === UserRole.BEAUTY_ADVISOR;
-    const { from, to } = getDefaultDateRange(range);
+    const { from, to } = getDefaultDateRange(filters);
+
+    const resolved = await resolveScopedFilters(this.db, isAdmin, accessible, filters ?? {});
+    const { storeIds, baUserId } = resolved;
 
     const conditions: any[] = [
       gte(suggestedActions.createdAt, from),
@@ -200,8 +229,25 @@ export class PerformanceAnalyticsService {
 
     if (isBA) {
       conditions.push(eq(suggestedActions.assignedToUserId, user.id));
-    } else if (!isAdmin && storeIds.length > 0) {
-      // Manager scope: filter by BAs whose storeId is accessible.
+    } else if (baUserId) {
+      // Caller picked a specific BA — narrow directly by user id.
+      conditions.push(eq(suggestedActions.assignedToUserId, baUserId));
+    } else if (storeIds != null) {
+      if (storeIds.length === 0) {
+        // Empty scope: short-circuit with all zeros so we don't run the query
+        // with an empty IN-list that PostgreSQL rejects.
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          total: 0,
+          completed: 0,
+          dismissed: 0,
+          pending: 0,
+          overdue: 0,
+          dueToday: 0,
+          completionRate: 0,
+          byType: [] as { triggerType: string; count: number }[],
+        };
+      }
       conditions.push(
         sql`${suggestedActions.assignedToUserId} IN (
           SELECT ${users.id} FROM ${users}

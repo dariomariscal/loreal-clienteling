@@ -30,10 +30,10 @@ interface AdminPageProps {
 }
 
 export function AdminPage({ user }: AdminPageProps) {
-  const { data: dashboard, isLoading } = useDashboardMetrics();
-  const { data: trendData } = useSalesTrend("month");
-  const { data: baPerf = [] } = useBaPerformance();
-  const { data: apptMetrics } = useAppointmentMetrics();
+  const { data: dashboard, isLoading } = useDashboardMetrics({});
+  const { data: trendData } = useSalesTrend("month", {});
+  const { data: baPerf = [] } = useBaPerformance({});
+  const { data: apptMetrics } = useAppointmentMetrics({});
 
   const trendChartData = (trendData?.data ?? []).map((d) => ({
     date: new Date(d.date).toLocaleDateString("es-MX", { month: "short" }),

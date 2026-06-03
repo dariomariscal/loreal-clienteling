@@ -21,7 +21,7 @@ export function BaDetailPanel() {
 
 function BaDetailPanelBody({ baUserId }: { baUserId: string }) {
   const { filters } = useFilters();
-  const { data, isLoading } = useBaPerformance(filters.from, filters.to);
+  const { data, isLoading } = useBaPerformance(filters);
   const row = data?.find((r) => r.baId === baUserId);
 
   const title = isLoading ? "Cargando…" : row?.fullName ?? "Beauty Advisor";
