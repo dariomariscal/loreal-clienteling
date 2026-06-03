@@ -56,7 +56,7 @@ export class ProductLookupService {
     const cleaned = barcode.trim();
     if (!cleaned) throw new NotFoundException("Empty barcode");
 
-    const [variantRow] = await this.db
+    let [variantRow] = await this.db
       .select({
         variant: productVariants,
         product: products,
@@ -69,6 +69,31 @@ export class ProductLookupService {
         sql`(${productVariants.barcode} = ${cleaned} OR ${productVariants.sku} = ${cleaned}) AND ${productVariants.isActive} = true`,
       )
       .limit(1);
+
+    // Fallback: the scanned code is the parent product's SKU/barcode, not a
+    // variant code (common when products are seeded without per-variant
+    // barcodes — the BA scans the master SKU on the shelf tag). Resolve to
+    // the first active variant of that product so the bottom sheet still
+    // renders something useful.
+    if (!variantRow) {
+      [variantRow] = await this.db
+        .select({
+          variant: productVariants,
+          product: products,
+          brand: brands,
+        })
+        .from(products)
+        .innerJoin(brands, eq(brands.id, products.brandId))
+        .innerJoin(
+          productVariants,
+          and(
+            eq(productVariants.productId, products.id),
+            eq(productVariants.isActive, true),
+          ),
+        )
+        .where(sql`${products.sku} = ${cleaned} OR ${products.barcode} = ${cleaned}`)
+        .limit(1);
+    }
 
     if (!variantRow) {
       throw new NotFoundException(`No variant found for barcode ${cleaned}`);
@@ -336,13 +361,26 @@ export class ProductLookupService {
     const out: ScanLookupResult["suggestedActions"] = [];
 
     if (!input.hasCustomer) {
-      // Anonymous scan — counter-manager / stock-check path. We still want
-      // something other than "viewed_only" so the BA can attach and act.
+      // Counter-mode scan (no customer attached). The BA needs the
+      // "attach to customer" CTA up top, plus utility actions that don't
+      // require a customer: reserve from another store when local stock is
+      // empty, and an explicit "mostrado" record for floor traffic counts.
       out.push({
         type: "viewed_only",
-        label: "Atribuir a un cliente para registrar acción",
+        label: "Atribuir a un cliente",
         priority: 1,
       });
+
+      const inStockHere = (input.stock.thisStore?.available ?? 0) > 0;
+      const inStockNearby = input.stock.nationalAvailable > 0;
+      if (!inStockHere && inStockNearby) {
+        out.push({
+          type: "reserve",
+          label: "Reservar desde otra tienda",
+          priority: 2,
+          reason: "Sin stock aquí — disponible en otras tiendas",
+        });
+      }
       return out;
     }
 
