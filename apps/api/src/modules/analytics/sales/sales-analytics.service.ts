@@ -27,14 +27,14 @@ export class SalesAnalyticsService {
     const isAdmin = user.role === "admin";
     const { from, to } = getTrendDefaultDateRange(filters);
 
-    const { storeIds, baUserId, brandId } = await resolveScopedFilters(
+    const { storeIds, baUserId, brandId, emptyByBrandConflict } = await resolveScopedFilters(
       this.db,
       isAdmin,
       accessible,
       filters ?? {},
     );
 
-    if (storeIds != null && storeIds.length === 0) {
+    if ((storeIds != null && storeIds.length === 0) || emptyByBrandConflict) {
       return { interval, data: [], period: { from, to } };
     }
 
@@ -104,14 +104,14 @@ export class SalesAnalyticsService {
     const isAdmin = user.role === "admin";
     const { from, to } = getDefaultDateRange(filters);
 
-    const { storeIds, baUserId, brandId } = await resolveScopedFilters(
+    const { storeIds, baUserId, brandId, emptyByBrandConflict } = await resolveScopedFilters(
       this.db,
       isAdmin,
       accessible,
       filters ?? {},
     );
 
-    if (storeIds != null && storeIds.length === 0) {
+    if ((storeIds != null && storeIds.length === 0) || emptyByBrandConflict) {
       return { groupBy, data: [], period: { from, to } };
     }
 

@@ -68,11 +68,11 @@ export class FilterOptionsService {
       storeIdsForBaSlot,
       storeIdsForZoneSlot,
     ] = await Promise.all([
-      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, storeId: undefined }),
-      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, brandId: undefined }),
-      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, banner: undefined }),
-      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, baUserId: undefined }),
-      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, zoneId: undefined }),
+      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, storeId: undefined }, from, to),
+      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, brandId: undefined }, from, to),
+      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, banner: undefined }, from, to),
+      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, baUserId: undefined }, from, to),
+      this.resolveStoreScope(isAdmin, accessibleStoreIds, { ...filters, zoneId: undefined }, from, to),
     ]);
 
     // For BA/brand slots we also drop their own value from the activity
@@ -107,14 +107,21 @@ export class FilterOptionsService {
    * Mirrors the store-narrowing logic in `resolveScopedFilters` but inlined
    * here so the caller can run it five times in parallel with different
    * filter shapes.
+   *
+   * Filters that live on the `stores` table (banner/zoneId/storeId) are
+   * applied via a single SQL WHERE. Cross-entity filters (brandId/baUserId)
+   * require joining activity tables in the current period, so we resolve
+   * those into separate store-id sets and intersect.
    */
   private async resolveStoreScope(
     isAdmin: boolean,
     accessibleStoreIds: string[],
     filters: ReportFiltersInput,
+    from: Date,
+    to: Date,
   ): Promise<string[] | null> {
-    const { banner, storeId, zoneId } = filters;
-    const hasNarrowing = Boolean(banner || storeId || zoneId);
+    const { banner, storeId, zoneId, brandId, baUserId } = filters;
+    const hasNarrowing = Boolean(banner || storeId || zoneId || brandId || baUserId);
     if (isAdmin && !hasNarrowing) return null;
 
     const conds: any[] = [];
@@ -123,13 +130,150 @@ export class FilterOptionsService {
     if (zoneId) conds.push(eq(stores.zoneId, zoneId));
     if (storeId) conds.push(eq(stores.id, storeId));
 
-    if (conds.length === 0) return accessibleStoreIds;
+    const baseIds = conds.length === 0
+      ? null
+      : (await this.db.select({ id: stores.id }).from(stores).where(and(...conds))).map((r) => r.id);
 
-    const rows = await this.db
-      .select({ id: stores.id })
-      .from(stores)
-      .where(and(...conds));
-    return rows.map((r) => r.id);
+    const extraSets: string[][] = [];
+    if (brandId) extraSets.push(await this.storesWithBrandActivity(brandId, from, to, baUserId));
+    if (baUserId) extraSets.push(await this.storesWithBaActivity(baUserId, from, to, brandId));
+
+    if (extraSets.length === 0) {
+      return baseIds ?? accessibleStoreIds;
+    }
+
+    let intersection = new Set<string>(baseIds ?? accessibleStoreIds);
+    for (const set of extraSets) {
+      const next = new Set<string>();
+      for (const id of set) if (intersection.has(id)) next.add(id);
+      intersection = next;
+    }
+    return Array.from(intersection);
+  }
+
+  /**
+   * Stores that have at least one line-item sale or recommendation of the
+   * given brand in the period. Used to facet other slots when a brand is
+   * selected.
+   */
+  private async storesWithBrandActivity(
+    brandId: string,
+    from: Date,
+    to: Date,
+    baUserId: string | undefined,
+  ): Promise<string[]> {
+    const fromSales = this.db
+      .selectDistinct({ id: orders.storeId })
+      .from(orders)
+      .innerJoin(lineItems, eq(lineItems.orderId, orders.id))
+      .innerJoin(products, eq(products.id, lineItems.productId))
+      .where(
+        and(
+          gte(orders.processedAt, from),
+          lte(orders.processedAt, to),
+          eq(products.brandId, brandId),
+          ...(baUserId ? [eq(orders.attributedUserId, baUserId)] : []),
+        ),
+      );
+
+    const fromRecs = this.db
+      .selectDistinct({ id: recommendations.storeId })
+      .from(recommendations)
+      .innerJoin(products, eq(products.id, recommendations.productId))
+      .where(
+        and(
+          gte(recommendations.recommendedAt, from),
+          lte(recommendations.recommendedAt, to),
+          eq(products.brandId, brandId),
+          ...(baUserId ? [eq(recommendations.recommendedByUserId, baUserId)] : []),
+        ),
+      );
+
+    const [oRows, rRows] = await Promise.all([fromSales, fromRecs]);
+    const ids = new Set<string>([
+      ...oRows.map((r) => r.id).filter(Boolean),
+      ...rRows.map((r) => r.id).filter(Boolean),
+    ] as string[]);
+    return Array.from(ids);
+  }
+
+  /**
+   * Stores where the given BA has activity in the period (orders attributed,
+   * appointments staffed, recommendations issued).
+   */
+  private async storesWithBaActivity(
+    baUserId: string,
+    from: Date,
+    to: Date,
+    brandId: string | undefined,
+  ): Promise<string[]> {
+    const fromOrders = brandId
+      ? this.db
+          .selectDistinct({ id: orders.storeId })
+          .from(orders)
+          .innerJoin(lineItems, eq(lineItems.orderId, orders.id))
+          .innerJoin(products, eq(products.id, lineItems.productId))
+          .where(
+            and(
+              gte(orders.processedAt, from),
+              lte(orders.processedAt, to),
+              eq(orders.attributedUserId, baUserId),
+              eq(products.brandId, brandId),
+            ),
+          )
+      : this.db
+          .selectDistinct({ id: orders.storeId })
+          .from(orders)
+          .where(
+            and(
+              gte(orders.processedAt, from),
+              lte(orders.processedAt, to),
+              eq(orders.attributedUserId, baUserId),
+            ),
+          );
+
+    const fromAppointments = this.db
+      .selectDistinct({ id: appointments.storeId })
+      .from(appointments)
+      .where(
+        and(
+          gte(appointments.startTime, from),
+          lte(appointments.startTime, to),
+          eq(appointments.staffUserId, baUserId),
+        ),
+      );
+
+    const fromRecs = brandId
+      ? this.db
+          .selectDistinct({ id: recommendations.storeId })
+          .from(recommendations)
+          .innerJoin(products, eq(products.id, recommendations.productId))
+          .where(
+            and(
+              gte(recommendations.recommendedAt, from),
+              lte(recommendations.recommendedAt, to),
+              eq(recommendations.recommendedByUserId, baUserId),
+              eq(products.brandId, brandId),
+            ),
+          )
+      : this.db
+          .selectDistinct({ id: recommendations.storeId })
+          .from(recommendations)
+          .where(
+            and(
+              gte(recommendations.recommendedAt, from),
+              lte(recommendations.recommendedAt, to),
+              eq(recommendations.recommendedByUserId, baUserId),
+            ),
+          );
+
+    const [oRows, aRows, rRows] = await Promise.all([fromOrders, fromAppointments, fromRecs]);
+    const ids = new Set<string>([
+      ...oRows.map((r) => r.id).filter(Boolean),
+      ...aRows.map((r) => r.id).filter(Boolean),
+      ...rRows.map((r) => r.id).filter(Boolean),
+    ] as string[]);
+    return Array.from(ids);
   }
 
   private storeFilter(col: any, storeIds: string[] | null) {
@@ -226,6 +370,11 @@ export class FilterOptionsService {
 
   /**
    * Brands with at least one line-item sale or recommendation in scope.
+   *
+   * When a BA filter is active, we collapse the result to the BA's formal
+   * brand (users.brandId) if set — same reasoning as activeBaUsers: a BA
+   * "belongs" to one brand even if cross-brand attributions exist in the
+   * data. Falls back to measured activity when the BA has no formal brand.
    */
   private async activeBrands(
     storeIds: string[] | null,
@@ -234,6 +383,18 @@ export class FilterOptionsService {
     baUserId: string | undefined,
   ): Promise<FilterOption[]> {
     if (storeIds != null && storeIds.length === 0) return [];
+
+    if (baUserId) {
+      const baBrandId = await this.getUserBrandId(baUserId);
+      if (baBrandId) {
+        const row = await this.db
+          .select({ id: brands.id, displayName: brands.displayName })
+          .from(brands)
+          .where(eq(brands.id, baBrandId))
+          .limit(1);
+        return row.map((b) => ({ id: b.id, label: b.displayName }));
+      }
+    }
 
     const fromSales = this.db
       .selectDistinct({ id: products.brandId })
@@ -277,6 +438,15 @@ export class FilterOptionsService {
     return brandRows
       .map((b) => ({ id: b.id, label: b.displayName }))
       .sort((a, b) => a.label.localeCompare(b.label, "es"));
+  }
+
+  private async getUserBrandId(userId: string): Promise<string | null> {
+    const row = await this.db
+      .select({ brandId: users.brandId })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    return row[0]?.brandId ?? null;
   }
 
   /**
@@ -357,18 +527,6 @@ export class FilterOptionsService {
             ),
           );
 
-    const fromAppointments = this.db
-      .selectDistinct({ id: appointments.staffUserId })
-      .from(appointments)
-      .where(
-        and(
-          gte(appointments.startTime, from),
-          lte(appointments.startTime, to),
-          isNotNull(appointments.staffUserId),
-          this.storeFilter(appointments.storeId, storeIds),
-        ),
-      );
-
     const fromRecs = brandId
       ? this.db
           .selectDistinct({ id: recommendations.recommendedByUserId })
@@ -395,16 +553,40 @@ export class FilterOptionsService {
             ),
           );
 
-    const fromFollowUps = this.db
-      .selectDistinct({ id: suggestedActions.assignedToUserId })
-      .from(suggestedActions)
-      .where(
-        and(
-          gte(suggestedActions.createdAt, from),
-          lte(suggestedActions.createdAt, to),
-          isNotNull(suggestedActions.assignedToUserId),
-        ),
-      );
+    // Appointments and follow-ups have no brand link — only count them as BA
+    // evidence when no brand filter is active. Otherwise a BA who happens to
+    // have an unrelated appointment would leak into the brand dropdown.
+    const includeBrandAgnosticSources = !brandId;
+
+    const fromAppointments = includeBrandAgnosticSources
+      ? this.db
+          .selectDistinct({ id: appointments.staffUserId })
+          .from(appointments)
+          .where(
+            and(
+              gte(appointments.startTime, from),
+              lte(appointments.startTime, to),
+              isNotNull(appointments.staffUserId),
+              this.storeFilter(appointments.storeId, storeIds),
+            ),
+          )
+      : Promise.resolve([] as { id: string | null }[]);
+
+    // Follow-ups live on `suggested_actions` which has no storeId. We scope
+    // them via the assignee's store (`users.storeId`) at the final filter
+    // step below. When a brand is selected we skip them entirely.
+    const fromFollowUps = includeBrandAgnosticSources
+      ? this.db
+          .selectDistinct({ id: suggestedActions.assignedToUserId })
+          .from(suggestedActions)
+          .where(
+            and(
+              gte(suggestedActions.createdAt, from),
+              lte(suggestedActions.createdAt, to),
+              isNotNull(suggestedActions.assignedToUserId),
+            ),
+          )
+      : Promise.resolve([] as { id: string | null }[]);
 
     const [oRows, aRows, rRows, fRows] = await Promise.all([
       fromOrders,
@@ -424,6 +606,12 @@ export class FilterOptionsService {
 
     // Filter to BAs only (orders/appointments can be attributed to non-BA
     // roles). Also drop inactive users so the dropdown stays clean.
+    //
+    // When a brand filter is active, we enforce formal ownership via
+    // users.brandId. Attribution sources like `last_consultation` can credit
+    // a Lancôme BA with an YSL sale if the customer happened to walk in and
+    // buy YSL after a Lancôme consultation — those are real touches but the
+    // BA does not "belong" to YSL and should not appear in the YSL dropdown.
     const userRows = await this.db
       .select({
         id: users.id,
@@ -438,6 +626,7 @@ export class FilterOptionsService {
           eq(users.isActive, true),
           inArray(users.id, Array.from(activeIds)),
           ...(storeIds != null ? [inArray(users.storeId, storeIds)] : []),
+          ...(brandId ? [eq(users.brandId, brandId)] : []),
         ),
       );
 

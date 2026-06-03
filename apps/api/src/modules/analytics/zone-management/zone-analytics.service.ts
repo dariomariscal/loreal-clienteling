@@ -55,9 +55,9 @@ export class ZoneAnalyticsService {
     const { from, to } = getDefaultDateRange(filters);
 
     const resolved = await resolveScopedFilters(this.db, isAdmin, accessible, filters ?? {});
-    const { storeIds, baUserId, brandId } = resolved;
+    const { storeIds, baUserId, brandId, emptyByBrandConflict } = resolved;
 
-    const emptyScope = storeIds != null && storeIds.length === 0;
+    const emptyScope = (storeIds != null && storeIds.length === 0) || emptyByBrandConflict;
     if (emptyScope) {
       return {
         period: { from, to },

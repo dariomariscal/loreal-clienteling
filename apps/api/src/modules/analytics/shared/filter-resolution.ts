@@ -29,13 +29,40 @@ export async function resolveScopedFilters(
   baUserId: string | undefined;
   /** Brand id filter — empty when the caller didn't pass `brandId`. */
   brandId: string | undefined;
+  /**
+   * `true` when the combination of filters is contradictory (e.g. brandId=YSL
+   * AND baUserId=Moy who belongs to Lancôme). Services should short-circuit
+   * to an empty result when this is set.
+   */
+  emptyByBrandConflict: boolean;
 }> {
-  const { banner, storeId, zoneId, baUserId, brandId } = filters;
+  const { banner, storeId, zoneId, baUserId } = filters;
+  let { brandId } = filters;
   const hasStoreNarrowing = Boolean(banner || storeId || zoneId);
+
+  // When a BA filter is set, the BA's formal brand drives the brand scope.
+  // This is what makes attribution-by-last-consultation safe for cross-brand
+  // dashboards: Moy (Lancôme) only ever contributes Lancôme rows, never YSL.
+  let emptyByBrandConflict = false;
+  if (baUserId) {
+    const [row] = await db
+      .select({ brandId: users.brandId })
+      .from(users)
+      .where(eq(users.id, baUserId))
+      .limit(1);
+    const baBrandId = row?.brandId ?? null;
+    if (baBrandId) {
+      if (brandId && brandId !== baBrandId) {
+        emptyByBrandConflict = true;
+      } else {
+        brandId = baBrandId;
+      }
+    }
+  }
 
   // Fast path: admin with no narrowing → no store restriction.
   if (isAdmin && !hasStoreNarrowing) {
-    return { storeIds: null, baUserId, brandId };
+    return { storeIds: null, baUserId, brandId, emptyByBrandConflict };
   }
 
   // Build the candidate store-id set:
@@ -59,7 +86,7 @@ export async function resolveScopedFilters(
     storeIds = rows.map((r) => r.id);
   }
 
-  return { storeIds, baUserId, brandId };
+  return { storeIds, baUserId, brandId, emptyByBrandConflict };
 }
 
 /**

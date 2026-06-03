@@ -40,14 +40,14 @@ export class PerformanceAnalyticsService {
     const isAdmin = user.role === UserRole.ADMIN;
     const { from, to } = getDefaultDateRange(filters);
 
-    const { storeIds, baUserId, brandId } = await resolveScopedFilters(
+    const { storeIds, baUserId, brandId, emptyByBrandConflict } = await resolveScopedFilters(
       this.db,
       isAdmin,
       accessible,
       filters ?? {},
     );
 
-    if (storeIds != null && storeIds.length === 0) return [];
+    if ((storeIds != null && storeIds.length === 0) || emptyByBrandConflict) return [];
 
     // Get BAs accessible to this user, narrowed by filter scope.
     const baConditions: any[] = [
@@ -220,7 +220,23 @@ export class PerformanceAnalyticsService {
     const { from, to } = getDefaultDateRange(filters);
 
     const resolved = await resolveScopedFilters(this.db, isAdmin, accessible, filters ?? {});
-    const { storeIds, baUserId } = resolved;
+    const { storeIds, baUserId, emptyByBrandConflict } = resolved;
+
+    // Brand-vs-BA conflict (e.g. brandId=YSL with baUserId=Moy who is Lancôme)
+    // means zero work to count for the selected combination.
+    if (emptyByBrandConflict) {
+      return {
+        period: { from: from.toISOString(), to: to.toISOString() },
+        total: 0,
+        completed: 0,
+        dismissed: 0,
+        pending: 0,
+        overdue: 0,
+        dueToday: 0,
+        completionRate: 0,
+        byType: [] as { triggerType: string; count: number }[],
+      };
+    }
 
     const conditions: any[] = [
       gte(suggestedActions.createdAt, from),

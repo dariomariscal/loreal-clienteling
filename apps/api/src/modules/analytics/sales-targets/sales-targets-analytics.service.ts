@@ -43,14 +43,14 @@ export class SalesTargetsAnalyticsService {
     const accessible = await this.scopeService.getAccessibleStoreIds(user);
     const { from, to } = getDefaultDateRange(filters);
 
-    const { storeIds, brandId, baUserId } = await resolveScopedFilters(
+    const { storeIds, brandId, baUserId, emptyByBrandConflict } = await resolveScopedFilters(
       this.db,
       isAdmin,
       accessible,
       filters ?? {},
     );
 
-    if (storeIds != null && storeIds.length === 0) {
+    if ((storeIds != null && storeIds.length === 0) || emptyByBrandConflict) {
       return { period: { from, to }, data: [] };
     }
 
@@ -165,14 +165,14 @@ export class SalesTargetsAnalyticsService {
     const accessible = await this.scopeService.getAccessibleStoreIds(user);
     const { from, to } = getDefaultDateRange(filters);
 
-    const { storeIds, baUserId, brandId } = await resolveScopedFilters(
+    const { storeIds, baUserId, brandId, emptyByBrandConflict } = await resolveScopedFilters(
       this.db,
       isAdmin,
       accessible,
       filters ?? {},
     );
 
-    if (storeIds != null && storeIds.length === 0) {
+    if ((storeIds != null && storeIds.length === 0) || emptyByBrandConflict) {
       return { period: { from, to }, metricKind, data: [] };
     }
 
