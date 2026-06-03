@@ -570,6 +570,30 @@ export class AnalyticsController {
     );
   }
 
+  /**
+   * Faceted filter options for the report bars. Returns only entities that
+   * have at least one activity record under the current filters — the
+   * dropdowns hide options that would yield zero rows. Faceting: each slot
+   * is computed by applying every OTHER active filter except its own value.
+   */
+  @Get("filter-options")
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
+  getFilterOptions(
+    @Query() q: AnalyticsQuery,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.filterOptions.getOptions(
+      session.user,
+      this.parseFilters(q),
+    );
+  }
+
   @Get("export")
   @ApiQuery({ name: "type", enum: ["customers", "sales", "appointments", "agenda-report"], required: true })
   @ApiQuery({ name: "format", enum: ["json", "csv", "xlsx"], required: false })

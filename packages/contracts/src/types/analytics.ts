@@ -300,3 +300,23 @@ export interface ReportFilters {
   baUserId?: string;
   zoneId?: string;
 }
+
+// ── /analytics/filter-options ──────────────────────────────────────
+
+export interface FilterOption {
+  id: string;
+  label: string;
+}
+
+/**
+ * Faceted filter options for the report bars. Each slot lists only entities
+ * that produced at least one activity row under the current filters. Slots
+ * are computed by applying every OTHER active filter except their own value.
+ */
+export interface FilterOptionsResponse {
+  stores: FilterOption[];
+  brands: FilterOption[];
+  banners: FilterOption[];
+  baUsers: FilterOption[];
+  zones: FilterOption[];
+}

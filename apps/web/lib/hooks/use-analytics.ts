@@ -14,6 +14,7 @@ import type {
   BannersRankingAnalyticsResponse,
   CustomerExportRow,
   ReportFilters,
+  FilterOptionsResponse,
 } from "@loreal/contracts";
 
 /**
@@ -194,6 +195,8 @@ export const analyticsKeys = {
     ["analytics", "ai-usage", filters] as const,
   zoneHeatmap: (filters: ReportFilters) =>
     ["analytics", "zone-heatmap", filters] as const,
+  filterOptions: (filters: ReportFilters) =>
+    ["analytics", "filter-options", filters] as const,
   pipeline: ["analytics", "pipeline"] as const,
   vipBreakdown: ["analytics", "vip-breakdown"] as const,
   vipCustomers: (limit?: number) =>
@@ -636,6 +639,27 @@ export function useAnalyticsExport() {
  * table before downloading the CSV/XLSX. The backend returns the same wide
  * row shape as the file export.
  */
+/**
+ * Faceted filter-bar options. Each dropdown gets only the entities that have
+ * activity under the currently selected filters (cascading) — selecting a
+ * brand narrows the store/BA lists, etc. Use this instead of the raw
+ * useStores / useBrands / useBanners / useUsers hooks inside report bars.
+ */
+export function useReportFilterOptions(filters: ReportFilters) {
+  const params = paramsFrom(filters);
+  return useQuery({
+    queryKey: analyticsKeys.filterOptions(filters),
+    queryFn: () =>
+      api.get<FilterOptionsResponse>(
+        "/analytics/filter-options",
+        Object.keys(params).length ? params : undefined,
+      ),
+    // Options should feel near-instant on every filter change — keep the
+    // previous list visible while the new one fetches.
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function useCustomerExportPreview(filters: ReportFilters = {}) {
   const params: Record<string, string> = {
     type: "customers",

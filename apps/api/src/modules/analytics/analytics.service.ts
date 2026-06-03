@@ -25,6 +25,7 @@ import { AiUsageAnalyticsService } from "./ai-usage/ai-usage-analytics.service";
 import { HeatmapAnalyticsService } from "./heatmap/heatmap-analytics.service";
 import { PipelineAnalyticsService } from "./pipeline/pipeline-analytics.service";
 import { VipAnalyticsService } from "./vip/vip-analytics.service";
+import { FilterOptionsService } from "./filter-options/filter-options.service";
 import { getDefaultDateRange, type DateRange } from "./shared/analytics-date.util";
 import { buildStoreScopeFilter } from "./shared/analytics-scope.util";
 
@@ -57,6 +58,7 @@ export class AnalyticsService {
     public readonly heatmap: HeatmapAnalyticsService,
     public readonly pipeline: PipelineAnalyticsService,
     public readonly vip: VipAnalyticsService,
+    public readonly filterOptions: FilterOptionsService,
   ) {}
 
   /**

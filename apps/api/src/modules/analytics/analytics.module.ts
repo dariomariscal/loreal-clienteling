@@ -13,6 +13,7 @@ import { AiUsageAnalyticsService } from "./ai-usage/ai-usage-analytics.service";
 import { HeatmapAnalyticsService } from "./heatmap/heatmap-analytics.service";
 import { PipelineAnalyticsService } from "./pipeline/pipeline-analytics.service";
 import { VipAnalyticsService } from "./vip/vip-analytics.service";
+import { FilterOptionsService } from "./filter-options/filter-options.service";
 
 @Module({
   controllers: [AnalyticsController],
@@ -30,6 +31,7 @@ import { VipAnalyticsService } from "./vip/vip-analytics.service";
     HeatmapAnalyticsService,
     PipelineAnalyticsService,
     VipAnalyticsService,
+    FilterOptionsService,
   ],
   exports: [AnalyticsService],
 })
