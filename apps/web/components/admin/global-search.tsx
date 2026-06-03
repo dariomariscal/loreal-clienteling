@@ -59,7 +59,7 @@ export function GlobalSearch() {
       id: c.id,
       title: `${c.firstName} ${c.lastName}`,
       subtitle: c.email ?? c.phone ?? undefined,
-      href: `/clientes/${c.id}`,
+      href: `/admin/reportes/customers`,
     }));
 
     const products = (productSearch.data ?? []).slice(0, 5).map((p) => ({
@@ -67,7 +67,7 @@ export function GlobalSearch() {
       id: p.id,
       title: p.title,
       subtitle: p.sku,
-      href: `/productos/${p.id}/editar`,
+      href: `/admin/productos/${p.id}/editar`,
     }));
 
     const lower = trimmed.toLowerCase();
@@ -83,7 +83,7 @@ export function GlobalSearch() {
         id: s.id,
         title: s.displayName,
         subtitle: s.code,
-        href: `/tiendas`,
+        href: `/admin/tiendas`,
       }));
 
     return [...customers, ...products, ...stores];

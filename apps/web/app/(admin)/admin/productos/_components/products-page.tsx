@@ -209,7 +209,7 @@ export function ProductsPage({ user }: ProductsPageProps) {
               onClick={() => setPreviewProduct(product)}
               onEdit={
                 can(role, "product.edit")
-                  ? () => router.push(`/productos/${product.id}/editar`)
+                  ? () => router.push(`/admin/productos/${product.id}/editar`)
                   : undefined
               }
             />
@@ -323,7 +323,7 @@ export function ProductsPage({ user }: ProductsPageProps) {
                 {can(role, "product.edit") && (
                   <Button
                     onClick={() =>
-                      router.push(`/productos/${previewProduct.id}/editar`)
+                      router.push(`/admin/productos/${previewProduct.id}/editar`)
                     }
                   >
                     Editar
