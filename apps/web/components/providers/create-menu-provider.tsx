@@ -17,7 +17,7 @@ export type CreatableEntity =
  * preview pane, multi-step content).
  */
 const ROUTE_OVERRIDES: Partial<Record<CreatableEntity, string>> = {
-  product: "/productos/nuevo",
+  product: "/admin/productos/nuevo",
 }
 
 interface CreateMenuContextValue {

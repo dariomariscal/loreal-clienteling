@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionUser } from "@/lib/auth";
-import { PasswordChangeCard } from "@/app/(dashboard)/(configuracion)/seguridad/_components/password-change-card";
+import { PasswordChangeCard } from "@/app/(admin)/admin/(account)/security/_components/password-change-card";
 import { AccountHeaderCard } from "../../_components/account-header-card";
 
 interface Props {

@@ -30,12 +30,12 @@ import { CustomerCloset } from "./customer-closet";
 import { RecommendedForCustomerSection } from "./recommended-for-customer-section";
 import type { EngineRecommendation } from "@loreal/contracts";
 import type { CustomerQuickActionId } from "./customer-quick-actions";
-import { BeautySection } from "@/app/(dashboard)/clientes/[id]/_components/beauty/beauty-section";
-import { NoteSheet } from "@/app/(dashboard)/clientes/[id]/_components/note-sheet";
-import { OrderSheet } from "@/app/(dashboard)/clientes/[id]/_components/order/order-sheet";
+import { BeautySection } from "./beauty/beauty-section";
+import { NoteSheet } from "./note-sheet";
+import { OrderSheet } from "./order/order-sheet";
 import { AppointmentSheet } from "@/components/appointment/appointment-sheet";
-import { RecommendationSheet } from "@/app/(dashboard)/clientes/[id]/_components/recommendation/recommendation-sheet";
-import { MessageSheet } from "@/app/(dashboard)/clientes/[id]/_components/message/message-sheet";
+import { RecommendationSheet } from "./recommendation/recommendation-sheet";
+import { MessageSheet } from "./message/message-sheet";
 import type { SessionUser } from "@/lib/auth";
 
 interface Props {

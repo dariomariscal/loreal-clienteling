@@ -10,10 +10,9 @@ import {
 } from "@/components/ui/card";
 import { useBrand } from "@/lib/hooks/use-brands";
 import { useStore } from "@/lib/hooks/use-stores";
-import { AvatarUploadCard } from "@/app/(admin)/admin/(account)/account/_components/avatar-upload-card";
-import { PersonalInfoCard } from "@/app/(admin)/admin/(account)/account/_components/personal-info-card";
-import { AccountHeaderCard } from "../../_components/account-header-card";
-import { WeeklySummaryCard } from "../../_components/weekly-summary-card";
+import { SettingsPageHeader } from "../../_components/settings-page-header";
+import { AvatarUploadCard } from "./avatar-upload-card";
+import { PersonalInfoCard } from "./personal-info-card";
 
 const ROLE_LABELS: Record<string, string> = {
   ba: "Beauty Advisor",
@@ -22,26 +21,29 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",
 };
 
-interface Props {
+interface ProfilePageProps {
   user: SessionUser;
 }
 
 /**
- * "/advisor/account" — the advisor's personal home. Wraps a brief activity
- * summary (so the page earns its keep beyond settings) with the existing
- * profile-editing cards from the dashboard so we keep Clerk integration
- * (avatar upload, name edit, password) in a single battle-tested spot.
+ * "/admin/account" — personal account → Perfil tab.
+ *
+ * Avatar + name + read-only org assignment (rol, sucursal, marca). The
+ * password flow lives in the sibling "/admin/security" route to match what
+ * GitHub/Linear/Notion all do — security is its own section, not a card
+ * buried in the profile editor.
  */
-export function AccountPage({ user }: Props) {
+export function ProfilePage({ user }: ProfilePageProps) {
   const roleLabel = ROLE_LABELS[user.role] ?? user.role;
   const { data: brand } = useBrand(user.brandId ?? "");
   const { data: store } = useStore(user.storeId ?? "");
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 px-6 py-8 lg:px-10 lg:py-10">
-      <AccountHeaderCard user={user} />
-
-      <WeeklySummaryCard />
+    <div className="space-y-6">
+      <SettingsPageHeader
+        title="Perfil"
+        description="Tu foto, nombre y datos de cuenta. La información de seguridad vive en una sección aparte."
+      />
 
       <AvatarUploadCard />
       <PersonalInfoCard />
@@ -60,17 +62,11 @@ export function AccountPage({ user }: Props) {
             <ReadOnlyField label="Rol" value={roleLabel} />
             <ReadOnlyField
               label="Sucursal"
-              value={
-                store?.displayName ??
-                (user.storeId ? "Cargando…" : "Sin asignar")
-              }
+              value={store?.displayName ?? (user.storeId ? "Cargando…" : "Sin asignar")}
             />
             <ReadOnlyField
               label="Marca"
-              value={
-                brand?.displayName ??
-                (user.brandId ? "Cargando…" : "Sin asignar")
-              }
+              value={brand?.displayName ?? (user.brandId ? "Cargando…" : "Sin asignar")}
             />
           </dl>
         </CardContent>
