@@ -1,7 +1,5 @@
-import { CounterTodayPage } from "./_components/counter-today-page";
-
-export const metadata = { title: "Mostrador hoy" };
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <CounterTodayPage />;
+  redirect("/advisor/counter/dashboard");
 }

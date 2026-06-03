@@ -26,7 +26,6 @@ import {
   RoutineMorningGlyph,
   SignOutGlyph,
   SparkleDotGlyph,
-  StoreGlyph,
   UserGlyph,
 } from "@/components/ui/glyphs";
 import type { SessionUser } from "@/lib/auth";
@@ -74,13 +73,10 @@ const SECONDARY_NAV: NavItem[] = [
 ];
 
 const COUNTER_NAV: NavItem[] = [
-  { href: "/advisor/counter", label: "Mostrador hoy", icon: StoreGlyph },
   { href: "/advisor/counter/dashboard", label: "Dashboard ejecutivo", icon: PulseGlyph },
   { href: "/advisor/counter/appointments", label: "Métricas de citas", icon: AppointmentGlyph },
   { href: "/advisor/counter/customers", label: "Clientes", icon: SparkleDotGlyph },
   { href: "/advisor/counter/performance", label: "Desempeño BAs", icon: UserGlyph },
-  { href: "/advisor/counter/team", label: "Mi equipo", icon: UserGlyph },
-  { href: "/advisor/counter/queue", label: "Cola del mostrador", icon: SparkleDotGlyph },
   {
     href: "/advisor/counter/approvals",
     label: "Aprobaciones",
