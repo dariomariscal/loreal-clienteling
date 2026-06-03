@@ -23,6 +23,17 @@ interface AnalyticsQuery {
   zoneId?: string;
 }
 
+// Drops empty / non-parseable values instead of producing an Invalid Date,
+// which Drizzle's PgTimestamp.mapToDriverValue blows up on with "Invalid time
+// value" the moment it tries to .toISOString() the bound parameter.
+function parseDateParam(raw?: string): Date | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  const d = new Date(trimmed);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
 const COLUMN_LABELS: Record<string, string> = {
   id: "ID",
   scheduledAt: "Fecha y hora",
@@ -77,8 +88,8 @@ export class AnalyticsController {
 
   private parseDateRange(from?: string, to?: string) {
     return {
-      from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
+      from: parseDateParam(from),
+      to: parseDateParam(to),
     };
   }
 
