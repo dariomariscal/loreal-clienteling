@@ -61,15 +61,11 @@ function isCounterRole(role: UserRole): boolean {
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/advisor/today", label: "Hoy", icon: RoutineMorningGlyph },
+  { href: "/advisor/me", label: "Mi desempeño", icon: PulseGlyph },
   { href: "/advisor/customers", label: "Mis clientas", icon: UserGlyph },
   { href: "/advisor/scan", label: "Escáner", icon: BarcodeGlyph },
   { href: "/advisor/messages", label: "Mensajes", icon: MessageGlyph },
   { href: "/advisor/appointments", label: "Citas", icon: AppointmentGlyph },
-  {
-    href: "/advisor/appointments/metrics",
-    label: "Métricas",
-    icon: PulseGlyph,
-  },
   { href: "/advisor/tasks", label: "Tareas", icon: CheckGlyph, badgeKey: "tasks" },
 ];
 
@@ -79,6 +75,10 @@ const SECONDARY_NAV: NavItem[] = [
 
 const COUNTER_NAV: NavItem[] = [
   { href: "/advisor/counter", label: "Mostrador hoy", icon: StoreGlyph },
+  { href: "/advisor/counter/dashboard", label: "Dashboard ejecutivo", icon: PulseGlyph },
+  { href: "/advisor/counter/appointments", label: "Métricas de citas", icon: AppointmentGlyph },
+  { href: "/advisor/counter/customers", label: "Clientes", icon: SparkleDotGlyph },
+  { href: "/advisor/counter/performance", label: "Desempeño BAs", icon: UserGlyph },
   { href: "/advisor/counter/team", label: "Mi equipo", icon: UserGlyph },
   { href: "/advisor/counter/queue", label: "Cola del mostrador", icon: SparkleDotGlyph },
   {

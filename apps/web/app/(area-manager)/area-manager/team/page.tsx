@@ -1,7 +1,7 @@
-import { AreaTeamPage } from "./_components/area-team-page";
+import { AreaPerformanceReport } from "./_components/area-performance-report";
 
-export const metadata = { title: "Equipo" };
+export const metadata = { title: "Desempeño por BA" };
 
 export default function Page() {
-  return <AreaTeamPage />;
+  return <AreaPerformanceReport />;
 }

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { NationalStoresPage } from "./_components/national-stores-page";
+import { NationalFranchisesReport } from "./_components/national-franchises-report";
 
 export const metadata: Metadata = {
-  title: "Tiendas — L'Oréal Clienteling",
+  title: "Top Franquicias y Marcas — L'Oréal Clienteling",
 };
 
 export default function Page() {
-  return <NationalStoresPage />;
+  return <NationalFranchisesReport />;
 }

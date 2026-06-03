@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { ZonesRankingPage } from "./_components/zones-ranking-page";
+import { NationalZonesReport } from "./_components/national-zones-report";
 
 export const metadata: Metadata = {
   title: "Zonas — L'Oréal Clienteling",
 };
 
 export default function Page() {
-  return <ZonesRankingPage />;
+  return <NationalZonesReport />;
 }

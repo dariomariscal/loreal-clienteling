@@ -1,11 +1,7 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
-import { ROUTES } from "@/lib/constants";
-import { AnalyticsPage } from "./_components/analytics-page";
+import { AdminReportsHub } from "./_components/admin-reports-hub";
 
-export default async function ReportesPage() {
-  const session = await getSession();
-  if (!session?.user) redirect(ROUTES.SIGN_IN);
+export const metadata = { title: "Reportes" };
 
-  return <AnalyticsPage user={session.user} />;
+export default function Page() {
+  return <AdminReportsHub />;
 }

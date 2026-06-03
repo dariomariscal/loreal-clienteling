@@ -10,6 +10,7 @@ import { useApprovalRequests } from "@/lib/hooks/use-approval-requests";
 import { LorealLogo } from "@/components/ui/brand-logos";
 import {
   ActivityGlyph,
+  AppointmentGlyph,
   BrandGlyph,
   CalendarPlusGlyph,
   CheckCircleGlyph,
@@ -56,6 +57,7 @@ const OPERATION_NAV: NavItem[] = [
   { href: "/national/stores", label: "Tiendas", icon: StoreGlyph },
   { href: "/national/team", label: "Equipo", icon: TeamGlyph },
   { href: "/national/customers", label: "Clientas", icon: SparkleDotGlyph },
+  { href: "/national/appointments", label: "Citas", icon: AppointmentGlyph },
   { href: "/national/events", label: "Eventos", icon: CalendarPlusGlyph },
   {
     href: "/national/approvals",

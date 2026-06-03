@@ -1,7 +1,7 @@
-import { AreaCustomersPage } from "./_components/area-customers-page";
+import { AreaCustomersReport } from "./_components/area-customers-report";
 
-export const metadata = { title: "Clientas — zona" };
+export const metadata = { title: "Clientes" };
 
 export default function Page() {
-  return <AreaCustomersPage />;
+  return <AreaCustomersReport />;
 }

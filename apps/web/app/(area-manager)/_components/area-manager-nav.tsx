@@ -49,6 +49,7 @@ const OPERATION_NAV: NavItem[] = [
   { href: "/area-manager/stores", label: "Tiendas", icon: StoreGlyph },
   { href: "/area-manager/team", label: "Equipo", icon: UserGlyph },
   { href: "/area-manager/customers", label: "Clientas", icon: SparkleDotGlyph },
+  { href: "/area-manager/appointments", label: "Citas", icon: AppointmentGlyph },
   {
     href: "/area-manager/approvals",
     label: "Aprobaciones",

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { NationalTeamPage } from "./_components/national-team-page";
+import { NationalPerformanceReport } from "./_components/national-performance-report";
 
 export const metadata: Metadata = {
-  title: "Equipo — L'Oréal Clienteling",
+  title: "Desempeño por BA — L'Oréal Clienteling",
 };
 
 export default function Page() {
-  return <NationalTeamPage />;
+  return <NationalPerformanceReport />;
 }

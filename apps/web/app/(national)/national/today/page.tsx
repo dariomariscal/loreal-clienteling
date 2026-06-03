@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { NationalTodayPage } from "./_components/national-today-page";
+import { NationalDashboardReport } from "./_components/national-dashboard-report";
 
 export const metadata: Metadata = {
   title: "Vista nacional — L'Oréal Clienteling",
 };
 
 export default function Page() {
-  return <NationalTodayPage />;
+  return <NationalDashboardReport />;
 }
