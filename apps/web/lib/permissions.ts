@@ -54,6 +54,40 @@ const PERMISSIONS = {
     "admin",
   ],
 
+  // Analytics — fine-grained gates that mirror the controller @Roles decorators.
+  // The server is still the source of truth; these unlock UI surfaces.
+  "analytics.pipeline.view": [
+    "beauty_advisor",
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ],
+  "analytics.salesTargets.view": [
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ],
+  "analytics.baRatings.view": [
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ],
+  "analytics.vip.view": [
+    "counter_manager",
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ],
+  "analytics.zoneHeatmap.view": [
+    "area_manager",
+    "national_retail_manager",
+    "admin",
+  ],
+  "analytics.aiUsage.view": ["admin"],
+
   // Configuration
   "config.manage": ["admin"],
 

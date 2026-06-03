@@ -76,7 +76,7 @@ export function DashboardPage({ user }: DashboardPageProps) {
         <KpiCard
           label="Ventas del mes"
           value={`$${Number(dashboard?.sales?.totalAmount ?? 0).toLocaleString("es-MX")}`}
-          detail={`${dashboard?.sales?.transactionCount ?? 0} transacciones`}
+          detail={`${dashboard?.sales?.orderCount ?? 0} transacciones`}
           isLoading={isLoading}
         />
         <KpiCard
@@ -156,7 +156,7 @@ export function DashboardPage({ user }: DashboardPageProps) {
                           ${Number(ba.sales.totalAmount).toLocaleString("es-MX")}
                         </td>
                         <td className="py-2.5 pr-4 text-right tabular-nums">
-                          {ba.sales.transactionCount}
+                          {ba.sales.orderCount}
                         </td>
                         <td className="py-2.5 text-right tabular-nums">
                           {(ba.recommendations.conversionRate * 100).toFixed(0)}%

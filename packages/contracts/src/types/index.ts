@@ -15,6 +15,7 @@ export * from "./recommendation-engine";
 export * from "./orders";
 export * from "./appointments";
 export * from "./appointment-analytics";
+export * from "./analytics";
 export * from "./service-types";
 export * from "./skills";
 export * from "./appointment-prepared-products";

@@ -1,15 +1,24 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { API_URL } from "@/lib/constants";
+import type {
+  SalesTargetsAnalyticsResponse,
+  BaRatingsAnalyticsResponse,
+  AiUsageAnalyticsResponse,
+  ZoneHeatmapResponse,
+  PipelineResponse,
+  VipBreakdownResponse,
+  VipCustomersResponse,
+} from "@loreal/contracts";
 
 // ── Types ──────────────────────────────────────────────────────────
 
 export interface DashboardMetrics {
   totalCustomers: number;
-  sales: { totalAmount: string; transactionCount: number };
+  sales: { totalAmount: string; orderCount: number };
   appointments: number;
   newCustomers: number;
-  communicationsSent: number;
+  messagesSent: number;
   period: { from: string; to: string };
 }
 
@@ -28,7 +37,7 @@ export interface SegmentCount {
 export interface SalesTrendPoint {
   date: string;
   totalAmount: string;
-  transactionCount: number;
+  orderCount: number;
 }
 
 export interface SalesTrendData {
@@ -48,9 +57,9 @@ export interface BaPerformanceRow {
   baId: string;
   fullName: string;
   storeId: string;
-  sales: { totalAmount: string; transactionCount: number };
+  sales: { totalAmount: string; orderCount: number };
   registrations: number;
-  communicationsSent: number;
+  messagesSent: number;
   recommendations: { total: number; converted: number; conversionRate: number };
 }
 
@@ -132,6 +141,18 @@ export const analyticsKeys = {
   zonesRanking: (from?: string, to?: string) => ["analytics", "zones-ranking", from, to] as const,
   brandsComparison: (storeId: string, from?: string, to?: string) =>
     ["analytics", "brands-comparison", storeId, from, to] as const,
+  salesTargetsAnalytics: (from?: string, to?: string) =>
+    ["analytics", "sales-targets", from, to] as const,
+  baRatingsAnalytics: (from?: string, to?: string) =>
+    ["analytics", "ba-ratings", from, to] as const,
+  aiUsage: (from?: string, to?: string) =>
+    ["analytics", "ai-usage", from, to] as const,
+  zoneHeatmap: (from?: string, to?: string) =>
+    ["analytics", "zone-heatmap", from, to] as const,
+  pipeline: ["analytics", "pipeline"] as const,
+  vipBreakdown: ["analytics", "vip-breakdown"] as const,
+  vipCustomers: (limit?: number) =>
+    ["analytics", "vip-customers", limit] as const,
 };
 
 // ── Queries ────────────────────────────────────────────────────────
@@ -388,6 +409,91 @@ export function useBrandsComparison(storeId: string, from?: string, to?: string)
         Object.keys(params).length ? params : undefined,
       ),
     enabled: !!storeId,
+  });
+}
+
+// ── New role-aware analytics endpoints ────────────────────────────
+
+export function useSalesTargetsAnalytics(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.salesTargetsAnalytics(from, to),
+    queryFn: () =>
+      api.get<SalesTargetsAnalyticsResponse>(
+        "/analytics/sales-targets",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+export function useBaRatingsAnalytics(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.baRatingsAnalytics(from, to),
+    queryFn: () =>
+      api.get<BaRatingsAnalyticsResponse>(
+        "/analytics/ba-ratings",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+export function useAiUsage(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.aiUsage(from, to),
+    queryFn: () =>
+      api.get<AiUsageAnalyticsResponse>(
+        "/analytics/ai-usage",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+export function useZoneHeatmap(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.zoneHeatmap(from, to),
+    queryFn: () =>
+      api.get<ZoneHeatmapResponse>(
+        "/analytics/zone-heatmap",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+export function usePipeline() {
+  return useQuery({
+    queryKey: analyticsKeys.pipeline,
+    queryFn: () => api.get<PipelineResponse>("/analytics/pipeline"),
+  });
+}
+
+export function useVipBreakdown() {
+  return useQuery({
+    queryKey: analyticsKeys.vipBreakdown,
+    queryFn: () => api.get<VipBreakdownResponse>("/analytics/vip-breakdown"),
+  });
+}
+
+export function useVipCustomers(limit?: number) {
+  const params: Record<string, string> = {};
+  if (limit) params.limit = String(limit);
+  return useQuery({
+    queryKey: analyticsKeys.vipCustomers(limit),
+    queryFn: () =>
+      api.get<VipCustomersResponse>(
+        "/analytics/vip-customers",
+        Object.keys(params).length ? params : undefined,
+      ),
   });
 }
 

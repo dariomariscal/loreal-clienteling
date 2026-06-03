@@ -178,7 +178,7 @@ function DashboardTab() {
         <MetricCard
           title="Ventas del mes"
           value={`$${Number(dashboard?.sales?.totalAmount ?? 0).toLocaleString("es-MX")}`}
-          subtitle={`${dashboard?.sales?.transactionCount ?? 0} transacciones`}
+          subtitle={`${dashboard?.sales?.orderCount ?? 0} transacciones`}
           isLoading={isLoading}
         />
         <MetricCard title="Citas del mes" value={dashboard?.appointments ?? 0} isLoading={isLoading} />
@@ -253,9 +253,9 @@ function DashboardTab() {
                         <td className="py-2.5 pr-4 text-right tabular-nums">
                           ${Number(ba.sales.totalAmount).toLocaleString("es-MX")}
                         </td>
-                        <td className="py-2.5 pr-4 text-right tabular-nums">{ba.sales.transactionCount}</td>
+                        <td className="py-2.5 pr-4 text-right tabular-nums">{ba.sales.orderCount}</td>
                         <td className="py-2.5 pr-4 text-right tabular-nums">{ba.registrations}</td>
-                        <td className="py-2.5 pr-4 text-right tabular-nums">{ba.communicationsSent}</td>
+                        <td className="py-2.5 pr-4 text-right tabular-nums">{ba.messagesSent}</td>
                         <td className="py-2.5 text-right tabular-nums">
                           {(ba.recommendations.conversionRate * 100).toFixed(0)}%
                         </td>
