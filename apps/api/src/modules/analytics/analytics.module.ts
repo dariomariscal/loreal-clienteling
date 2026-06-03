@@ -7,6 +7,9 @@ import { CustomersAnalyticsService } from "./customers/customers-analytics.servi
 import { RecommendationsAnalyticsService } from "./recommendations/recommendations-analytics.service";
 import { PerformanceAnalyticsService } from "./performance/performance-analytics.service";
 import { ZoneAnalyticsService } from "./zone-management/zone-analytics.service";
+import { SalesTargetsAnalyticsService } from "./sales-targets/sales-targets-analytics.service";
+import { RatingsAnalyticsService } from "./ratings/ratings-analytics.service";
+import { AiUsageAnalyticsService } from "./ai-usage/ai-usage-analytics.service";
 
 @Module({
   controllers: [AnalyticsController],
@@ -18,6 +21,9 @@ import { ZoneAnalyticsService } from "./zone-management/zone-analytics.service";
     RecommendationsAnalyticsService,
     PerformanceAnalyticsService,
     ZoneAnalyticsService,
+    SalesTargetsAnalyticsService,
+    RatingsAnalyticsService,
+    AiUsageAnalyticsService,
   ],
   exports: [AnalyticsService],
 })

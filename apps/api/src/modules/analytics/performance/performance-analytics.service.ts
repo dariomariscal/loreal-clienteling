@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, ForbiddenException } from "@nestjs/common";
 import { eq, and, gte, lte, sql, count, sum } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../../config/database.provider";
 import {
@@ -8,6 +8,7 @@ import {
   messages,
   users,
 } from "@loreal/database";
+import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../../common/types/session";
 import { ScopeService } from "../../../common/services/scope.service";
 import { getDefaultDateRange, type DateRange } from "../shared/analytics-date.util";
@@ -25,8 +26,13 @@ export class PerformanceAnalyticsService {
    * by the caller.
    */
   async getBaSummary(user: SessionUser, range?: DateRange) {
+    if (user.role === UserRole.BEAUTY_ADVISOR) {
+      throw new ForbiddenException(
+        "BA performance summary is restricted to counter_manager and above",
+      );
+    }
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
-    const isAdmin = user.role === "admin";
+    const isAdmin = user.role === UserRole.ADMIN;
     const { from, to } = getDefaultDateRange(range);
 
     // Get BAs accessible to this user

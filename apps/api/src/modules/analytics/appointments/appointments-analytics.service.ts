@@ -24,12 +24,18 @@ export class AppointmentsAnalyticsService {
 
   async getStatusBreakdown(user: SessionUser, range?: DateRange) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
-    const isAdmin = user.role === "admin";
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isBA = user.role === UserRole.BEAUTY_ADVISOR;
     const { from, to } = getDefaultDateRange(range);
 
     const baseConditions = [gte(appointments.startTime, from), lte(appointments.startTime, to)];
-    const storeFilter = buildStoreScopeFilter(isAdmin, storeIds, appointments.storeId);
-    if (storeFilter) baseConditions.push(storeFilter as any);
+    if (isBA) {
+      // BA sees only their own appointments — same scope as getOverview.
+      baseConditions.push(eq(appointments.staffUserId, user.id) as any);
+    } else {
+      const storeFilter = buildStoreScopeFilter(isAdmin, storeIds, appointments.storeId);
+      if (storeFilter) baseConditions.push(storeFilter as any);
+    }
 
     const result = await this.db
       .select({

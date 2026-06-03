@@ -1,12 +1,14 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { and, eq, gte, lte, count, sum } from "drizzle-orm";
+import { and, eq, gte, lte, count, sum, inArray } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   customers,
   orders,
   appointments,
   messages,
+  users,
 } from "@loreal/database";
+import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AppointmentsAnalyticsService } from "./appointments/appointments-analytics.service";
@@ -15,6 +17,9 @@ import { CustomersAnalyticsService } from "./customers/customers-analytics.servi
 import { RecommendationsAnalyticsService } from "./recommendations/recommendations-analytics.service";
 import { PerformanceAnalyticsService } from "./performance/performance-analytics.service";
 import { ZoneAnalyticsService } from "./zone-management/zone-analytics.service";
+import { SalesTargetsAnalyticsService } from "./sales-targets/sales-targets-analytics.service";
+import { RatingsAnalyticsService } from "./ratings/ratings-analytics.service";
+import { AiUsageAnalyticsService } from "./ai-usage/ai-usage-analytics.service";
 import { getDefaultDateRange, type DateRange } from "./shared/analytics-date.util";
 import { buildStoreScopeFilter } from "./shared/analytics-scope.util";
 
@@ -41,6 +46,9 @@ export class AnalyticsService {
     public readonly recommendations: RecommendationsAnalyticsService,
     public readonly performance: PerformanceAnalyticsService,
     public readonly zoneManagement: ZoneAnalyticsService,
+    public readonly salesTargets: SalesTargetsAnalyticsService,
+    public readonly ratings: RatingsAnalyticsService,
+    public readonly aiUsage: AiUsageAnalyticsService,
   ) {}
 
   /**
@@ -50,7 +58,8 @@ export class AnalyticsService {
    */
   async getDashboard(user: SessionUser, range?: DateRange) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
-    const isAdmin = user.role === "admin";
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isBA = user.role === UserRole.BEAUTY_ADVISOR;
     const { from, to } = getDefaultDateRange(range);
     const storeFilter = buildStoreScopeFilter(isAdmin, storeIds, customers.signupStoreId);
 
@@ -81,24 +90,44 @@ export class AnalyticsService {
       .from(appointments)
       .where(and(...apptConditions));
 
-    // New customers in period
+    // New customers in period.
+    // BA → only the ones they personally registered (attribution metric, RFP :55).
+    // counter+ → all enrollments in their accessible stores.
     const newConditions = [gte(customers.enrolledAt, from), lte(customers.enrolledAt, to)];
-    if (storeFilter) newConditions.push(storeFilter as any);
+    if (isBA) {
+      newConditions.push(eq(customers.createdByUserId, user.id) as any);
+    } else if (storeFilter) {
+      newConditions.push(storeFilter as any);
+    }
 
     const [newCustomers] = await this.db
       .select({ count: count() })
       .from(customers)
       .where(and(...newConditions));
 
-    // Messages in period
+    // Messages in period.
+    // BA → only the ones they sent personally.
+    // counter_manager / area_manager / national_retail_manager → every message
+    //   whose sender belongs to a store in their scope. Join users to resolve
+    //   the sender's store since messages has no storeId column.
+    // admin → no scope filter.
     const msgConditions = [gte(messages.sentAt, from), lte(messages.sentAt, to)];
-    const msgUserFilter = isAdmin ? undefined : eq(messages.sentByUserId, user.id);
-    if (msgUserFilter) msgConditions.push(msgUserFilter as any);
-
-    const [msgCount] = await this.db
-      .select({ count: count() })
-      .from(messages)
-      .where(and(...msgConditions));
+    let msgQuery;
+    if (isBA) {
+      msgConditions.push(eq(messages.sentByUserId, user.id) as any);
+      msgQuery = this.db.select({ count: count() }).from(messages);
+    } else if (isAdmin) {
+      msgQuery = this.db.select({ count: count() }).from(messages);
+    } else {
+      // Manager-tier: scope by sender's store. storeIds is already the
+      // resolved list for area / national / counter manager.
+      msgConditions.push(inArray(users.storeId, storeIds) as any);
+      msgQuery = this.db
+        .select({ count: count() })
+        .from(messages)
+        .innerJoin(users, eq(messages.sentByUserId, users.id));
+    }
+    const [msgCount] = await msgQuery.where(and(...msgConditions));
 
     return {
       totalCustomers: customerCount?.count ?? 0,

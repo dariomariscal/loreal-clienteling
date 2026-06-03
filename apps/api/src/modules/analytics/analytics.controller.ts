@@ -98,6 +98,7 @@ export class AnalyticsController {
   }
 
   @Get("ba-performance")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   getBaPerformance(
@@ -198,7 +199,7 @@ export class AnalyticsController {
   }
 
   @Get("agenda-report")
-  @Roles(["counter_manager", "area_manager", "admin"])
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   @ApiQuery({ name: "baUserId", type: String, required: false })
@@ -227,7 +228,7 @@ export class AnalyticsController {
   }
 
   @Get("appointments-by-ba")
-  @Roles(["counter_manager", "area_manager", "admin"])
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   getAppointmentsByBa(
@@ -242,7 +243,7 @@ export class AnalyticsController {
   }
 
   @Get("retention")
-  @Roles(["counter_manager", "area_manager", "admin"])
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   getRetention(@Session() session: UserSession) {
     return this.analyticsService.customers.getRetention(session.user);
   }
@@ -302,6 +303,51 @@ export class AnalyticsController {
     @Session() session: UserSession,
   ) {
     return this.analyticsService.zoneManagement.getZonesRanking(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("sales-targets")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getSalesTargets(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.salesTargets.getTargetsVsActual(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("ba-ratings")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getBaRatings(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.ratings.getNpsByBa(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("ai-usage")
+  @Roles(["admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getAiUsage(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.aiUsage.getOverview(
       session.user,
       this.parseDateRange(from, to),
     );
