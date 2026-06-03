@@ -193,6 +193,9 @@ export function useUpdateWishlistItem() {
       ),
     onSuccess: (_item, vars) => {
       qc.invalidateQueries({ queryKey: wishlistKeys.detail(vars.wishlistId) });
+      // The customer-scoped list is what the WishlistSection actually reads;
+      // invalidating just the per-wishlist detail left the UI stale.
+      qc.invalidateQueries({ queryKey: ["wishlists", "customer"] });
     },
   });
 }
@@ -210,8 +213,40 @@ export function useRemoveWishlistItem() {
       api.delete<{ id: string; deleted: true }>(
         `/wishlists/${wishlistId}/items/${itemId}`,
       ),
-    onSuccess: (_data, vars) => {
+    // Optimistic remove: drop the item from every cached customer-scoped
+    // wishlist list immediately, so the card disappears the moment the BA
+    // taps × instead of waiting for the network. If the request later fails
+    // we restore the snapshot. Without this, the previous behavior was
+    // "click does nothing, tap again, tap again, then 404" — because the
+    // first delete succeeded server-side but the cache wasn't refreshed,
+    // so subsequent taps hit a row that no longer existed.
+    onMutate: async (vars) => {
+      const listKey = ["wishlists", "customer"] as const;
+      await qc.cancelQueries({ queryKey: listKey });
+
+      const snapshots = qc.getQueriesData<WishlistWithItems[]>({
+        queryKey: listKey,
+      });
+      for (const [key, data] of snapshots) {
+        if (!data) continue;
+        qc.setQueryData<WishlistWithItems[]>(key, (prev) =>
+          prev?.map((wl) =>
+            wl.id === vars.wishlistId
+              ? { ...wl, items: wl.items.filter((i) => i.id !== vars.itemId) }
+              : wl,
+          ),
+        );
+      }
+      return { snapshots };
+    },
+    onError: (_err, _vars, ctx) => {
+      // Rollback every list we touched. The BA sees the card reappear and
+      // the toast in the component reports the failure.
+      ctx?.snapshots?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: wishlistKeys.detail(vars.wishlistId) });
+      qc.invalidateQueries({ queryKey: ["wishlists", "customer"] });
     },
   });
 }
