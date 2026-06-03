@@ -95,6 +95,9 @@ function ProductCard({ product }: { product: Product }) {
         <p className="mt-1 text-sm font-medium text-foreground">
           {product.title}
         </p>
+        <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+          SKU {product.sku}
+        </p>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {formatPrice(product.price)}
         </p>
