@@ -353,6 +353,45 @@ export class AnalyticsController {
     );
   }
 
+  @Get("zone-heatmap")
+  @Roles(["area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getZoneHeatmap(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.heatmap.getZoneHeatmap(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("pipeline")
+  getPipeline(@Session() session: UserSession) {
+    return this.analyticsService.pipeline.getPipeline(session.user);
+  }
+
+  @Get("vip-breakdown")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  getVipBreakdown(@Session() session: UserSession) {
+    return this.analyticsService.vip.getVipBreakdown(session.user);
+  }
+
+  @Get("vip-customers")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "limit", type: Number, required: false })
+  getVipCustomers(
+    @Query("limit") limit: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.vip.getTopVipCustomers(
+      session.user,
+      limit ? parseInt(limit) : undefined,
+    );
+  }
+
   @Get("stores/:storeId/brands-comparison")
   @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })

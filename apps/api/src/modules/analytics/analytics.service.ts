@@ -20,6 +20,9 @@ import { ZoneAnalyticsService } from "./zone-management/zone-analytics.service";
 import { SalesTargetsAnalyticsService } from "./sales-targets/sales-targets-analytics.service";
 import { RatingsAnalyticsService } from "./ratings/ratings-analytics.service";
 import { AiUsageAnalyticsService } from "./ai-usage/ai-usage-analytics.service";
+import { HeatmapAnalyticsService } from "./heatmap/heatmap-analytics.service";
+import { PipelineAnalyticsService } from "./pipeline/pipeline-analytics.service";
+import { VipAnalyticsService } from "./vip/vip-analytics.service";
 import { getDefaultDateRange, type DateRange } from "./shared/analytics-date.util";
 import { buildStoreScopeFilter } from "./shared/analytics-scope.util";
 
@@ -49,6 +52,9 @@ export class AnalyticsService {
     public readonly salesTargets: SalesTargetsAnalyticsService,
     public readonly ratings: RatingsAnalyticsService,
     public readonly aiUsage: AiUsageAnalyticsService,
+    public readonly heatmap: HeatmapAnalyticsService,
+    public readonly pipeline: PipelineAnalyticsService,
+    public readonly vip: VipAnalyticsService,
   ) {}
 
   /**
