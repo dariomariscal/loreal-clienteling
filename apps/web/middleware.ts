@@ -6,6 +6,9 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/accept-invitation(.*)",
   "/forgot-password(.*)",
+  // Public showroom — customer pulls this up on her phone to find the
+  // product she wants the BA to scan. Must not redirect to sign-in.
+  "/catalogo(.*)",
 ]);
 
 const isRootRoute = createRouteMatcher(["/"]);
