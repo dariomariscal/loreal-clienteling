@@ -4,6 +4,7 @@ import {
   ReportShell,
   HeroCard,
   KpiStrip,
+  ExportToolbar,
 } from "@/components/reports";
 import { AreaManagerFilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -39,6 +40,7 @@ export function AreaDashboardReport() {
       title="Mi zona hoy"
       description="Avance agregado de tu zona"
       filters={<AreaManagerFilterBar />}
+      toolbar={<ExportToolbar type="sales" />}
     >
       <HeroCard
         eyebrow="Objetivo de venta"

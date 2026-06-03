@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
+import { api, getAuthToken } from "@/lib/api-client";
 import { API_URL } from "@/lib/constants";
 import type {
   SalesTargetsAnalyticsResponse,
@@ -619,8 +619,14 @@ export function useAnalyticsExport() {
       }
 
       const url = `${API_URL}/analytics/export?${params.toString()}`;
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Export failed");
+      const token = await getAuthToken();
+      const res = await fetch(url, {
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) {
+        throw new Error(`Export failed (${res.status} ${res.statusText})`);
+      }
 
       const blob = await res.blob();
       const ext = format === "xlsx" ? "xlsx" : "csv";

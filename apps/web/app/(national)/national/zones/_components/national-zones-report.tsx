@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ReportShell, KpiStrip } from "@/components/reports";
+import { ReportShell, KpiStrip, ExportToolbar } from "@/components/reports";
 import { NationalFilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
 import {
@@ -40,6 +40,7 @@ export function NationalZonesReport() {
       title="Zonas"
       description="Comparativa entre zonas de tu división"
       filters={<NationalFilterBar />}
+      toolbar={<ExportToolbar type="stores-ranking" />}
     >
       <KpiStrip columns={3}>
         <KpiCard

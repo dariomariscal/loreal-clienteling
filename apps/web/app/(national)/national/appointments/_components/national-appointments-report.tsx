@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportShell, HeroCard, KpiStrip } from "@/components/reports";
+import { ReportShell, HeroCard, KpiStrip, ExportToolbar } from "@/components/reports";
 import { NationalFilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { StackedBarChart } from "@/components/charts/stacked-bar-chart";
@@ -50,6 +50,7 @@ export function NationalAppointmentsReport() {
       title="Métricas de citas"
       description="Avance agregado de tu división"
       filters={<NationalFilterBar />}
+      toolbar={<ExportToolbar type="agenda-report" />}
     >
       <HeroCard
         eyebrow="Objetivo agregado"

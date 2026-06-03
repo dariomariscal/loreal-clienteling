@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportShell, HeroCard, KpiStrip } from "@/components/reports";
+import { ReportShell, HeroCard, KpiStrip, ExportToolbar } from "@/components/reports";
 import { FilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { StackedBarChart } from "@/components/charts/stacked-bar-chart";
@@ -57,6 +57,7 @@ export function CounterAppointmentsReport() {
       title="Métricas de citas"
       description="Objetivo semanal y desglose por estado"
       filters={<FilterBar role="counter_manager" />}
+      toolbar={<ExportToolbar type="agenda-report" />}
     >
       <HeroCard
         eyebrow="Objetivo semanal"

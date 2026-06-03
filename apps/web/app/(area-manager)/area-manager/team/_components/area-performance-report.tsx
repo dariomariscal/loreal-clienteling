@@ -6,6 +6,7 @@ import {
   KpiStrip,
   BaPerformanceTable,
   BaDetailPanel,
+  ExportToolbar,
   type BaPerformanceRowVM,
 } from "@/components/reports";
 import { AreaManagerFilterBar } from "@/components/filters";
@@ -66,6 +67,7 @@ export function AreaPerformanceReport() {
         title="Desempeño por BA"
         description="Ranking cross-tienda de tu zona"
         filters={<AreaManagerFilterBar />}
+        toolbar={<ExportToolbar type="ba-performance" disabled={rows.length === 0} />}
       >
         <KpiStrip columns={3}>
           <KpiCard

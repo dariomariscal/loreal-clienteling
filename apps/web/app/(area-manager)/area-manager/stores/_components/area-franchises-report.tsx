@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ReportShell, KpiStrip } from "@/components/reports";
+import { ReportShell, KpiStrip, ExportToolbar } from "@/components/reports";
 import { AreaManagerFilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { HorizontalBarChart, type RankingDatum } from "@/components/charts/horizontal-bar-chart";
@@ -77,6 +77,7 @@ export function AreaFranchisesReport() {
       title="Top Franquicias y Marcas"
       description="Ranking del desempeño en tu zona"
       filters={<AreaManagerFilterBar />}
+      toolbar={<ExportToolbar type="stores-ranking" />}
     >
       <KpiStrip columns={3}>
         <KpiCard

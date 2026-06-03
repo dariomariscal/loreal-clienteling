@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportShell, HeroCard, KpiStrip } from "@/components/reports";
+import { ReportShell, HeroCard, KpiStrip, ExportToolbar } from "@/components/reports";
 import { NationalFilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Sparkline } from "@/components/charts/sparkline";
@@ -35,6 +35,7 @@ export function NationalDashboardReport() {
       title="Vista nacional"
       description="Avance agregado de tu división"
       filters={<NationalFilterBar />}
+      toolbar={<ExportToolbar type="sales" />}
     >
       <HeroCard
         eyebrow="Objetivo de venta"

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportShell, HeroCard, KpiStrip } from "@/components/reports";
+import { ReportShell, HeroCard, KpiStrip, ExportToolbar } from "@/components/reports";
 import { FilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Sparkline } from "@/components/charts/sparkline";
@@ -42,6 +42,7 @@ export function CounterDashboardReport() {
       title="Dashboard ejecutivo"
       description="Avance del mostrador en el período seleccionado"
       filters={<FilterBar role="counter_manager" />}
+      toolbar={<ExportToolbar type="sales" />}
     >
       <HeroCard
         eyebrow="Objetivo de venta"

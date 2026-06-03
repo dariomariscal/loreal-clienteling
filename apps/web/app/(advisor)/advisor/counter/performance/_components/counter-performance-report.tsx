@@ -6,6 +6,7 @@ import {
   KpiStrip,
   BaPerformanceTable,
   BaDetailPanel,
+  ExportToolbar,
   type BaPerformanceRowVM,
 } from "@/components/reports";
 import { FilterBar } from "@/components/filters";
@@ -68,6 +69,7 @@ export function CounterPerformanceReport() {
         title="Desempeño por BA"
         description="Ranking del equipo en el período"
         filters={<FilterBar role="counter_manager" />}
+        toolbar={<ExportToolbar type="ba-performance" disabled={rows.length === 0} />}
       >
         <KpiStrip columns={3}>
           <KpiCard

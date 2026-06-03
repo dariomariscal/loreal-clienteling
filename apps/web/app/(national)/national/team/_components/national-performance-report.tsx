@@ -6,6 +6,7 @@ import {
   KpiStrip,
   BaPerformanceTable,
   BaDetailPanel,
+  ExportToolbar,
   type BaPerformanceRowVM,
 } from "@/components/reports";
 import { NationalFilterBar } from "@/components/filters";
@@ -65,6 +66,7 @@ export function NationalPerformanceReport() {
         title="Desempeño por BA"
         description="Ranking nacional de tu división"
         filters={<NationalFilterBar />}
+        toolbar={<ExportToolbar type="ba-performance" disabled={rows.length === 0} />}
       >
         <KpiStrip columns={3}>
           <KpiCard

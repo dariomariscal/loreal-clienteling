@@ -10,10 +10,8 @@ import { ReportShell } from "@/components/reports/report-shell";
 import { DataTableShell, type SavedView } from "@/components/reports/data-table-shell";
 import { CustomerDetailPanel } from "@/components/reports/panels/customer-detail-panel";
 import { useReportSidePanel } from "@/components/reports/report-side-panel";
-import {
-  useAnalyticsExport,
-  useCustomerExportPreview,
-} from "@/lib/hooks/use-analytics";
+import { ExportToolbar } from "@/components/reports/export-toolbar";
+import { useCustomerExportPreview } from "@/lib/hooks/use-analytics";
 import { useFilters } from "@/lib/filters/use-filters";
 import type { CustomerExportRow } from "@loreal/contracts";
 
@@ -46,14 +44,8 @@ export function CustomersReport({
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [viewId, setViewId] = React.useState<string>("all");
 
-  const { data, isLoading } = useCustomerExportPreview({
-    from: filters.from,
-    to: filters.to,
-    banner: filters.banner,
-    baUserId: filters.baUserId,
-  });
+  const { data, isLoading } = useCustomerExportPreview(filters);
 
-  const exportMut = useAnalyticsExport();
   const { open } = useReportSidePanel("customerId");
 
   const filtered = React.useMemo(
@@ -81,17 +73,8 @@ export function CustomersReport({
         filters={filterBar}
         toolbar={
           <ExportToolbar
-            disabled={exportMut.isPending || filtered.length === 0}
-            onExport={(format) =>
-              exportMut.mutate({
-                type: "customers",
-                format,
-                from: filters.from,
-                to: filters.to,
-                banner: filters.banner,
-                baUserId: filters.baUserId,
-              })
-            }
+            type="customers"
+            disabled={filtered.length === 0}
           />
         }
       >
@@ -309,34 +292,6 @@ function CustomersTable({
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function ExportToolbar({
-  disabled,
-  onExport,
-}: {
-  disabled?: boolean;
-  onExport: (format: "csv" | "xlsx") => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={disabled}
-        onClick={() => onExport("csv")}
-      >
-        Exportar CSV
-      </Button>
-      <Button
-        size="sm"
-        disabled={disabled}
-        onClick={() => onExport("xlsx")}
-      >
-        Exportar XLSX
-      </Button>
     </div>
   );
 }

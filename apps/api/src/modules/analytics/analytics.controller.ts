@@ -82,10 +82,61 @@ const COLUMN_LABELS: Record<string, string> = {
   openFollowUpCount: "Seguimientos abiertos",
   overdueFollowUpCount: "Seguimientos vencidos",
   banner: "Franquicia",
+  channel: "Canal",
+  storeCode: "Código tienda",
+  city: "Ciudad",
+  state: "Estado",
+  zoneCode: "Código zona",
+  zoneName: "Zona",
+  baEmail: "Correo BA",
+  baBrandName: "Marca BA",
+  lineCount: "# Líneas",
+  unitCount: "# Unidades",
+  currency: "Moneda",
   totalAmount: "Monto total",
+  subtotal: "Subtotal",
+  totalDiscount: "Descuento total",
+  totalTax: "Impuestos",
+  totalShipping: "Envío",
+  financialStatus: "Estado pago",
+  fulfillmentStatus: "Estado envío",
+  externalOrderId: "ID externo POS",
   purchasedAt: "Fecha de compra",
   source: "Fuente",
-  attributedBaUserId: "BA atribuido",
+  attributedBaUserId: "ID BA atribuido",
+  attributedBaName: "BA atribuido (nombre)",
+  attributedBaSource: "Fuente atribución",
+  orderId: "ID Pedido",
+  orderNumber: "Folio",
+  customerEmail: "Correo cliente",
+  baId: "ID BA",
+  fullName: "Nombre BA",
+  salesTotalAmount: "Ventas — Monto total",
+  salesOrderCount: "Ventas — # Pedidos",
+  salesUniqueCustomers: "Ventas — Clientes únicos",
+  salesAvgTicket: "Ticket promedio",
+  newCustomers: "Clientes nuevos",
+  registrations: "Registros",
+  messagesSent: "Mensajes enviados",
+  recommendationsTotal: "Recomendaciones — Total",
+  recommendationsConverted: "Recomendaciones — Convertidas",
+  recommendationsConversionRate: "Recomendaciones — Tasa",
+  recommendationsConversionPct: "Recomendaciones — % conversión",
+  followUpsTotal: "Seguimientos — Total",
+  followUpsCompleted: "Seguimientos — Completados",
+  followUpsDismissed: "Seguimientos — Descartados",
+  followUpsOverdue: "Seguimientos — Vencidos",
+  followUpsCompletionRate: "Seguimientos — Tasa cumplimiento",
+  storeCount: "# Tiendas",
+  zoneId: "ID Zona",
+  appointmentsCount: "# Citas",
+  lastActivityAt: "Última actividad",
+  date: "Fecha",
+  orderCount: "# Pedidos",
+  itemCount: "# Productos",
+  groupBy: "Agrupado por",
+  key: "Llave",
+  label: "Etiqueta",
 };
 
 @ApiTags("Analytics")
@@ -615,37 +666,51 @@ export class AnalyticsController {
   }
 
   @Get("export")
-  @ApiQuery({ name: "type", enum: ["customers", "sales", "appointments", "agenda-report"], required: true })
+  @ApiQuery({
+    name: "type",
+    enum: [
+      "customers",
+      "sales",
+      "appointments",
+      "agenda-report",
+      "ba-performance",
+      "stores-ranking",
+      "banners-ranking",
+      "sales-trend",
+      "sales-breakdown",
+    ],
+    required: true,
+  })
   @ApiQuery({ name: "format", enum: ["json", "csv", "xlsx"], required: false })
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
   @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "brandId", type: String, required: false })
+  @ApiQuery({ name: "storeId", type: String, required: false })
   @ApiQuery({ name: "baUserId", type: String, required: false })
+  @ApiQuery({ name: "zoneId", type: String, required: false })
   async exportData(
     @Query("type") type: string,
     @Query("format") format: string | undefined,
-    @Query("from") from: string | undefined,
-    @Query("to") to: string | undefined,
-    @Query("banner") banner: string | undefined,
-    @Query("baUserId") baUserId: string | undefined,
+    @Query() q: AnalyticsQuery,
     @Session() session: UserSession,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const filters = this.parseFilters(q);
     let data: Record<string, any>[];
 
     if (type === "agenda-report") {
       const report = await this.analyticsService.appointments.getAgendaReport(
         session.user,
-        this.parseDateRange(from, to),
-        { limit: 10000, staffUserId: baUserId },
+        { from: filters.from, to: filters.to },
+        { limit: 10000, staffUserId: filters.baUserId },
       );
-      data = report.data;
+      data = report.data as Record<string, any>[];
     } else {
       data = (await this.analyticsService.exportData(
         type,
         session.user,
-        this.parseDateRange(from, to),
-        { banner, baUserId },
+        filters,
       )) as Record<string, any>[];
     }
 

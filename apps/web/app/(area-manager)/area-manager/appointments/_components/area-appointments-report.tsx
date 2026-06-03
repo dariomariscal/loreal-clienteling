@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportShell, HeroCard, KpiStrip } from "@/components/reports";
+import { ReportShell, HeroCard, KpiStrip, ExportToolbar } from "@/components/reports";
 import { AreaManagerFilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { StackedBarChart } from "@/components/charts/stacked-bar-chart";
@@ -51,6 +51,7 @@ export function AreaAppointmentsReport() {
       title="Métricas de citas"
       description="Avance agregado de tu zona"
       filters={<AreaManagerFilterBar />}
+      toolbar={<ExportToolbar type="agenda-report" />}
     >
       <HeroCard
         eyebrow="Objetivo agregado"
