@@ -66,14 +66,21 @@ export class RecommendationsController {
     @Session() session: UserSession,
   ) {
     const storeId = session.user.storeId;
+    const brandId = session.user.brandId;
     if (!storeId) {
       throw new BadRequestException(
         "User has no store assignment; cannot run recommendations.",
       );
     }
+    if (!brandId) {
+      throw new BadRequestException(
+        "User has no brand assignment; cannot run recommendations.",
+      );
+    }
     return this.recommendationEngine.generateForCustomer({
       customerId: body.customerId,
       storeId,
+      brandId,
       recommendedByUserId: session.user.id,
       limit: body.limit,
       withRationale: body.withRationale ?? true,

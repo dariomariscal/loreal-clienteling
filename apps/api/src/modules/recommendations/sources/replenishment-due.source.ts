@@ -61,6 +61,7 @@ export class ReplenishmentDueSource
         and(
           eq(orders.customerId, context.customerId),
           eq(products.status, "active"),
+          eq(products.brandId, context.brandId),
         ),
       );
 

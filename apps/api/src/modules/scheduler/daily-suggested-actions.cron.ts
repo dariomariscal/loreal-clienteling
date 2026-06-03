@@ -86,18 +86,19 @@ export class DailySuggestedActionsCron {
       await this.suggestedActionsRepo.findUnresolvedProductBound(dueDate);
     if (unresolved.length === 0) return 0;
 
-    const storeByUserId = await this.loadStoreByUserId(
+    const assignmentByUserId = await this.loadAssignmentByUserId(
       unresolved.map((u) => u.assignedToUserId),
     );
 
     let enriched = 0;
     for (const action of unresolved) {
-      const storeId = storeByUserId.get(action.assignedToUserId);
-      if (!storeId) continue;
+      const assignment = assignmentByUserId.get(action.assignedToUserId);
+      if (!assignment) continue;
       try {
         const [top] = await this.recommendationEngine.generateForCustomer({
           customerId: action.customerId,
-          storeId,
+          storeId: assignment.storeId,
+          brandId: assignment.brandId,
           recommendedByUserId: action.assignedToUserId,
           limit: 1,
           withRationale: true,
@@ -119,19 +120,25 @@ export class DailySuggestedActionsCron {
     return enriched;
   }
 
-  private async loadStoreByUserId(
+  private async loadAssignmentByUserId(
     userIds: string[],
-  ): Promise<Map<string, string>> {
+  ): Promise<Map<string, { storeId: string; brandId: string }>> {
     if (userIds.length === 0) return new Map();
     const rows = await this.db
-      .select({ id: users.id, storeId: users.storeId })
+      .select({
+        id: users.id,
+        storeId: users.storeId,
+        brandId: users.brandId,
+      })
       .from(users);
     // Filter in-memory: keeps the query simple and the user table is small
     // relative to the action queue we're enriching.
     const wanted = new Set(userIds);
-    const map = new Map<string, string>();
+    const map = new Map<string, { storeId: string; brandId: string }>();
     for (const r of rows) {
-      if (wanted.has(r.id) && r.storeId) map.set(r.id, r.storeId);
+      if (wanted.has(r.id) && r.storeId && r.brandId) {
+        map.set(r.id, { storeId: r.storeId, brandId: r.brandId });
+      }
     }
     return map;
   }

@@ -40,6 +40,7 @@ export class LookalikePurchaseSource
       lookalikeCustomerIds: lookalikes.map((l) => l.customerId),
       excludeProductIds: context.excludeProductIds,
       storeId: context.storeId,
+      brandId: context.brandId,
       limit: context.limit,
     });
 

@@ -153,6 +153,7 @@ export class CustomerEmbeddingsRepository {
     lookalikeCustomerIds: string[];
     excludeProductIds: string[];
     storeId: string;
+    brandId: string;
     limit: number;
   }): Promise<Array<{ productId: string; purchaseCount: number }>> {
     if (input.lookalikeCustomerIds.length === 0) return [];
@@ -160,6 +161,7 @@ export class CustomerEmbeddingsRepository {
     const conditions = [
       inArray(orders.customerId, input.lookalikeCustomerIds),
       eq(products.status, "active"),
+      eq(products.brandId, input.brandId),
       eq(inventoryLevels.storeId, input.storeId),
       gt(inventoryLevels.availableQuantity, 0),
       ...(input.excludeProductIds.length > 0

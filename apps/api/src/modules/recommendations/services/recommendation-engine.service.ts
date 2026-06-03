@@ -60,6 +60,7 @@ export interface EngineRecommendationOutput {
 export interface GenerateOptions {
   customerId: string;
   storeId: string;
+  brandId: string;
   recommendedByUserId: string;
   limit?: number;
   /** Skip LLM rationale generation. Used by the nightly NBA cron, which fans
@@ -117,6 +118,7 @@ export class RecommendationEngineService {
     const candidates = await this.collectCandidates({
       customerId: options.customerId,
       storeId: options.storeId,
+      brandId: options.brandId,
       excludeProductIds: snapshot.purchasedProductIds,
     });
     if (candidates.length === 0) return [];
@@ -177,6 +179,7 @@ export class RecommendationEngineService {
   private async collectCandidates(input: {
     customerId: string;
     storeId: string;
+    brandId: string;
     excludeProductIds: string[];
   }): Promise<ProductRecommendationCandidate[]> {
     const settled = await Promise.allSettled(
@@ -184,6 +187,7 @@ export class RecommendationEngineService {
         source.fetchCandidates({
           customerId: input.customerId,
           storeId: input.storeId,
+          brandId: input.brandId,
           excludeProductIds: input.excludeProductIds,
           limit: CANDIDATES_PER_SOURCE,
         }),

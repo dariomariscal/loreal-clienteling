@@ -31,6 +31,7 @@ export class SemanticMatchSource implements RecommendationSignalSourceStrategy {
     const hits = await this.productEmbeddings.searchInStockForStore(
       vector,
       context.storeId,
+      context.brandId,
       context.limit * 2, // over-fetch so the ranker has room after dedup
     );
 

@@ -99,6 +99,7 @@ export class ProductEmbeddingsRepository {
   async searchInStockForStore(
     queryVector: number[],
     storeId: string,
+    brandId: string,
     limit: number,
   ): Promise<ProductVectorHit[]> {
     const vectorLiteral = `[${queryVector.join(",")}]`;
@@ -125,7 +126,12 @@ export class ProductEmbeddingsRepository {
         ),
       )
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(eq(products.status, "active"))
+      .where(
+        and(
+          eq(products.status, "active"),
+          eq(products.brandId, brandId),
+        ),
+      )
       .orderBy(sql`${productEmbeddings.embedding} <=> ${vectorLiteral}::vector`)
       .limit(limit);
 

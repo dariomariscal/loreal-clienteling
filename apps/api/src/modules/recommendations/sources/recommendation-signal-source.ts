@@ -13,6 +13,7 @@ import type { ProductRecommendationCandidate } from "@loreal/contracts";
 export interface RecommendationSignalSourceContext {
   customerId: string;
   storeId: string;
+  brandId: string;
   excludeProductIds: string[];
   limit: number;
 }
