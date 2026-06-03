@@ -6,6 +6,7 @@ import {
   orders,
   recommendations,
   messages,
+  suggestedActions,
   users,
 } from "@loreal/database";
 import { UserRole } from "@loreal/contracts";
@@ -126,11 +127,35 @@ export class PerformanceAnalyticsService {
 
     const recMap = new Map(recRows.map((r) => [r.baId, r]));
 
+    // Follow-ups per BA — Tulip pattern: completed / completion-rate / overdue.
+    const fuRows = await this.db
+      .select({
+        baId: suggestedActions.assignedToUserId,
+        total: count(),
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${suggestedActions.completedAt} IS NOT NULL)`,
+        dismissed: sql<number>`COUNT(*) FILTER (WHERE ${suggestedActions.dismissedAt} IS NOT NULL)`,
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${suggestedActions.completedAt} IS NULL AND ${suggestedActions.dismissedAt} IS NULL AND ${suggestedActions.dueDate} < CURRENT_DATE)`,
+      })
+      .from(suggestedActions)
+      .where(
+        and(
+          sql`${suggestedActions.assignedToUserId} IN (${sql.join(baIds.map((id) => sql`${id}`), sql`, `)})`,
+          gte(suggestedActions.createdAt, from),
+          lte(suggestedActions.createdAt, to),
+        ),
+      )
+      .groupBy(suggestedActions.assignedToUserId);
+
+    const fuMap = new Map(fuRows.map((r) => [r.baId, r]));
+
     return bas.map((ba) => {
       const sales = salesMap.get(ba.id);
       const recs = recMap.get(ba.id);
+      const fu = fuMap.get(ba.id);
       const totalRecs = recs?.total ?? 0;
       const convertedRecs = recs?.converted ?? 0;
+      const totalFu = fu?.total ?? 0;
+      const completedFu = fu?.completed ?? 0;
 
       return {
         baId: ba.id,
@@ -147,7 +172,80 @@ export class PerformanceAnalyticsService {
           converted: convertedRecs,
           conversionRate: totalRecs > 0 ? convertedRecs / totalRecs : 0,
         },
+        followUps: {
+          total: totalFu,
+          completed: completedFu,
+          dismissed: fu?.dismissed ?? 0,
+          overdue: fu?.overdue ?? 0,
+          completionRate: totalFu > 0 ? completedFu / totalFu : 0,
+        },
       };
     });
+  }
+
+  /**
+   * Tulip "Follow-ups dashboard" — aggregated KPIs across the caller's scope.
+   * Returns the 5-bucket status breakdown the BA / counter dashboard renders.
+   */
+  async getFollowUpKPIs(user: SessionUser, range?: DateRange) {
+    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isBA = user.role === UserRole.BEAUTY_ADVISOR;
+    const { from, to } = getDefaultDateRange(range);
+
+    const conditions: any[] = [
+      gte(suggestedActions.createdAt, from),
+      lte(suggestedActions.createdAt, to),
+    ];
+
+    if (isBA) {
+      conditions.push(eq(suggestedActions.assignedToUserId, user.id));
+    } else if (!isAdmin && storeIds.length > 0) {
+      // Manager scope: filter by BAs whose storeId is accessible.
+      conditions.push(
+        sql`${suggestedActions.assignedToUserId} IN (
+          SELECT ${users.id} FROM ${users}
+          WHERE ${users.storeId} IN (${sql.join(storeIds.map((id) => sql`${id}`), sql`, `)})
+        )`,
+      );
+    }
+
+    const [row] = await this.db
+      .select({
+        total: count(),
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${suggestedActions.completedAt} IS NOT NULL)::int`,
+        dismissed: sql<number>`COUNT(*) FILTER (WHERE ${suggestedActions.dismissedAt} IS NOT NULL)::int`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE ${suggestedActions.completedAt} IS NULL AND ${suggestedActions.dismissedAt} IS NULL)::int`,
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${suggestedActions.completedAt} IS NULL AND ${suggestedActions.dismissedAt} IS NULL AND ${suggestedActions.dueDate} < CURRENT_DATE)::int`,
+        dueToday: sql<number>`COUNT(*) FILTER (WHERE ${suggestedActions.completedAt} IS NULL AND ${suggestedActions.dismissedAt} IS NULL AND ${suggestedActions.dueDate} = CURRENT_DATE)::int`,
+      })
+      .from(suggestedActions)
+      .where(and(...conditions));
+
+    const total = row?.total ?? 0;
+    const completed = row?.completed ?? 0;
+    const completionRate = total > 0 ? completed / total : 0;
+
+    // Breakdown by trigger type — used for the "Follow-up types" donut.
+    const byType = await this.db
+      .select({
+        triggerType: suggestedActions.triggerType,
+        count: count(),
+      })
+      .from(suggestedActions)
+      .where(and(...conditions))
+      .groupBy(suggestedActions.triggerType);
+
+    return {
+      period: { from: from.toISOString(), to: to.toISOString() },
+      total,
+      completed,
+      dismissed: row?.dismissed ?? 0,
+      pending: row?.pending ?? 0,
+      overdue: row?.overdue ?? 0,
+      dueToday: row?.dueToday ?? 0,
+      completionRate: Math.round(completionRate * 100) / 100,
+      byType: byType.map((r) => ({ triggerType: r.triggerType, count: r.count })),
+    };
   }
 }

@@ -9,16 +9,31 @@ import type {
 
 // ── Types ──────────────────────────────────────────────────────────
 
-export type SalesTargetPeriod = "daily" | "monthly";
+export type TargetOwnerType = "counter" | "user" | "store" | "area";
+export type TargetMetricKind =
+  | "sales_amount"
+  | "sales_units"
+  | "appointments_booked"
+  | "appointments_completed"
+  | "follow_ups_completed"
+  | "new_customers"
+  | "samples_given"
+  | "visits";
+export type TargetPeriodKind = "daily" | "weekly" | "monthly" | "quarterly";
 
 export interface SalesTarget {
   id: string;
-  storeId: string;
-  brandId: string;
-  period: SalesTargetPeriod;
-  periodDate: string;
-  targetAmount: string;
-  currency: string;
+  ownerType: TargetOwnerType;
+  storeId: string | null;
+  brandId: string | null;
+  ownerUserId: string | null;
+  metricKind: TargetMetricKind;
+  periodKind: TargetPeriodKind;
+  periodStart: string;
+  periodEnd: string;
+  targetValue: string;
+  currency: string | null;
+  parentTargetId: string | null;
   notes: string | null;
   createdByUserId: string;
   createdAt: string;
@@ -30,7 +45,7 @@ export interface CounterTargetProgress {
   date: string;
   storeId: string;
   brandId: string;
-  targetAmount: number | null;
+  targetValue: number | null;
   actualAmount: number;
   attainmentPct: number | null;
   currency: string;
@@ -54,9 +69,12 @@ const salesTargetKeys = {
 
 export function useSalesTargets(filters: SalesTargetFilters = {}) {
   const params: Record<string, string> = {};
+  if (filters.ownerType) params.ownerType = filters.ownerType;
   if (filters.storeId) params.storeId = filters.storeId;
   if (filters.brandId) params.brandId = filters.brandId;
-  if (filters.period) params.period = filters.period;
+  if (filters.ownerUserId) params.ownerUserId = filters.ownerUserId;
+  if (filters.metricKind) params.metricKind = filters.metricKind;
+  if (filters.periodKind) params.periodKind = filters.periodKind;
   if (filters.from) params.from = filters.from;
   if (filters.to) params.to = filters.to;
 

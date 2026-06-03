@@ -20,10 +20,10 @@ export interface SalesTargetRow {
   storeName: string | null;
   brandId: string;
   brandName: string | null;
-  /** "daily" | "monthly" — matches sales_targets.period. */
-  period: string;
+  /** "daily" | "weekly" | "monthly" | "quarterly" — matches sales_targets.periodKind. */
+  periodKind: string;
   currency: string;
-  /** Sum of targetAmount for the period — MXN. */
+  /** Sum of targetValue for the period — MXN. */
   target: number;
   /** Actual revenue from line_items.price filtered by brand, in the same period. */
   actual: number;
@@ -37,6 +37,95 @@ export interface SalesTargetRow {
 export interface SalesTargetsAnalyticsResponse {
   period: AnalyticsPeriod;
   data: SalesTargetRow[];
+}
+
+// ── /analytics/appointment-targets ──────────────────────────────────
+
+export interface AppointmentTargetRow {
+  targetId: string;
+  ownerType: "counter" | "user" | "store" | "area";
+  ownerName: string | null;
+  storeId: string | null;
+  ownerUserId: string | null;
+  periodKind: string;
+  periodStart: string;
+  periodEnd: string;
+  target: number;
+  actual: number;
+  gap: number;
+  attainmentPct: number | null;
+}
+
+export interface AppointmentTargetsAnalyticsResponse {
+  period: AnalyticsPeriod;
+  metricKind: "appointments_booked" | "appointments_completed";
+  data: AppointmentTargetRow[];
+}
+
+// ── /analytics/follow-ups ───────────────────────────────────────────
+
+export interface FollowUpKPIsResponse {
+  period: AnalyticsPeriod;
+  total: number;
+  completed: number;
+  dismissed: number;
+  pending: number;
+  overdue: number;
+  dueToday: number;
+  /** completed / total, 2 decimals. */
+  completionRate: number;
+  byType: Array<{ triggerType: string; count: number }>;
+}
+
+// ── /analytics/banners-ranking ──────────────────────────────────────
+
+export interface BannerRankingRow {
+  banner: string;
+  bannerName: string;
+  storeCount: number;
+  sales: {
+    totalAmount: number;
+    orderCount: number;
+    uniqueCustomers: number;
+    avgTicket: number;
+  };
+  newCustomers: number;
+}
+
+export interface BannersRankingAnalyticsResponse {
+  period: AnalyticsPeriod;
+  data: BannerRankingRow[];
+}
+
+// ── /analytics/export?type=customers ────────────────────────────────
+
+export interface CustomerExportRow {
+  customerId: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  gender: string | null;
+  birthDate: string | null;
+  lifecycleSegment: string | null;
+  loyaltyTier: string | null;
+  totalSpent: string;
+  ordersCount: number;
+  customerSince: string;
+  lastContactAt: string | null;
+  lastTransactionAt: string | null;
+  lastVisitAt: string | null;
+  lastBaUserId: string | null;
+  lastBaName: string | null;
+  lastFollowUpType: string | null;
+  lastFollowUpCompletedAt: string | null;
+  nextFollowUpType: string | null;
+  nextFollowUpDueDate: string | null;
+  openFollowUpCount: number;
+  overdueFollowUpCount: number;
+  storeId: string;
+  storeName: string | null;
+  banner: string | null;
 }
 
 // ── /analytics/ba-ratings ────────────────────────────────────────────

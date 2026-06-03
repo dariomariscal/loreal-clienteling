@@ -4,9 +4,11 @@ import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   brandConfigs,
   brandStores,
+  customerVisits,
   customers,
   messages,
   orders,
+  suggestedActions,
 } from "@loreal/database";
 import { calculateSegment } from "@loreal/domain";
 
@@ -170,6 +172,100 @@ export class CustomerActivityService {
       .set({ [column]: granted, updatedAt: now } as Partial<
         typeof customers.$inferInsert
       >)
+      .where(eq(customers.id, customerId));
+  }
+
+  /**
+   * Mirror the most recent customer_visits row onto `customers.lastBaUserId`
+   * + `lastVisitAt`. Tulip "Client Book" pattern — the customer profile shows
+   * "last seen by X" without joining customer_visits at read time.
+   */
+  async recomputeLastBaFromVisit(
+    customerId: string,
+    tx: Tx = this.db,
+  ): Promise<void> {
+    const [row] = await tx
+      .select({
+        attendedByUserId: customerVisits.attendedByUserId,
+        startedAt: customerVisits.startedAt,
+      })
+      .from(customerVisits)
+      .where(eq(customerVisits.customerId, customerId))
+      .orderBy(sql`${customerVisits.startedAt} DESC`)
+      .limit(1);
+
+    if (!row) return;
+
+    await tx
+      .update(customers)
+      .set({
+        lastBaUserId: row.attendedByUserId,
+        lastVisitAt: toDate(row.startedAt),
+        updatedAt: new Date(),
+      })
+      .where(eq(customers.id, customerId));
+  }
+
+  /**
+   * Recompute the 6 denormalized follow-up columns on `customers` from
+   * `suggested_actions`. Drives "tipo de seguimiento" (last + next) and the
+   * Tulip-style overdue / open counters used by dashboards and exports.
+   *
+   * Called whenever a suggested_action is inserted, completed, or dismissed.
+   */
+  async recomputeFollowUpFields(
+    customerId: string,
+    tx: Tx = this.db,
+  ): Promise<void> {
+    // Aggregate open / overdue counts in a single pass.
+    const [agg] = await tx
+      .select({
+        openCount: sql<number>`count(*) filter (where ${suggestedActions.completedAt} is null and ${suggestedActions.dismissedAt} is null)::int`,
+        overdueCount: sql<number>`count(*) filter (where ${suggestedActions.completedAt} is null and ${suggestedActions.dismissedAt} is null and ${suggestedActions.dueDate} < current_date)::int`,
+      })
+      .from(suggestedActions)
+      .where(eq(suggestedActions.customerId, customerId));
+
+    // Earliest pending = next action surfaced in the UI / export.
+    const [nextRow] = await tx
+      .select({
+        triggerType: suggestedActions.triggerType,
+        dueDate: suggestedActions.dueDate,
+      })
+      .from(suggestedActions)
+      .where(
+        sql`${suggestedActions.customerId} = ${customerId}
+            and ${suggestedActions.completedAt} is null
+            and ${suggestedActions.dismissedAt} is null`,
+      )
+      .orderBy(suggestedActions.dueDate)
+      .limit(1);
+
+    // Most recent completed = last follow-up performed.
+    const [lastRow] = await tx
+      .select({
+        triggerType: suggestedActions.triggerType,
+        completedAt: suggestedActions.completedAt,
+      })
+      .from(suggestedActions)
+      .where(
+        sql`${suggestedActions.customerId} = ${customerId}
+            and ${suggestedActions.completedAt} is not null`,
+      )
+      .orderBy(sql`${suggestedActions.completedAt} DESC`)
+      .limit(1);
+
+    await tx
+      .update(customers)
+      .set({
+        nextFollowUpType: nextRow?.triggerType ?? null,
+        nextFollowUpDueDate: nextRow?.dueDate ?? null,
+        lastFollowUpType: lastRow?.triggerType ?? null,
+        lastFollowUpCompletedAt: toDate(lastRow?.completedAt ?? null),
+        openFollowUpCount: agg?.openCount ?? 0,
+        overdueFollowUpCount: agg?.overdueCount ?? 0,
+        updatedAt: new Date(),
+      })
       .where(eq(customers.id, customerId));
   }
 

@@ -1,5 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { and, eq, gte, lte, count, sum, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import {
   customers,
@@ -7,6 +8,7 @@ import {
   appointments,
   messages,
   users,
+  stores,
 } from "@loreal/database";
 import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../common/types/session";
@@ -153,8 +155,17 @@ export class AnalyticsService {
    * appointments. Used by the /analytics/export endpoint for CSV / XLSX
    * downloads. Lives on the facade because it pivots across domains by
    * the `type` parameter rather than belonging to a single one.
+   *
+   * The customers export is the "Client list" report in Tulip / Endear style —
+   * a wide flat row per customer with denormalized "last_*" / "next_*" fields
+   * already populated on the customer record by CustomerActivityService.
    */
-  async exportData(type: string, user: SessionUser, range?: DateRange) {
+  async exportData(
+    type: string,
+    user: SessionUser,
+    range?: DateRange,
+    filters?: { banner?: string; baUserId?: string },
+  ) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === "admin";
     const { from, to } = getDefaultDateRange(range);
@@ -163,10 +174,49 @@ export class AnalyticsService {
       const conditions: any[] = [];
       const storeFilter = buildStoreScopeFilter(isAdmin, storeIds, customers.signupStoreId);
       if (storeFilter) conditions.push(storeFilter);
-      return this.db
-        .select()
+      if (filters?.banner) conditions.push(eq(stores.banner, filters.banner));
+      if (filters?.baUserId) {
+        // "Last BA" denormalized column makes this filter cheap.
+        conditions.push(eq(customers.lastBaUserId, filters.baUserId));
+      }
+
+      const lastBa = alias(users, "last_ba");
+
+      const rows = await this.db
+        .select({
+          customerId: customers.id,
+          firstName: customers.firstName,
+          lastName: customers.lastName,
+          email: customers.email,
+          phone: customers.phone,
+          gender: customers.gender,
+          birthDate: customers.birthday,
+          lifecycleSegment: customers.lifecycleStage,
+          loyaltyTier: customers.loyaltyTier,
+          totalSpent: customers.totalSpent,
+          ordersCount: customers.ordersCount,
+          customerSince: customers.enrolledAt,
+          lastContactAt: customers.lastInteractionAt,
+          lastTransactionAt: customers.lastOrderAt,
+          lastVisitAt: customers.lastVisitAt,
+          lastBaUserId: customers.lastBaUserId,
+          lastBaName: lastBa.fullName,
+          lastFollowUpType: customers.lastFollowUpType,
+          lastFollowUpCompletedAt: customers.lastFollowUpCompletedAt,
+          nextFollowUpType: customers.nextFollowUpType,
+          nextFollowUpDueDate: customers.nextFollowUpDueDate,
+          openFollowUpCount: customers.openFollowUpCount,
+          overdueFollowUpCount: customers.overdueFollowUpCount,
+          storeId: customers.signupStoreId,
+          storeName: stores.displayName,
+          banner: stores.banner,
+        })
         .from(customers)
+        .leftJoin(stores, eq(stores.id, customers.signupStoreId))
+        .leftJoin(lastBa, eq(lastBa.id, customers.lastBaUserId))
         .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+      return rows;
     }
 
     if (type === "sales") {

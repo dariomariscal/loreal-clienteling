@@ -8,6 +8,8 @@ import {
   products,
   stores,
   brands,
+  appointments,
+  users,
 } from "@loreal/database";
 import { UserRole } from "@loreal/contracts";
 import type { SessionUser } from "../../../common/types/session";
@@ -44,8 +46,10 @@ export class SalesTargetsAnalyticsService {
     }
 
     const targetConds: any[] = [
-      gte(salesTargets.periodDate, from.toISOString().slice(0, 10)),
-      lte(salesTargets.periodDate, to.toISOString().slice(0, 10)),
+      eq(salesTargets.ownerType, "counter"),
+      eq(salesTargets.metricKind, "sales_amount"),
+      gte(salesTargets.periodStart, from.toISOString().slice(0, 10)),
+      lte(salesTargets.periodEnd, to.toISOString().slice(0, 10)),
     ];
     if (!isAdmin) targetConds.push(inArray(salesTargets.storeId, storeIds));
 
@@ -53,8 +57,8 @@ export class SalesTargetsAnalyticsService {
       .select({
         storeId: salesTargets.storeId,
         brandId: salesTargets.brandId,
-        period: salesTargets.period,
-        targetAmount: sql<string>`coalesce(sum(${salesTargets.targetAmount}), 0)`,
+        periodKind: salesTargets.periodKind,
+        targetValue: sql<string>`coalesce(sum(${salesTargets.targetValue}), 0)`,
         currency: salesTargets.currency,
       })
       .from(salesTargets)
@@ -62,7 +66,7 @@ export class SalesTargetsAnalyticsService {
       .groupBy(
         salesTargets.storeId,
         salesTargets.brandId,
-        salesTargets.period,
+        salesTargets.periodKind,
         salesTargets.currency,
       );
 
@@ -105,16 +109,16 @@ export class SalesTargetsAnalyticsService {
 
     const data = targetRows.map((t) => {
       const actual = actualMap.get(`${t.storeId}:${t.brandId}`);
-      const target = Number(t.targetAmount);
+      const target = Number(t.targetValue);
       const actualAmount = Number(actual?.actualAmount ?? 0);
       const attainmentPct =
         target > 0 ? Math.round((actualAmount / target) * 100) : null;
       return {
         storeId: t.storeId,
-        storeName: storeNames.get(t.storeId) ?? null,
+        storeName: storeNames.get(t.storeId ?? "") ?? null,
         brandId: t.brandId,
-        brandName: brandNames.get(t.brandId) ?? null,
-        period: t.period,
+        brandName: brandNames.get(t.brandId ?? "") ?? null,
+        periodKind: t.periodKind,
         currency: t.currency,
         target,
         actual: actualAmount,
@@ -127,5 +131,127 @@ export class SalesTargetsAnalyticsService {
     data.sort((a, b) => (b.attainmentPct ?? -1) - (a.attainmentPct ?? -1));
 
     return { period: { from, to }, data };
+  }
+
+  /**
+   * Appointment targets vs actual — same Salesforce Goal pattern as the
+   * sales-amount variant, but the actuals come from the appointments table
+   * instead of orders. `metricKind` controls whether "actual" means booked
+   * (any appointment created) or completed (status='completed').
+   */
+  async getAppointmentTargetsVsActual(
+    user: SessionUser,
+    range?: DateRange,
+    metricKind: "appointments_booked" | "appointments_completed" = "appointments_booked",
+  ) {
+    if (user.role === UserRole.BEAUTY_ADVISOR) {
+      // BA-level appointment targets are fine to read for the caller's own
+      // user. Higher metrics require manager scope.
+    }
+
+    const isAdmin = user.role === UserRole.ADMIN;
+    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const { from, to } = getDefaultDateRange(range);
+
+    if (!isAdmin && storeIds.length === 0) {
+      return { period: { from, to }, metricKind, data: [] };
+    }
+
+    const targetConds: any[] = [
+      eq(salesTargets.metricKind, metricKind),
+      gte(salesTargets.periodStart, from.toISOString().slice(0, 10)),
+      lte(salesTargets.periodEnd, to.toISOString().slice(0, 10)),
+    ];
+    if (!isAdmin) targetConds.push(inArray(salesTargets.storeId, storeIds));
+
+    const targetRows = await this.db
+      .select({
+        id: salesTargets.id,
+        ownerType: salesTargets.ownerType,
+        storeId: salesTargets.storeId,
+        ownerUserId: salesTargets.ownerUserId,
+        periodKind: salesTargets.periodKind,
+        periodStart: salesTargets.periodStart,
+        periodEnd: salesTargets.periodEnd,
+        targetValue: salesTargets.targetValue,
+      })
+      .from(salesTargets)
+      .where(and(...targetConds));
+
+    // Aggregate actuals — booked = createdAt in range; completed = startTime in range + status='completed'.
+    const actualConds: any[] =
+      metricKind === "appointments_booked"
+        ? [gte(appointments.createdAt, from), lte(appointments.createdAt, to)]
+        : [
+            gte(appointments.startTime, from),
+            lte(appointments.startTime, to),
+            eq(appointments.status, "completed"),
+          ];
+    if (!isAdmin) actualConds.push(inArray(appointments.storeId, storeIds));
+
+    const byStore = await this.db
+      .select({
+        storeId: appointments.storeId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(appointments)
+      .where(and(...actualConds))
+      .groupBy(appointments.storeId);
+
+    const byUser = await this.db
+      .select({
+        userId: appointments.staffUserId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(appointments)
+      .where(and(...actualConds))
+      .groupBy(appointments.staffUserId);
+
+    const storeNames = new Map(
+      (await this.db.select({ id: stores.id, displayName: stores.displayName }).from(stores)).map(
+        (s) => [s.id, s.displayName],
+      ),
+    );
+    const userNames = new Map(
+      (await this.db.select({ id: users.id, fullName: users.fullName }).from(users)).map((u) => [
+        u.id,
+        u.fullName,
+      ]),
+    );
+
+    const storeMap = new Map(byStore.map((r) => [r.storeId, r.count]));
+    const userMap = new Map(byUser.map((r) => [r.userId, r.count]));
+
+    const data = targetRows.map((t) => {
+      const actualCount =
+        t.ownerType === "user" && t.ownerUserId
+          ? userMap.get(t.ownerUserId) ?? 0
+          : t.storeId
+            ? storeMap.get(t.storeId) ?? 0
+            : 0;
+      const target = Number(t.targetValue);
+      const attainmentPct = target > 0 ? Math.round((actualCount / target) * 100) : null;
+      return {
+        targetId: t.id,
+        ownerType: t.ownerType,
+        ownerName:
+          t.ownerType === "user"
+            ? userNames.get(t.ownerUserId ?? "") ?? null
+            : storeNames.get(t.storeId ?? "") ?? null,
+        storeId: t.storeId,
+        ownerUserId: t.ownerUserId,
+        periodKind: t.periodKind,
+        periodStart: t.periodStart,
+        periodEnd: t.periodEnd,
+        target,
+        actual: actualCount,
+        gap: actualCount - target,
+        attainmentPct,
+      };
+    });
+
+    data.sort((a, b) => (b.attainmentPct ?? -1) - (a.attainmentPct ?? -1));
+
+    return { period: { from, to }, metricKind, data };
   }
 }

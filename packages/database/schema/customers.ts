@@ -55,6 +55,23 @@ export const customers = pgTable(
     lastInteractionAt: timestamp("last_interaction_at", { withTimezone: true }),
     lastOrderAt: timestamp("last_order_at", { withTimezone: true }),
 
+    // Denormalized clienteling columns (Tulip "Client Book" + Endear pattern).
+    // Maintained by CustomerActivityService on visit / follow-up events so the
+    // export and customer-list views render without expensive joins.
+    /** Last BA who attended this customer (most recent customer_visits row). */
+    lastBaUserId: text("last_ba_user_id").references(() => users.id),
+    lastVisitAt: timestamp("last_visit_at", { withTimezone: true }),
+    /** Most recent completed suggested_actions.triggerType — "tipo de seguimiento" en reportes. */
+    lastFollowUpType: varchar("last_follow_up_type", { length: 32 }),
+    lastFollowUpCompletedAt: timestamp("last_follow_up_completed_at", {
+      withTimezone: true,
+    }),
+    /** Next pending suggested_actions — the action-oriented field Tulip/Endear expose. */
+    nextFollowUpType: varchar("next_follow_up_type", { length: 32 }),
+    nextFollowUpDueDate: date("next_follow_up_due_date"),
+    openFollowUpCount: integer("open_follow_up_count").notNull().default(0),
+    overdueFollowUpCount: integer("overdue_follow_up_count").notNull().default(0),
+
     // Denormalized lifetime metrics. Maintained by trigger or app code on
     // order create/update; recomputing on every render is too expensive.
     totalSpent: numeric("total_spent", { precision: 14, scale: 2 })
@@ -86,5 +103,7 @@ export const customers = pgTable(
     index("customers_name_idx").on(table.firstName, table.lastName),
     index("customers_lifecycle_idx").on(table.lifecycleStage),
     index("customers_assigned_idx").on(table.assignedToUserId),
+    index("customers_last_ba_idx").on(table.lastBaUserId),
+    index("customers_next_followup_due_idx").on(table.nextFollowUpDueDate),
   ],
 );

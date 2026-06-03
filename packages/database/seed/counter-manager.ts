@@ -118,34 +118,46 @@ async function seedSalesTargets(ctx: Awaited<ReturnType<typeof resolve>>) {
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
     .toISOString()
     .split("T")[0];
+  const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    .toISOString()
+    .split("T")[0];
 
   await db.insert(salesTargets).values([
     {
+      ownerType: "counter",
+      metricKind: "sales_amount",
       storeId: store.id,
       brandId: brand.id,
-      period: "daily",
-      periodDate: todayStr,
-      targetAmount: "12000.00",
+      periodKind: "daily",
+      periodStart: todayStr,
+      periodEnd: todayStr,
+      targetValue: "12000.00",
       currency: "MXN",
       notes: "Objetivo diario YSL Santa Fe",
       createdByUserId: counterManager.id,
     },
     {
+      ownerType: "counter",
+      metricKind: "sales_amount",
       storeId: store.id,
       brandId: brand.id,
-      period: "daily",
-      periodDate: tomorrowStr,
-      targetAmount: "15000.00",
+      periodKind: "daily",
+      periodStart: tomorrowStr,
+      periodEnd: tomorrowStr,
+      targetValue: "15000.00",
       currency: "MXN",
       notes: "Sábado — incremento esperado por tráfico de mall",
       createdByUserId: counterManager.id,
     },
     {
+      ownerType: "counter",
+      metricKind: "sales_amount",
       storeId: store.id,
       brandId: brand.id,
-      period: "monthly",
-      periodDate: firstOfMonth,
-      targetAmount: "320000.00",
+      periodKind: "monthly",
+      periodStart: firstOfMonth,
+      periodEnd: lastOfMonth,
+      targetValue: "320000.00",
       currency: "MXN",
       notes: "Objetivo mensual aprobado por NRM",
       createdByUserId: counterManager.id,

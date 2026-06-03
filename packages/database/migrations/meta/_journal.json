@@ -85,6 +85,20 @@
       "when": 1780428052329,
       "tag": "0011_sturdy_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780500293429,
+      "tag": "0012_last_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780500673585,
+      "tag": "0013_brown_lady_bullseye",
+      "breakpoints": true
     }
   ]
 }

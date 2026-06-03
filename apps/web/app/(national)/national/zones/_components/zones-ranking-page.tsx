@@ -69,7 +69,7 @@ export function ZonesRankingPage() {
   const { from, to } = useMemo(() => rangeToDates(range), [range]);
 
   const { data: zonesData, isLoading } = useZonesRanking(from, to);
-  const { data: storesData } = useStoresRanking(from, to);
+  const { data: storesData } = useStoresRanking({ from, to });
 
   const rows = zonesData?.data ?? [];
   const allStores = storesData?.data ?? [];

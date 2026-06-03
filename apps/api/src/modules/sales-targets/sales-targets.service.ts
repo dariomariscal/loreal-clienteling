@@ -4,8 +4,9 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from "@nestjs/common";
-import { eq, and, gte, lte, sql, sum } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { DATABASE_TOKEN, type Database } from "../../config/database.provider";
 import { salesTargets, orders } from "@loreal/database";
 import { UserRole } from "@loreal/contracts";
@@ -34,51 +35,81 @@ export class SalesTargetsService {
 
     const conditions = [
       ...(scope ? [scope] : []),
+      ...(filters.ownerType ? [eq(salesTargets.ownerType, filters.ownerType)] : []),
       ...(filters.storeId ? [eq(salesTargets.storeId, filters.storeId)] : []),
       ...(filters.brandId ? [eq(salesTargets.brandId, filters.brandId)] : []),
-      ...(filters.period ? [eq(salesTargets.period, filters.period)] : []),
-      ...(filters.from ? [gte(salesTargets.periodDate, filters.from)] : []),
-      ...(filters.to ? [lte(salesTargets.periodDate, filters.to)] : []),
+      ...(filters.ownerUserId
+        ? [eq(salesTargets.ownerUserId, filters.ownerUserId)]
+        : []),
+      ...(filters.metricKind
+        ? [eq(salesTargets.metricKind, filters.metricKind)]
+        : []),
+      ...(filters.periodKind
+        ? [eq(salesTargets.periodKind, filters.periodKind)]
+        : []),
+      ...(filters.from ? [gte(salesTargets.periodStart, filters.from)] : []),
+      ...(filters.to ? [lte(salesTargets.periodEnd, filters.to)] : []),
     ];
 
     return this.db
       .select()
       .from(salesTargets)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(salesTargets.periodDate);
+      .orderBy(salesTargets.periodStart);
   }
 
   async create(data: CreateSalesTargetDto, user: SessionUser) {
-    this.assertCanManageTargets(user, data.storeId, data.brandId);
+    const ownerType = data.ownerType ?? "counter";
+    this.assertCanManageTargets(user, ownerType, data.storeId, data.brandId);
+
+    if (ownerType === "counter" && (!data.storeId || !data.brandId)) {
+      throw new BadRequestException(
+        "Counter-level targets require storeId and brandId",
+      );
+    }
+    if (ownerType === "user" && !data.ownerUserId) {
+      throw new BadRequestException(
+        "User-level targets require ownerUserId",
+      );
+    }
 
     const [target] = await this.db
       .insert(salesTargets)
       .values({
+        ownerType,
         storeId: data.storeId,
         brandId: data.brandId,
-        period: data.period,
-        periodDate: data.periodDate,
-        targetAmount: data.targetAmount.toString(),
+        ownerUserId: data.ownerUserId,
+        metricKind: data.metricKind ?? "sales_amount",
+        periodKind: data.periodKind,
+        periodStart: data.periodStart,
+        periodEnd: data.periodEnd,
+        targetValue: data.targetValue.toString(),
         currency: data.currency ?? "MXN",
+        parentTargetId: data.parentTargetId,
         notes: data.notes,
         createdByUserId: user.id,
       })
       .returning()
       .catch((err: unknown) => {
-        if (err instanceof Error && err.message.includes("sales_targets_counter_period_idx")) {
+        if (err instanceof Error && err.message.includes("targets_owner_idx")) {
           throw new ConflictException(
-            "A target for this counter and period already exists",
+            "A target for this owner / metric / period already exists",
           );
         }
         throw err;
       });
 
     await this.auditService.log(user, "create", "sales_target", target.id, {
+      ownerType,
       storeId: data.storeId,
       brandId: data.brandId,
-      period: data.period,
-      periodDate: data.periodDate,
-      targetAmount: data.targetAmount,
+      ownerUserId: data.ownerUserId,
+      metricKind: data.metricKind,
+      periodKind: data.periodKind,
+      periodStart: data.periodStart,
+      periodEnd: data.periodEnd,
+      targetValue: data.targetValue,
     });
 
     return target;
@@ -91,13 +122,18 @@ export class SalesTargetsService {
       .where(eq(salesTargets.id, id));
     if (!existing) throw new NotFoundException("Sales target not found");
 
-    this.assertCanManageTargets(user, existing.storeId, existing.brandId);
+    this.assertCanManageTargets(
+      user,
+      existing.ownerType,
+      existing.storeId,
+      existing.brandId,
+    );
 
     const [updated] = await this.db
       .update(salesTargets)
       .set({
-        ...(data.targetAmount !== undefined
-          ? { targetAmount: data.targetAmount.toString() }
+        ...(data.targetValue !== undefined
+          ? { targetValue: data.targetValue.toString() }
           : {}),
         ...(data.currency !== undefined ? { currency: data.currency } : {}),
         ...(data.notes !== undefined ? { notes: data.notes } : {}),
@@ -124,7 +160,12 @@ export class SalesTargetsService {
       .where(eq(salesTargets.id, id));
     if (!existing) throw new NotFoundException("Sales target not found");
 
-    this.assertCanManageTargets(user, existing.storeId, existing.brandId);
+    this.assertCanManageTargets(
+      user,
+      existing.ownerType,
+      existing.storeId,
+      existing.brandId,
+    );
 
     await this.db.delete(salesTargets).where(eq(salesTargets.id, id));
     await this.auditService.log(user, "delete", "sales_target", id);
@@ -134,9 +175,7 @@ export class SalesTargetsService {
 
   /**
    * Returns target + actual sales for the user's current counter, for the given
-   * date. Used by the counter manager dashboard hero card. The "actual" sums
-   * orders attributed to the counter (storeId match + brand inferred from the
-   * caller's brandId).
+   * date. Used by the counter manager dashboard hero card.
    */
   async getTodayProgress(
     user: SessionUser,
@@ -153,16 +192,21 @@ export class SalesTargetsService {
 
     const date = opts.date ?? new Date().toISOString().split("T")[0];
 
-    // Today's daily target (if set)
+    // Today's daily counter target (if set). Match by period range so the
+    // caller doesn't have to know whether the configured target is daily or
+    // a monthly one that covers today.
     const [target] = await this.db
       .select()
       .from(salesTargets)
       .where(
         and(
+          eq(salesTargets.ownerType, "counter"),
+          eq(salesTargets.metricKind, "sales_amount"),
           eq(salesTargets.storeId, storeId),
           eq(salesTargets.brandId, brandId),
-          eq(salesTargets.period, "daily"),
-          eq(salesTargets.periodDate, date),
+          eq(salesTargets.periodKind, "daily"),
+          lte(salesTargets.periodStart, date),
+          gte(salesTargets.periodEnd, date),
         ),
       );
 
@@ -187,18 +231,18 @@ export class SalesTargetsService {
       )
       .groupBy(orders.currency);
 
-    const targetAmount = target ? Number(target.targetAmount) : null;
+    const targetValue = target ? Number(target.targetValue) : null;
     const actualAmount = Number(actual?.total ?? 0);
     const attainmentPct =
-      targetAmount && targetAmount > 0
-        ? Math.round((actualAmount / targetAmount) * 100)
+      targetValue && targetValue > 0
+        ? Math.round((actualAmount / targetValue) * 100)
         : null;
 
     return {
       date,
       storeId,
       brandId,
-      targetAmount,
+      targetValue,
       actualAmount,
       attainmentPct,
       currency: target?.currency ?? actual?.currency ?? "MXN",
@@ -206,20 +250,32 @@ export class SalesTargetsService {
   }
 
   /**
-   * Counter Managers can set targets for their own counter (storeId + brandId).
-   * Higher roles can set targets within their scope (admin = anything).
+   * Counter Managers can set targets for their own counter. Higher roles
+   * (area/national/admin) can set targets within their scope. BAs can read
+   * but not write.
    */
   private assertCanManageTargets(
     user: SessionUser,
-    storeId: string,
-    brandId: string,
+    ownerType: string,
+    storeId: string | null | undefined,
+    brandId: string | null | undefined,
   ): void {
     if (user.role === UserRole.ADMIN) return;
     if (user.role === UserRole.NATIONAL_RETAIL_MANAGER) return;
     if (user.role === UserRole.AREA_MANAGER) return;
 
     if (user.role === UserRole.COUNTER_MANAGER) {
-      if (user.storeId !== storeId || user.brandId !== brandId) {
+      if (ownerType !== "counter" && ownerType !== "user") {
+        throw new ForbiddenException(
+          "Counter Manager can only set counter- or user-level targets",
+        );
+      }
+      if (storeId && user.storeId !== storeId) {
+        throw new ForbiddenException(
+          "Counter Manager can only set targets for their own counter",
+        );
+      }
+      if (brandId && user.brandId !== brandId) {
         throw new ForbiddenException(
           "Counter Manager can only set targets for their own counter",
         );

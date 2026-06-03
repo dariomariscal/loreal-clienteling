@@ -7,6 +7,7 @@ export { brands } from "./brands";
 export { brandConfigs } from "./brand-configs";
 export { municipalities } from "./municipalities";
 export { zones, zoneMunicipalities } from "./zones";
+export { retailGroups } from "./retail-groups";
 export { stores } from "./stores";
 export { brandStores } from "./brand-stores";
 

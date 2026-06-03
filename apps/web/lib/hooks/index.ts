@@ -37,3 +37,4 @@ export * from "./use-notifications";
 export * from "./use-notification-preferences";
 export * from "./use-push-subscriptions";
 export * from "./use-scans";
+export * from "./use-retail-groups";

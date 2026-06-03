@@ -55,7 +55,7 @@ export function NationalStoresPage() {
   const [range, setRange] = useState<RangePreset>("7d");
   const { from, to } = useMemo(() => rangeToDates(range), [range]);
 
-  const { data, isLoading } = useStoresRanking(from, to);
+  const { data, isLoading } = useStoresRanking({ from, to });
   const { data: stores } = useStores();
   const { data: zones } = useZones();
 

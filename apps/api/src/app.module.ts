@@ -46,6 +46,7 @@ import { InventoryModule } from "./modules/inventory/inventory.module";
 import { DashboardsModule } from "./modules/dashboards/dashboards.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { ScansModule } from "./modules/scans/scans.module";
+import { RetailGroupsModule } from "./modules/retail-groups/retail-groups.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -105,6 +106,7 @@ import { HealthController } from "./health.controller";
     DashboardsModule,
     NotificationsModule,
     ScansModule,
+    RetailGroupsModule,
   ],
   controllers: [HealthController],
 })

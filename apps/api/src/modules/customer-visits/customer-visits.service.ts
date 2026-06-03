@@ -229,6 +229,7 @@ export class CustomerVisitsService {
         .returning();
 
       await this.customerActivity.touchInteraction(data.customerId, new Date(), tx);
+      await this.customerActivity.recomputeLastBaFromVisit(data.customerId, tx);
 
       await this.auditService.log(user, "start", "customer_visit", v.id, {
         customerId: data.customerId,

@@ -7,36 +7,64 @@ import {
   text,
   timestamp,
   index,
-  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { stores } from "./stores";
 import { brands } from "./brands";
 import { users } from "./auth";
 
 /**
- * Sales targets per counter (storeId + brandId) for a period. A counter manager
- * sees "venta del día vs. objetivo" on the home screen — that is the only
- * reason this table exists. Two grains: `daily` (one row per calendar day) and
- * `monthly` (one row per month, prorated client-side if needed).
+ * Polymorphic targets — Salesforce `Goal` + `GoalMetric` pattern flattened.
+ *
+ * One row per (owner, metric, period). The owner is polymorphic so the same
+ * table covers:
+ *   - counter targets (storeId + brandId) — the original use case
+ *   - BA targets (ownerUserId) — for "objetivo semanal de citas por BA"
+ *   - area / store / national targets
+ *
+ * `metricKind` discriminates what the target measures and which actuals query
+ * runs against it. Adding a new metric (e.g. `follow_ups_completed`) is
+ * config-only; no schema change.
+ *
+ * Table name is kept as `sales_targets` for backward compatibility — original
+ * rows live alongside new polymorphic ones. Use `metricKind` to filter.
  */
 export const salesTargets = pgTable(
   "sales_targets",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    storeId: uuid("store_id")
-      .notNull()
-      .references(() => stores.id),
-    brandId: uuid("brand_id")
-      .notNull()
-      .references(() => brands.id),
 
-    period: varchar("period", { length: 10 }).notNull(),
-    // daily | monthly
-    periodDate: date("period_date").notNull(),
-    // For daily: the calendar day. For monthly: the first day of that month.
+    // ---- Polymorphic owner ----
+    /** counter | user | store | area */
+    ownerType: varchar("owner_type", { length: 20 }).notNull().default("counter"),
+    /** Set when ownerType in ('counter','store','area'). */
+    storeId: uuid("store_id").references(() => stores.id),
+    /** Set when ownerType='counter'. */
+    brandId: uuid("brand_id").references(() => brands.id),
+    /** Set when ownerType='user' (BA / counter_manager / area_manager). */
+    ownerUserId: text("owner_user_id").references(() => users.id),
 
-    targetAmount: numeric("target_amount", { precision: 14, scale: 2 }).notNull(),
-    currency: varchar("currency", { length: 3 }).notNull().default("MXN"),
+    // ---- What this target measures ----
+    /**
+     * sales_amount | sales_units | appointments_booked | appointments_completed
+     * | follow_ups_completed | new_customers | samples_given | visits
+     */
+    metricKind: varchar("metric_kind", { length: 30 })
+      .notNull()
+      .default("sales_amount"),
+
+    // ---- Period ----
+    /** daily | weekly | monthly | quarterly */
+    periodKind: varchar("period_kind", { length: 10 }).notNull().default("monthly"),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+
+    // ---- The target itself ----
+    targetValue: numeric("target_value", { precision: 14, scale: 2 }).notNull(),
+    /** Only meaningful when metricKind is sales_amount / sales_units. */
+    currency: varchar("currency", { length: 3 }).default("MXN"),
+
+    /** Roll-up: a store-level target can have child BA-level rows. */
+    parentTargetId: uuid("parent_target_id"),
 
     notes: text("notes"),
 
@@ -53,12 +81,14 @@ export const salesTargets = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
-    uniqueIndex("sales_targets_counter_period_idx").on(
+    index("targets_owner_idx").on(
+      table.ownerType,
       table.storeId,
       table.brandId,
-      table.period,
-      table.periodDate,
+      table.ownerUserId,
     ),
-    index("sales_targets_store_idx").on(table.storeId),
+    index("targets_period_idx").on(table.periodStart, table.periodEnd),
+    index("targets_metric_kind_idx").on(table.metricKind),
+    index("targets_parent_idx").on(table.parentTargetId),
   ],
 );

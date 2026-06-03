@@ -40,13 +40,13 @@ export function CounterPulseHero({
     );
   }
 
-  const targetAmount = target?.targetAmount ?? null;
+  const targetValue = target?.targetValue ?? null;
   const attainmentPct = target?.attainmentPct;
   const actualAmount = target?.actualAmount ?? totalSales;
   const currencyCode = target?.currency ?? currency;
 
   // No target → show sales only.
-  if (!target || targetAmount === null) {
+  if (!target || targetValue === null) {
     return (
       <section className="rounded-xl border border-border bg-card p-6">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -86,7 +86,7 @@ export function CounterPulseHero({
       <p className="mt-2 font-[family-name:var(--font-heading)] text-3xl font-semibold tabular-nums text-foreground">
         {formatMoney(actualAmount, currencyCode)}{" "}
         <span className="text-xl font-normal text-muted-foreground">
-          / {formatMoney(targetAmount, currencyCode)}
+          / {formatMoney(targetValue, currencyCode)}
         </span>
       </p>
       <div className="mt-4">

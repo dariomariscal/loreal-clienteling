@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { zones } from "./zones";
 import { municipalities } from "./municipalities";
+import { retailGroups } from "./retail-groups";
 import { point } from "./_types";
 
 /**
@@ -31,6 +32,8 @@ export const stores = pgTable(
     displayName: varchar("display_name", { length: 200 }).notNull(),
     /** Retail industry term for the parent department-store chain. */
     banner: varchar("banner", { length: 20 }).notNull(), // liverpool | palacio | owned
+    /** FK to the leaf banner row in retail_groups. `banner` above is the denormalized cache. */
+    retailGroupId: uuid("retail_group_id").references(() => retailGroups.id),
     /** Auto-derived from geom via trigger when null; can be overridden manually. */
     zoneId: uuid("zone_id").references(() => zones.id),
     address: varchar("address", { length: 500 }),

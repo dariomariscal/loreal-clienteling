@@ -9,6 +9,10 @@ import type {
   PipelineResponse,
   VipBreakdownResponse,
   VipCustomersResponse,
+  AppointmentTargetsAnalyticsResponse,
+  FollowUpKPIsResponse,
+  BannersRankingAnalyticsResponse,
+  CustomerExportRow,
 } from "@loreal/contracts";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -61,6 +65,14 @@ export interface BaPerformanceRow {
   registrations: number;
   messagesSent: number;
   recommendations: { total: number; converted: number; conversionRate: number };
+  followUps: {
+    total: number;
+    completed: number;
+    dismissed: number;
+    overdue: number;
+    /** completed / total (0..1). */
+    completionRate: number;
+  };
 }
 
 export interface AppointmentMetrics {
@@ -135,10 +147,20 @@ export const analyticsKeys = {
   customers: ["analytics", "customers"] as const,
   retention: ["analytics", "retention"] as const,
   zoneOverview: (from?: string, to?: string) => ["analytics", "zone-overview", from, to] as const,
-  storesRanking: (from?: string, to?: string) => ["analytics", "stores-ranking", from, to] as const,
+  storesRanking: (filters: StoresRankingFilters) =>
+    ["analytics", "stores-ranking", filters] as const,
+  bannersRanking: (from?: string, to?: string) =>
+    ["analytics", "banners-ranking", from, to] as const,
   counterManagersRanking: (from?: string, to?: string) =>
     ["analytics", "counter-managers-ranking", from, to] as const,
   zonesRanking: (from?: string, to?: string) => ["analytics", "zones-ranking", from, to] as const,
+  appointmentTargets: (
+    from?: string,
+    to?: string,
+    metricKind?: "appointments_booked" | "appointments_completed",
+  ) => ["analytics", "appointment-targets", from, to, metricKind] as const,
+  followUps: (from?: string, to?: string) =>
+    ["analytics", "follow-ups", from, to] as const,
   brandsComparison: (storeId: string, from?: string, to?: string) =>
     ["analytics", "brands-comparison", storeId, from, to] as const,
   salesTargetsAnalytics: (from?: string, to?: string) =>
@@ -278,6 +300,7 @@ export interface StoreRankingRow {
   storeId: string;
   storeName: string;
   zoneId: string | null;
+  banner: string;
   sales: {
     totalAmount: number;
     orderCount: number;
@@ -290,6 +313,14 @@ export interface StoreRankingRow {
     converted: number;
     conversionPct: number | null;
   };
+}
+
+/** Filters for `useStoresRanking`. */
+export interface StoresRankingFilters {
+  from?: string;
+  to?: string;
+  banner?: string;
+  retailGroupId?: string;
 }
 
 export interface CounterManagerRankingRow {
@@ -345,15 +376,75 @@ export function useZoneOverview(from?: string, to?: string) {
   });
 }
 
-export function useStoresRanking(from?: string, to?: string) {
+export function useStoresRanking(filters: StoresRankingFilters = {}) {
+  const params: Record<string, string> = {};
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  if (filters.banner) params.banner = filters.banner;
+  if (filters.retailGroupId) params.retailGroupId = filters.retailGroupId;
+  return useQuery({
+    queryKey: analyticsKeys.storesRanking(filters),
+    queryFn: () =>
+      api.get<{ period: { from: string; to: string }; data: StoreRankingRow[] }>(
+        "/analytics/stores-ranking",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+/**
+ * Top Franquicias — ranking aggregated by `stores.banner`. Visible to
+ * area_manager / national_retail_manager / admin.
+ */
+export function useBannersRanking(from?: string, to?: string) {
   const params: Record<string, string> = {};
   if (from) params.from = from;
   if (to) params.to = to;
   return useQuery({
-    queryKey: analyticsKeys.storesRanking(from, to),
+    queryKey: analyticsKeys.bannersRanking(from, to),
     queryFn: () =>
-      api.get<{ period: { from: string; to: string }; data: StoreRankingRow[] }>(
-        "/analytics/stores-ranking",
+      api.get<BannersRankingAnalyticsResponse>(
+        "/analytics/banners-ranking",
+        Object.keys(params).length ? params : undefined,
+      ),
+  });
+}
+
+/**
+ * Appointment targets vs actual (Salesforce Goal pattern). `metricKind`
+ * switches between booked and completed appointments.
+ */
+export function useAppointmentTargetsAnalytics(
+  from?: string,
+  to?: string,
+  metricKind: "appointments_booked" | "appointments_completed" = "appointments_booked",
+) {
+  const params: Record<string, string> = { metricKind };
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.appointmentTargets(from, to, metricKind),
+    queryFn: () =>
+      api.get<AppointmentTargetsAnalyticsResponse>(
+        "/analytics/appointment-targets",
+        params,
+      ),
+  });
+}
+
+/**
+ * Follow-up KPIs (Tulip 5-bucket pattern). Scope: BA sees self, manager+ sees
+ * their accessible BAs.
+ */
+export function useFollowUpKPIs(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return useQuery({
+    queryKey: analyticsKeys.followUps(from, to),
+    queryFn: () =>
+      api.get<FollowUpKPIsResponse>(
+        "/analytics/follow-ups",
         Object.keys(params).length ? params : undefined,
       ),
   });
@@ -497,6 +588,17 @@ export function useVipCustomers(limit?: number) {
   });
 }
 
+export interface AnalyticsExportParams {
+  type: "customers" | "sales" | "appointments" | "agenda-report" | string;
+  format?: "csv" | "xlsx";
+  from?: string;
+  to?: string;
+  /** Filter customer export to a specific banner (`stores.banner`). */
+  banner?: string;
+  /** Filter to clients whose `lastBaUserId` matches. */
+  baUserId?: string;
+}
+
 export function useAnalyticsExport() {
   return useMutation({
     mutationFn: async ({
@@ -504,15 +606,14 @@ export function useAnalyticsExport() {
       format = "csv",
       from,
       to,
-    }: {
-      type: string;
-      format?: "csv" | "xlsx";
-      from?: string;
-      to?: string;
-    }) => {
+      banner,
+      baUserId,
+    }: AnalyticsExportParams) => {
       const params = new URLSearchParams({ type, format });
       if (from) params.set("from", from);
       if (to) params.set("to", to);
+      if (banner) params.set("banner", banner);
+      if (baUserId) params.set("baUserId", baUserId);
 
       const url = `${API_URL}/analytics/export?${params.toString()}`;
       const res = await fetch(url, { credentials: "include" });
@@ -527,5 +628,28 @@ export function useAnalyticsExport() {
       a.click();
       URL.revokeObjectURL(downloadUrl);
     },
+  });
+}
+
+/**
+ * JSON variant of the customers export. Lets the UI preview the rows in a
+ * table before downloading the CSV/XLSX. The backend returns the same wide
+ * row shape as the file export.
+ */
+export function useCustomerExportPreview(filters: {
+  from?: string;
+  to?: string;
+  banner?: string;
+  baUserId?: string;
+} = {}) {
+  const params: Record<string, string> = { type: "customers", format: "json" };
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  if (filters.banner) params.banner = filters.banner;
+  if (filters.baUserId) params.baUserId = filters.baUserId;
+
+  return useQuery({
+    queryKey: ["analytics", "export", "customers", filters] as const,
+    queryFn: () => api.get<CustomerExportRow[]>("/analytics/export", params),
   });
 }

@@ -30,9 +30,22 @@ const COLUMN_LABELS: Record<string, string> = {
   gender: "Género",
   birthDate: "Fecha de nacimiento",
   lifecycleSegment: "Segmento",
+  loyaltyTier: "Tier de lealtad",
+  totalSpent: "Gasto total",
+  ordersCount: "Pedidos",
   customerSince: "Cliente desde",
   lastContactAt: "Último contacto",
   lastTransactionAt: "Última transacción",
+  lastVisitAt: "Última visita",
+  lastBaUserId: "ID último BA",
+  lastBaName: "Último BA",
+  lastFollowUpType: "Último seguimiento",
+  lastFollowUpCompletedAt: "Fecha último seguimiento",
+  nextFollowUpType: "Tipo de seguimiento",
+  nextFollowUpDueDate: "Fecha próximo seguimiento",
+  openFollowUpCount: "Seguimientos abiertos",
+  overdueFollowUpCount: "Seguimientos vencidos",
+  banner: "Franquicia",
   totalAmount: "Monto total",
   purchasedAt: "Fecha de compra",
   source: "Fuente",
@@ -267,12 +280,70 @@ export class AnalyticsController {
   @Roles(["area_manager", "national_retail_manager", "admin"])
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "retailGroupId", type: String, required: false })
   getStoresRanking(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Query("banner") banner: string | undefined,
+    @Query("retailGroupId") retailGroupId: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.zoneManagement.getStoresRanking(
+      session.user,
+      this.parseDateRange(from, to),
+      { banner, retailGroupId },
+    );
+  }
+
+  @Get("banners-ranking")
+  @Roles(["area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  getBannersRanking(
     @Query("from") from: string | undefined,
     @Query("to") to: string | undefined,
     @Session() session: UserSession,
   ) {
-    return this.analyticsService.zoneManagement.getStoresRanking(
+    return this.analyticsService.zoneManagement.getBannersRanking(
+      session.user,
+      this.parseDateRange(from, to),
+    );
+  }
+
+  @Get("appointment-targets")
+  @Roles(["counter_manager", "area_manager", "national_retail_manager", "admin"])
+  @ApiQuery({ name: "from", type: String, required: false })
+  @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({
+    name: "metricKind",
+    enum: ["appointments_booked", "appointments_completed"],
+    required: false,
+  })
+  getAppointmentTargets(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Query("metricKind") metricKind: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    const kind =
+      metricKind === "appointments_completed"
+        ? "appointments_completed"
+        : "appointments_booked";
+    return this.analyticsService.salesTargets.getAppointmentTargetsVsActual(
+      session.user,
+      this.parseDateRange(from, to),
+      kind,
+    );
+  }
+
+  @Get("follow-ups")
+  getFollowUpKPIs(
+    @Query("from") from: string | undefined,
+    @Query("to") to: string | undefined,
+    @Session() session: UserSession,
+  ) {
+    return this.analyticsService.performance.getFollowUpKPIs(
       session.user,
       this.parseDateRange(from, to),
     );
@@ -414,11 +485,15 @@ export class AnalyticsController {
   @ApiQuery({ name: "format", enum: ["json", "csv", "xlsx"], required: false })
   @ApiQuery({ name: "from", type: String, required: false })
   @ApiQuery({ name: "to", type: String, required: false })
+  @ApiQuery({ name: "banner", type: String, required: false })
+  @ApiQuery({ name: "baUserId", type: String, required: false })
   async exportData(
     @Query("type") type: string,
     @Query("format") format: string | undefined,
     @Query("from") from: string | undefined,
     @Query("to") to: string | undefined,
+    @Query("banner") banner: string | undefined,
+    @Query("baUserId") baUserId: string | undefined,
     @Session() session: UserSession,
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -428,11 +503,16 @@ export class AnalyticsController {
       const report = await this.analyticsService.appointments.getAgendaReport(
         session.user,
         this.parseDateRange(from, to),
-        { limit: 10000 },
+        { limit: 10000, staffUserId: baUserId },
       );
       data = report.data;
     } else {
-      data = (await this.analyticsService.exportData(type, session.user, this.parseDateRange(from, to))) as Record<string, any>[];
+      data = (await this.analyticsService.exportData(
+        type,
+        session.user,
+        this.parseDateRange(from, to),
+        { banner, baUserId },
+      )) as Record<string, any>[];
     }
 
     if (format === "xlsx") {

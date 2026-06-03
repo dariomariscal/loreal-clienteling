@@ -13,6 +13,7 @@ import {
   stores,
   brands,
   brandStores,
+  retailGroups,
   zones,
 } from "@loreal/database";
 import { UserRole } from "@loreal/contracts";
@@ -193,8 +194,15 @@ export class ZoneAnalyticsService {
   /**
    * Per-store ranking for the user's accessible stores. Lets an Area / National
    * Retail Manager compare every store in their scope side-by-side.
+   *
+   * Optional filters allow narrowing by `banner` (the denormalized store column)
+   * or `retailGroupId` (the leaf in the retail_groups hierarchy).
    */
-  async getStoresRanking(user: SessionUser, range?: DateRange) {
+  async getStoresRanking(
+    user: SessionUser,
+    range?: DateRange,
+    filters?: { banner?: string; retailGroupId?: string },
+  ) {
     const storeIds = await this.scopeService.getAccessibleStoreIds(user);
     const isAdmin = user.role === UserRole.ADMIN;
     const { from, to } = getDefaultDateRange(range);
@@ -203,7 +211,28 @@ export class ZoneAnalyticsService {
       return { period: { from, to }, data: [] };
     }
 
-    const storeFilter = buildStoreScopeFilter(isAdmin, storeIds, orders.storeId);
+    // Pre-filter stores by banner / retailGroupId if provided. Used both
+    // to scope the store list query and to filter aggregates.
+    let filteredStoreIds = storeIds;
+    if (filters?.banner || filters?.retailGroupId) {
+      const conds: any[] = [];
+      if (filters.banner) conds.push(eq(stores.banner, filters.banner));
+      if (filters.retailGroupId) conds.push(eq(stores.retailGroupId, filters.retailGroupId));
+      if (!isAdmin) conds.push(inArray(stores.id, storeIds));
+      const matchingStores = await this.db
+        .select({ id: stores.id })
+        .from(stores)
+        .where(and(...conds));
+      filteredStoreIds = matchingStores.map((s) => s.id);
+      if (filteredStoreIds.length === 0) {
+        return { period: { from, to }, data: [] };
+      }
+    }
+
+    const storeFilter =
+      filters?.banner || filters?.retailGroupId
+        ? inArray(orders.storeId, filteredStoreIds)
+        : buildStoreScopeFilter(isAdmin, storeIds, orders.storeId);
     const orderConds: any[] = [
       gte(orders.processedAt, from),
       lte(orders.processedAt, to),
@@ -221,7 +250,10 @@ export class ZoneAnalyticsService {
       .where(and(...orderConds))
       .groupBy(orders.storeId);
 
-    const custFilter = buildStoreScopeFilter(isAdmin, storeIds, customers.signupStoreId);
+    const custFilter =
+      filters?.banner || filters?.retailGroupId
+        ? inArray(customers.signupStoreId, filteredStoreIds)
+        : buildStoreScopeFilter(isAdmin, storeIds, customers.signupStoreId);
     const newCustConds: any[] = [
       gte(customers.enrolledAt, from),
       lte(customers.enrolledAt, to),
@@ -236,7 +268,10 @@ export class ZoneAnalyticsService {
       .where(and(...newCustConds))
       .groupBy(customers.signupStoreId);
 
-    const recFilter = buildStoreScopeFilter(isAdmin, storeIds, recommendations.storeId);
+    const recFilter =
+      filters?.banner || filters?.retailGroupId
+        ? inArray(recommendations.storeId, filteredStoreIds)
+        : buildStoreScopeFilter(isAdmin, storeIds, recommendations.storeId);
     const recConds: any[] = [
       gte(recommendations.recommendedAt, from),
       lte(recommendations.recommendedAt, to),
@@ -253,16 +288,16 @@ export class ZoneAnalyticsService {
       .groupBy(recommendations.storeId);
 
     // Use the resolved storeIds for non-admin; for admin pull every store
-    let storeRows: { id: string; displayName: string; zoneId: string | null }[];
-    if (isAdmin) {
+    let storeRows: { id: string; displayName: string; zoneId: string | null; banner: string }[];
+    if (isAdmin && !filters?.banner && !filters?.retailGroupId) {
       storeRows = await this.db
-        .select({ id: stores.id, displayName: stores.displayName, zoneId: stores.zoneId })
+        .select({ id: stores.id, displayName: stores.displayName, zoneId: stores.zoneId, banner: stores.banner })
         .from(stores);
     } else {
       storeRows = await this.db
-        .select({ id: stores.id, displayName: stores.displayName, zoneId: stores.zoneId })
+        .select({ id: stores.id, displayName: stores.displayName, zoneId: stores.zoneId, banner: stores.banner })
         .from(stores)
-        .where(inArray(stores.id, storeIds));
+        .where(inArray(stores.id, filteredStoreIds));
     }
 
     const salesMap = new Map(salesByStore.map((r) => [r.storeId, r]));
@@ -279,6 +314,7 @@ export class ZoneAnalyticsService {
         storeId: s.id,
         storeName: s.displayName,
         zoneId: s.zoneId,
+        banner: s.banner,
         sales: {
           totalAmount,
           orderCount,
@@ -292,6 +328,111 @@ export class ZoneAnalyticsService {
           conversionPct:
             total > 0 ? Math.round(((recs?.converted ?? 0) / total) * 100) : null,
         },
+      };
+    });
+
+    data.sort((a, b) => b.sales.totalAmount - a.sales.totalAmount);
+
+    return { period: { from, to }, data };
+  }
+
+  /**
+   * Top Franquicias — ranking aggregated by `banner` (the denormalized
+   * `stores.banner` column). Mirrors getZonesRanking but groups by retail
+   * banner. Visible to area / national / admin.
+   */
+  async getBannersRanking(user: SessionUser, range?: DateRange) {
+    if (
+      user.role !== UserRole.AREA_MANAGER &&
+      user.role !== UserRole.NATIONAL_RETAIL_MANAGER &&
+      user.role !== UserRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        "Banners ranking is restricted to area_manager, national_retail_manager and admin",
+      );
+    }
+
+    const storeIds = await this.scopeService.getAccessibleStoreIds(user);
+    const isAdmin = user.role === UserRole.ADMIN;
+    const { from, to } = getDefaultDateRange(range);
+
+    if (!isAdmin && storeIds.length === 0) {
+      return { period: { from, to }, data: [] };
+    }
+
+    const orderConds: any[] = [
+      gte(orders.processedAt, from),
+      lte(orders.processedAt, to),
+    ];
+    if (!isAdmin) orderConds.push(inArray(orders.storeId, storeIds));
+
+    const salesByBanner = await this.db
+      .select({
+        banner: stores.banner,
+        totalAmount: sql<string>`coalesce(sum(${orders.totalPrice}), 0)`,
+        orderCount: count(),
+        uniqueCustomers: sql<number>`count(distinct ${orders.customerId})::int`,
+      })
+      .from(orders)
+      .innerJoin(stores, eq(stores.id, orders.storeId))
+      .where(and(...orderConds))
+      .groupBy(stores.banner);
+
+    const newConds: any[] = [
+      gte(customers.enrolledAt, from),
+      lte(customers.enrolledAt, to),
+    ];
+    if (!isAdmin) newConds.push(inArray(customers.signupStoreId, storeIds));
+
+    const newByBanner = await this.db
+      .select({
+        banner: stores.banner,
+        count: count(),
+      })
+      .from(customers)
+      .innerJoin(stores, eq(stores.id, customers.signupStoreId))
+      .where(and(...newConds))
+      .groupBy(stores.banner);
+
+    const storeCountConds: any[] = [];
+    if (!isAdmin) storeCountConds.push(inArray(stores.id, storeIds));
+    const storeCountByBanner = await this.db
+      .select({ banner: stores.banner, count: count() })
+      .from(stores)
+      .where(storeCountConds.length ? and(...storeCountConds) : undefined)
+      .groupBy(stores.banner);
+
+    // Resolve banner pretty names from retail_groups when available
+    const groupRows = await this.db
+      .select({ code: retailGroups.code, name: retailGroups.name })
+      .from(retailGroups)
+      .where(eq(retailGroups.kind, "banner"));
+    const groupNames = new Map(groupRows.map((g) => [g.code, g.name]));
+
+    const salesMap = new Map(salesByBanner.map((r) => [r.banner, r]));
+    const newMap = new Map(newByBanner.map((r) => [r.banner, r.count]));
+    const countMap = new Map(storeCountByBanner.map((r) => [r.banner, r.count]));
+
+    const allBanners = new Set<string>([
+      ...salesByBanner.map((r) => r.banner),
+      ...storeCountByBanner.map((r) => r.banner),
+    ]);
+
+    const data = Array.from(allBanners).map((banner) => {
+      const sales = salesMap.get(banner);
+      const totalAmount = Number(sales?.totalAmount ?? 0);
+      const orderCount = sales?.orderCount ?? 0;
+      return {
+        banner,
+        bannerName: groupNames.get(banner) ?? banner,
+        storeCount: countMap.get(banner) ?? 0,
+        sales: {
+          totalAmount,
+          orderCount,
+          uniqueCustomers: sales?.uniqueCustomers ?? 0,
+          avgTicket: orderCount > 0 ? totalAmount / orderCount : 0,
+        },
+        newCustomers: newMap.get(banner) ?? 0,
       };
     });
 

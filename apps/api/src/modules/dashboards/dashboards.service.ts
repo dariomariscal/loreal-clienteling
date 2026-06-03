@@ -10,6 +10,7 @@ import {
   approvalRequests,
   storeEvents,
   inventoryLevels,
+  suggestedActions,
   users,
   stores,
 } from "@loreal/database";
@@ -66,6 +67,7 @@ export class DashboardsService {
       todaySnapshot,
       apptBreakdown,
       sampleBreakdown,
+      followUpBreakdown,
       pendingApprovals,
       upcomingEvents,
       stockAlertCount,
@@ -83,6 +85,7 @@ export class DashboardsService {
       this.getDaySnapshot(storeId, dayStart, dayEnd),
       this.getAppointmentBreakdown(storeId, dayStart, dayEnd),
       this.getSampleBreakdown(storeId, dayStart, dayEnd),
+      this.getFollowUpBreakdown(storeId, dayStart, dayEnd),
       this.getPendingApprovalCount(storeId),
       this.getUpcomingEvents(storeId, dayStart),
       this.getStockAlertCount(storeId),
@@ -117,6 +120,7 @@ export class DashboardsService {
         ...todaySnapshot,
         appointments: apptBreakdown,
         samples: sampleBreakdown,
+        followUps: followUpBreakdown,
       },
       team: {
         roster,
@@ -249,6 +253,43 @@ export class DashboardsService {
     return {
       delivered: agg?.delivered ?? 0,
       converted: agg?.converted ?? 0,
+    };
+  }
+
+  /**
+   * Follow-ups completed today + still-open / overdue counts. Joins users so
+   * we can scope to BAs in this store (suggested_actions has no storeId).
+   */
+  private async getFollowUpBreakdown(
+    storeId: string,
+    from: Date,
+    to: Date,
+  ) {
+    const [completedRow] = await this.db
+      .select({ count: count() })
+      .from(suggestedActions)
+      .innerJoin(users, eq(users.id, suggestedActions.assignedToUserId))
+      .where(
+        and(
+          eq(users.storeId, storeId),
+          gte(suggestedActions.completedAt, from),
+          lte(suggestedActions.completedAt, to),
+        ),
+      );
+
+    const [openRow] = await this.db
+      .select({
+        open: sql<number>`count(*) filter (where ${suggestedActions.completedAt} is null and ${suggestedActions.dismissedAt} is null)::int`,
+        overdue: sql<number>`count(*) filter (where ${suggestedActions.completedAt} is null and ${suggestedActions.dismissedAt} is null and ${suggestedActions.dueDate} < current_date)::int`,
+      })
+      .from(suggestedActions)
+      .innerJoin(users, eq(users.id, suggestedActions.assignedToUserId))
+      .where(eq(users.storeId, storeId));
+
+    return {
+      completedToday: completedRow?.count ?? 0,
+      open: openRow?.open ?? 0,
+      overdue: openRow?.overdue ?? 0,
     };
   }
 

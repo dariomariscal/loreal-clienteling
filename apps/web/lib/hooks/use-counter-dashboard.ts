@@ -28,6 +28,12 @@ export interface CounterPulseSnapshot {
     delivered: number;
     converted: number;
   };
+  /** Follow-up activity for the day (Tulip pattern). */
+  followUps: {
+    completedToday: number;
+    open: number;
+    overdue: number;
+  };
 }
 
 /**
@@ -120,6 +126,7 @@ export interface ZoneRankingRow {
   storeId: string;
   storeName: string;
   zoneId: string | null;
+  banner: string;
   sales: {
     totalAmount: number;
     orderCount: number;

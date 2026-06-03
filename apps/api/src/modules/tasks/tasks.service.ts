@@ -10,6 +10,7 @@ import {
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
 import { AuditService } from "../../common/services/audit.service";
+import { CustomerActivityService } from "../../common/services/customer-activity.service";
 import type {
   ListTasksQueryDto,
   SnoozeTaskDto,
@@ -22,6 +23,8 @@ export class TasksService {
     @Inject(DATABASE_TOKEN) private db: Database,
     @Inject(ScopeService) private scopeService: ScopeService,
     @Inject(AuditService) private auditService: AuditService,
+    @Inject(CustomerActivityService)
+    private customerActivity: CustomerActivityService,
   ) {}
 
   async list(query: ListTasksQueryDto, user: SessionUser) {
@@ -155,6 +158,9 @@ export class TasksService {
       .where(eq(suggestedActions.id, id))
       .returning();
 
+    await this.customerActivity.recomputeFollowUpFields(task.customerId);
+    await this.customerActivity.touchInteraction(task.customerId);
+
     await this.auditService.log(user, "complete", "task", id, {
       customerId: task.customerId,
       triggerType: task.triggerType,
@@ -170,6 +176,8 @@ export class TasksService {
       .set({ dismissedAt: new Date() })
       .where(eq(suggestedActions.id, id))
       .returning();
+
+    await this.customerActivity.recomputeFollowUpFields(task.customerId);
 
     await this.auditService.log(user, "dismiss", "task", id, {
       customerId: task.customerId,
@@ -187,6 +195,8 @@ export class TasksService {
       .where(eq(suggestedActions.id, id))
       .returning();
 
+    await this.customerActivity.recomputeFollowUpFields(task.customerId);
+
     await this.auditService.log(user, "snooze", "task", id, {
       customerId: task.customerId,
       newDueDate: data.dueDate,
@@ -196,12 +206,14 @@ export class TasksService {
   }
 
   async reopen(id: string, user: SessionUser) {
-    await this.findOne(id, user);
+    const task = await this.findOne(id, user);
     const [updated] = await this.db
       .update(suggestedActions)
       .set({ dismissedAt: null, completedAt: null })
       .where(eq(suggestedActions.id, id))
       .returning();
+
+    await this.customerActivity.recomputeFollowUpFields(task.customerId);
 
     return updated;
   }

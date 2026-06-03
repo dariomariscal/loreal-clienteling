@@ -39,7 +39,7 @@ function rangeToDates(range: RangePreset): { from: string; to: string } {
 export function StoresRankingPage() {
   const [range, setRange] = useState<RangePreset>("7d");
   const { from, to } = useMemo(() => rangeToDates(range), [range]);
-  const { data, isLoading } = useStoresRanking(from, to);
+  const { data, isLoading } = useStoresRanking({ from, to });
 
   const rows = data?.data ?? [];
 
