@@ -14,6 +14,8 @@ import {
   samples,
   products,
   appointments,
+  brands,
+  stores,
 } from "@loreal/database";
 import type { SessionUser } from "../../common/types/session";
 import { ScopeService } from "../../common/services/scope.service";
@@ -63,33 +65,78 @@ export class OrdersService {
       ...(storeScope ? [storeScope] : []),
     ];
 
+    // Enrich orders with store name in one query — the BA reads the "where"
+    // alongside the "when", and it cuts a roundtrip per row.
     const rows = await this.db
-      .select()
+      .select({
+        order: orders,
+        storeName: stores.displayName,
+      })
       .from(orders)
+      .leftJoin(stores, eq(stores.id, orders.storeId))
       .where(and(...conditions))
       .orderBy(orders.processedAt);
 
     if (rows.length === 0) return [];
 
-    // Fetch all line items for these orders in a single query
-    const orderIds = rows.map((o) => o.id);
+    // Fetch all line items joined with product + brand so the UI gets the
+    // hero image and brand badge without per-row roundtrips. The line_items
+    // table snapshots title/variantTitle at purchase time (so historical
+    // renames don't corrupt the receipt), but image and brand belong to the
+    // current product row — that's fine for a clienteling timeline.
+    const orderIds = rows.map((r) => r.order.id);
     const allItems = await this.db
-      .select()
+      .select({
+        item: lineItems,
+        productImages: products.images,
+        brandDisplayName: brands.displayName,
+        brandCode: brands.code,
+      })
       .from(lineItems)
+      .innerJoin(products, eq(products.id, lineItems.productId))
+      .innerJoin(brands, eq(brands.id, products.brandId))
       .where(inArray(lineItems.orderId, orderIds));
 
-    // Group items by orderId
-    const itemsByOrder = new Map<string, typeof allItems>();
-    for (const item of allItems) {
-      const existing = itemsByOrder.get(item.orderId) ?? [];
-      existing.push(item);
-      itemsByOrder.set(item.orderId, existing);
+    const itemsByOrder = new Map<
+      string,
+      Array<{
+        id: string;
+        orderId: string;
+        productId: string;
+        sku: string;
+        title: string;
+        variantTitle: string | null;
+        quantity: number;
+        price: string;
+        totalDiscount: string;
+        productImageUrl: string | null;
+        brand: { code: string; displayName: string };
+      }>
+    >();
+    for (const row of allItems) {
+      const existing = itemsByOrder.get(row.item.orderId) ?? [];
+      existing.push({
+        ...row.item,
+        productImageUrl: this.firstProductImage(row.productImages),
+        brand: {
+          code: row.brandCode,
+          displayName: row.brandDisplayName,
+        },
+      });
+      itemsByOrder.set(row.item.orderId, existing);
     }
 
-    return rows.map((order) => ({
+    return rows.map(({ order, storeName }) => ({
       ...order,
+      storeName,
       items: itemsByOrder.get(order.id) ?? [],
     }));
+  }
+
+  private firstProductImage(images: unknown): string | null {
+    if (!Array.isArray(images) || images.length === 0) return null;
+    const first = images[0];
+    return typeof first === "string" && first.length > 0 ? first : null;
   }
 
   async findOne(id: string) {

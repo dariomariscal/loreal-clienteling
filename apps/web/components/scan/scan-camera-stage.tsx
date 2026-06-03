@@ -24,7 +24,11 @@ import {
   type ScanLookupResult,
 } from "@/lib/hooks/use-scans";
 import { useCreateSample } from "@/lib/hooks/use-customer-detail";
-import { useAddWishlistItem, useCustomerWishlists } from "@/lib/hooks/use-wishlists";
+import {
+  useAddWishlistItem,
+  useCreateWishlist,
+  useCustomerWishlists,
+} from "@/lib/hooks/use-wishlists";
 import type { ScanActionType } from "@loreal/contracts";
 
 /**
@@ -52,13 +56,44 @@ interface ScanCameraStageProps {
     id: string;
     firstName: string;
     lastName?: string | null;
+    phone?: string | null;
     avatarUrl?: string | null;
   } | null;
+  /**
+   * When true and a customer is bound, every successful scan is silently
+   * added to that customer's wishlist (auto-provisioning a default wishlist
+   * if needed). The product sheet still opens for additional actions.
+   *
+   * The BA launches /advisor/scan from a customer profile with this flag, so
+   * "escanear con la clienta enfrente" is one-tap per product.
+   */
+  autoAddToWishlist?: boolean;
+  /**
+   * When provided, the `add_to_cart` action delegates to this callback (e.g.
+   * the customer-scoped CartProvider that the profile shell owns) instead of
+   * showing the "POS not connected" toast. Returns the running cart count so
+   * we can echo it in the success toast.
+   */
+  onAddToCart?: (item: ScanCartItem) => number;
+}
+
+/** Slim shape the scanner can produce from a ScanLookupResult. */
+export interface ScanCartItem {
+  productId: string;
+  sku: string;
+  title: string;
+  /** String to match the catalog's `price: string` convention. */
+  price: string;
+  image: string | null;
 }
 
 const MAX_RECENT_ITEMS = 6;
 
-export function ScanCameraStage({ activeCustomer }: ScanCameraStageProps) {
+export function ScanCameraStage({
+  activeCustomer,
+  autoAddToWishlist = false,
+  onAddToCart,
+}: ScanCameraStageProps) {
   const router = useRouter();
 
   // Lookup machinery
@@ -67,6 +102,7 @@ export function ScanCameraStage({ activeCustomer }: ScanCameraStageProps) {
   const setScanAction = useSetScanAction();
   const createSample = useCreateSample();
   const addWishlistItem = useAddWishlistItem();
+  const createWishlist = useCreateWishlist();
   const customerWishlists = useCustomerWishlists(activeCustomer?.id ?? "");
 
   // Sheet state
@@ -107,19 +143,64 @@ export function ScanCameraStage({ activeCustomer }: ScanCameraStageProps) {
       });
       setStatus("ok");
       // Persist scan event (best-effort; never blocks the UI).
-      createScanEvent
+      const scanEventPromise = createScanEvent
         .mutateAsync({
           variantId: result.variant.id,
           customerId: activeCustomer?.id,
         })
-        .then((evt) => setCurrentScanEventId(evt.id))
-        .catch(() => {
-          // The scan still happened; we just can't reconcile actionTaken
-          // later. The Today strip will undercount — acceptable.
-        });
+        .then((evt) => {
+          setCurrentScanEventId(evt.id);
+          return evt.id as string | null;
+        })
+        .catch(() => null);
       pushRecent(result);
+
+      if (autoAddToWishlist && activeCustomer) {
+        // Fire-and-forget: the scan-sheet stays open for more actions, but
+        // the wishlist add is the implicit primary intent when the BA
+        // launched the scanner from a specific customer profile.
+        autoAddScanToWishlist(result, scanEventPromise).catch(() => undefined);
+      }
     } catch (err) {
       handleLookupError(err);
+    }
+  }
+
+  async function autoAddScanToWishlist(
+    result: ScanLookupResult,
+    scanEventPromise: Promise<string | null>,
+  ) {
+    if (!activeCustomer) return;
+    try {
+      let wl = customerWishlists.data?.[0];
+      if (!wl) {
+        wl = await createWishlist.mutateAsync({
+          customerId: activeCustomer.id,
+          name: "Wishlist",
+        });
+      }
+      const added = await addWishlistItem.mutateAsync({
+        wishlistId: wl.id,
+        productId: result.product.id,
+        variantId: result.variant.id,
+      });
+      // Reconcile the scan event with the action we just took so the Today
+      // strip's conversion count stays honest.
+      const evtId = await scanEventPromise;
+      if (evtId) {
+        setScanAction
+          .mutateAsync({ id: evtId, actionTaken: "add_to_wishlist" })
+          .catch(() => undefined);
+      }
+      if (added.alreadyExists) {
+        toast.info(`Ya estaba en la wishlist de ${activeCustomer.firstName}`);
+      } else {
+        toast.success(`Agregado a wishlist de ${activeCustomer.firstName}`);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "No pudimos agregar a wishlist";
+      toast.error(message);
     }
   }
 
@@ -184,9 +265,9 @@ export function ScanCameraStage({ activeCustomer }: ScanCameraStageProps) {
     }
 
     try {
-      await performAction(action, result);
-      toast.success("Listo");
-      setSheetOpen(false);
+      const outcome = await performAction(action, result);
+      if (outcome?.toast) toast.success(outcome.toast);
+      if (outcome?.closeSheet !== false) setSheetOpen(false);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "No pudimos completar la acción";
@@ -194,16 +275,41 @@ export function ScanCameraStage({ activeCustomer }: ScanCameraStageProps) {
     }
   }
 
+  /** Pretty name for toasts/CTA copy when a customer is bound. */
+  function customerLabel(): string {
+    if (!activeCustomer) return "";
+    return activeCustomer.firstName;
+  }
+
   async function performAction(
     action: ScanActionType,
     result: ScanLookupResult,
-  ): Promise<void> {
+  ): Promise<{ toast?: string; closeSheet?: boolean } | void> {
+    // Counter-mode actions — work without a customer.
+    if (action === "viewed_only") {
+      // The "attach to customer" CTA. Jump to the customer list with a
+      // query param so the list can offer an "attach scan" affordance.
+      const params = new URLSearchParams({
+        attachVariant: result.variant.id,
+        attachSku: result.variant.sku,
+      });
+      router.push(`/advisor/customers?${params.toString()}`);
+      return { closeSheet: true };
+    }
+    if (action === "reserve" && !activeCustomer) {
+      // Counter-mode reserve — for now, defer to the catalog flow. We could
+      // open a store-picker sheet here once that exists.
+      toast.info("Próximamente: reservar desde otra tienda");
+      return { closeSheet: false };
+    }
+
     if (!activeCustomer) {
-      // Without a customer, the only actions the API ever returns are
-      // viewed_only / attribute-to-customer — both are no-ops here.
+      // Any other action without a customer is a no-op the API shouldn't
+      // have emitted; bail silently rather than throwing.
       return;
     }
 
+    const who = customerLabel();
     switch (action) {
       case "sample_logged": {
         await createSample.mutateAsync({
@@ -211,39 +317,110 @@ export function ScanCameraStage({ activeCustomer }: ScanCameraStageProps) {
           productId: result.product.id,
           variantId: result.variant.id,
         });
-        return;
+        return { toast: `Muestra registrada para ${who}` };
       }
       case "add_to_wishlist": {
-        const wl = customerWishlists.data?.[0];
+        let wl = customerWishlists.data?.[0];
         if (!wl) {
-          // No wishlist yet — defer to the profile flow. The toast tells the
-          // BA where to go; the sheet stays open.
-          throw new Error("Aún no tiene wishlist. Créala desde su perfil.");
+          // Auto-provision a default wishlist on first add. Saves the BA a
+          // detour to the profile and matches the Sephora/Tulip pattern.
+          wl = await createWishlist.mutateAsync({
+            customerId: activeCustomer.id,
+            name: "Wishlist",
+          });
         }
-        await addWishlistItem.mutateAsync({
+        const added = await addWishlistItem.mutateAsync({
           wishlistId: wl.id,
           productId: result.product.id,
           variantId: result.variant.id,
         });
-        return;
+        return {
+          toast: added.alreadyExists
+            ? `Ya estaba en la wishlist de ${who}`
+            : `Agregado a wishlist de ${who}`,
+        };
       }
-      case "add_to_cart":
-      case "reserve":
-      case "send_whatsapp":
-      case "shown_to_customer":
-      case "viewed_only": {
-        // These either navigate the BA to a richer flow (cart/whatsapp) or
-        // need no side-effect beyond the scan event itself. For the demo
-        // we record and dismiss; productionizing each is a follow-up.
-        return;
+      case "send_whatsapp": {
+        if (!activeCustomer.phone) {
+          throw new Error(`${who} no tiene teléfono registrado`);
+        }
+        const phone = activeCustomer.phone.replace(/\D/g, "");
+        const message = `Hola ${who}, te comparto este producto:\n\n${result.product.brand.displayName} — ${result.product.title}${result.variant.optionLabel ? ` (${result.variant.optionLabel})` : ""}\nSKU ${result.variant.sku}`;
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        window.open(url, "_blank", "noopener,noreferrer");
+        return { toast: `WhatsApp abierto para ${who}` };
+      }
+      case "shown_to_customer": {
+        // The scan event is already updated above via setScanAction. We
+        // just give the BA an explicit confirmation that it landed against
+        // this customer.
+        return { toast: `Registrado: ${who} vio este producto` };
+      }
+      case "add_to_cart": {
+        if (!onAddToCart) {
+          // Without a cart sink wired (e.g. scanning outside a customer
+          // profile) we can't actually persist the line. Be honest about it.
+          toast.info("Próximamente: este flujo aún no está conectado al POS");
+          return { closeSheet: false };
+        }
+        const count = onAddToCart({
+          productId: result.product.id,
+          sku: result.variant.sku,
+          title: result.product.title,
+          price: String(result.variant.price),
+          image: result.variant.imageUrl,
+        });
+        return {
+          toast: `Agregado al carrito de ${who} (${count})`,
+        };
+      }
+      case "reserve": {
+        // Reserve-from-other-store flow isn't built yet; the scan event is
+        // logged so the Today strip still reflects intent.
+        toast.info("Próximamente: este flujo aún no está conectado al POS");
+        return { closeSheet: false };
       }
     }
+  }
+
+  /**
+   * Rewrites scan-action labels with the active customer's first name so the
+   * BA always knows which client the action will land against. Pure function
+   * — leaves the result untouched when there's no customer bound.
+   */
+  function personalizeResult(
+    result: ScanLookupResult,
+    customer: ScanCameraStageProps["activeCustomer"],
+  ): ScanLookupResult {
+    if (!customer) return result;
+    const who = customer.firstName;
+    const rewrite: Partial<Record<ScanActionType, string>> = {
+      add_to_wishlist: `Agregar a wishlist de ${who}`,
+      sample_logged: `Registrar muestra para ${who}`,
+      shown_to_customer: `Registrar que ${who} lo vio`,
+      send_whatsapp: `Enviar ficha a ${who} por WhatsApp`,
+      add_to_cart: `Agregar a carrito de ${who}`,
+      reserve: `Reservar para ${who} en otra tienda`,
+    };
+    return {
+      ...result,
+      suggestedActions: result.suggestedActions.map((a) => ({
+        ...a,
+        label: rewrite[a.type] ?? a.label,
+      })),
+    };
   }
 
   const actionPending =
     createSample.isPending ||
     addWishlistItem.isPending ||
+    createWishlist.isPending ||
     setScanAction.isPending;
+
+  const personalizedResult =
+    status === "ok" && lookup.data
+      ? personalizeResult(lookup.data, activeCustomer ?? null)
+      : null;
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-foreground">
@@ -322,7 +499,7 @@ export function ScanCameraStage({ activeCustomer }: ScanCameraStageProps) {
       <ScanProductSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        result={status === "ok" ? lookup.data ?? null : null}
+        result={personalizedResult}
         lastBarcode={lastBarcode}
         activeCustomer={activeCustomer}
         status={status}

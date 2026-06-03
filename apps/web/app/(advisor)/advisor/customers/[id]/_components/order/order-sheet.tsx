@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { ProductPicker } from "@/components/admin/product-picker";
 import { cn } from "@/lib/utils";
-import { useCart } from "./use-cart";
+import { useCustomerCart } from "./cart-context";
 import { TicketLine, EmptyTicket } from "./ticket-line";
 
 // Order composer — POS-style split view.
@@ -44,13 +44,16 @@ export function OrderSheet({
     total,
     itemCount,
     selectedIds,
-  } = useCart();
+  } = useCustomerCart();
   const [posRef, setPosRef] = React.useState("");
   const createOrder = useCreateOrder();
 
+  // Reset only the POS-ref field and any error state when the sheet reopens.
+  // The cart itself lives in the shared CartProvider so it survives the BA
+  // closing and reopening the sheet (or jumping to the scanner mid-ticket).
+  // Items are cleared after a successful sale, not on every open.
   React.useEffect(() => {
     if (open) {
-      reset();
       setPosRef("");
       createOrder.reset();
     }
@@ -66,7 +69,7 @@ export function OrderSheet({
         customerId,
         sourceName: "manual",
         items: cart.map((l) => ({
-          productId: l.product.id,
+          productId: l.product.productId,
           sku: l.product.sku,
           quantity: l.quantity,
           unitPrice: Number(l.product.price),
@@ -74,7 +77,12 @@ export function OrderSheet({
         totalPrice: total,
         ...(posRef.trim() ? { externalOrderId: posRef.trim() } : {}),
       },
-      { onSuccess: () => onOpenChange(false) },
+      {
+        onSuccess: () => {
+          reset();
+          onOpenChange(false);
+        },
+      },
     );
   }
 
@@ -95,7 +103,15 @@ export function OrderSheet({
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 lg:grid-cols-[1.45fr_1fr]">
           <div className="flex min-h-0 flex-col gap-4 border-r border-border/40 p-5">
             <ProductPicker
-              onSelect={addProduct}
+              onSelect={(p) =>
+                addProduct({
+                  productId: p.id,
+                  sku: p.sku,
+                  title: p.title,
+                  price: p.price,
+                  image: p.images?.[0] ?? null,
+                })
+              }
               selectedIds={selectedIds}
               multi
               gridClassName="grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4"
@@ -131,11 +147,11 @@ export function OrderSheet({
                 <ul className="space-y-1.5">
                   {cart.map((line) => (
                     <TicketLine
-                      key={line.product.id}
+                      key={line.product.productId}
                       line={line}
-                      onInc={() => updateQty(line.product.id, +1)}
-                      onDec={() => updateQty(line.product.id, -1)}
-                      onRemove={() => removeLine(line.product.id)}
+                      onInc={() => updateQty(line.product.productId, +1)}
+                      onDec={() => updateQty(line.product.productId, -1)}
+                      onRemove={() => removeLine(line.product.productId)}
                     />
                   ))}
                 </ul>

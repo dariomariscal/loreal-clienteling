@@ -1,6 +1,6 @@
 "use client";
 
-import type { CartLine } from "./use-cart";
+import type { CartLine } from "./cart-context";
 import { MinusIcon, PlusIcon, XIcon, BagIcon } from "./icons";
 
 export function TicketLine({
@@ -14,7 +14,7 @@ export function TicketLine({
   onDec: () => void;
   onRemove: () => void;
 }) {
-  const image = line.product.images?.[0];
+  const image = line.product.image;
   const lineTotal = Number(line.product.price) * line.quantity;
 
   return (

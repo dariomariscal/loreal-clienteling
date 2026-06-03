@@ -19,6 +19,40 @@ export interface WishlistItem {
   note: string | null;
   position: number;
   addedAt: string;
+  /**
+   * Enrichment joined server-side so the wishlist UI never round-trips per
+   * row. Image resolution uses variant→product fallback (variants ship
+   * without imageUrl today).
+   */
+  product: {
+    id: string;
+    title: string;
+    category: string;
+    subcategory: string | null;
+    imageUrl: string | null;
+    brand: { id: string; code: string; displayName: string };
+  };
+  variant: {
+    id: string;
+    sku: string;
+    title: string;
+    optionLabel: string | null;
+    price: number;
+    imageUrl: string | null;
+    swatchHex: string | null;
+  } | null;
+}
+
+/** Shape returned by POST /wishlists/:id/items — includes the dedup flag. */
+export interface AddWishlistItemResult {
+  id: string;
+  wishlistId: string;
+  productId: string;
+  variantId: string | null;
+  note: string | null;
+  position: number;
+  addedAt: string;
+  alreadyExists: boolean;
 }
 
 export interface Wishlist {
@@ -134,9 +168,13 @@ export function useAddWishlistItem() {
       wishlistId,
       ...data
     }: { wishlistId: string } & WishlistItemInput) =>
-      api.post<WishlistItem>(`/wishlists/${wishlistId}/items`, data),
+      api.post<AddWishlistItemResult>(`/wishlists/${wishlistId}/items`, data),
     onSuccess: (_item, vars) => {
+      // Invalidate both the per-wishlist detail and the customer-scoped list
+      // so the WishlistSection refetches the enriched items without the BA
+      // having to reload.
       qc.invalidateQueries({ queryKey: wishlistKeys.detail(vars.wishlistId) });
+      qc.invalidateQueries({ queryKey: ["wishlists", "customer"] });
     },
   });
 }

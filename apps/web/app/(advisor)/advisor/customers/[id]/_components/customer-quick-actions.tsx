@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   AppointmentGlyph,
+  BarcodeGlyph,
   MessageGlyph,
   NoteGlyph,
   PurchaseGlyph,
@@ -17,6 +18,7 @@ import {
   useStartCustomerVisit,
 } from "@/lib/hooks/use-customer-visits";
 import type { Customer } from "@/lib/hooks/use-customers";
+import { useCustomerCart } from "./order/cart-context";
 
 // One "message" entry covers WhatsApp / email / SMS — the MessageSheet
 // has channel tabs inside, so surfacing each channel as its own button
@@ -26,6 +28,7 @@ import type { Customer } from "@/lib/hooks/use-customers";
 // visit and let the ActiveVisitPill + ActiveContextSection take over the UI.
 export type CustomerQuickActionId =
   | "visit"
+  | "scan"
   | "message"
   | "appointment"
   | "note"
@@ -69,23 +72,48 @@ const ACTIONS: ActionDef[] = [
  */
 export function CustomerQuickActions({ customer, onAction }: Props) {
   const visible = ACTIONS.filter((a) => a.isAvailable(customer));
+  const { itemCount } = useCustomerCart();
 
   return (
     <nav aria-label="Acciones rápidas" className="flex items-center gap-1">
       <StartVisitButton customer={customer} />
-      {visible.map(({ id, label, Glyph }) => (
-        <Button
-          key={id}
-          variant="ghost"
-          size="icon"
-          onClick={() => onAction(id)}
-          title={label}
-          aria-label={label}
-          className="size-10"
-        >
-          <Glyph className="size-4" />
-        </Button>
-      ))}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onAction("scan")}
+        title="Escáner"
+        aria-label="Escáner"
+        className="size-10"
+      >
+        <BarcodeGlyph className="size-4" />
+      </Button>
+      {visible.map(({ id, label, Glyph }) => {
+        const showCartBadge = id === "purchase" && itemCount > 0;
+        const ariaLabel = showCartBadge
+          ? `${label} (${itemCount} en carrito)`
+          : label;
+        return (
+          <Button
+            key={id}
+            variant="ghost"
+            size="icon"
+            onClick={() => onAction(id)}
+            title={ariaLabel}
+            aria-label={ariaLabel}
+            className="relative size-10"
+          >
+            <Glyph className="size-4" />
+            {showCartBadge ? (
+              <span
+                aria-hidden
+                className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--ba-accent)] px-1 text-[10px] font-semibold leading-none text-[color:var(--ba-accent-foreground)]"
+              >
+                {itemCount}
+              </span>
+            ) : null}
+          </Button>
+        );
+      })}
     </nav>
   );
 }

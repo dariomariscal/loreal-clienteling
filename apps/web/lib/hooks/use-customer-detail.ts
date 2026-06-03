@@ -43,6 +43,8 @@ export interface Order {
   orderNumber: string;
   customerId: string;
   storeId: string;
+  /** Joined server-side from `stores.name` so the BA reads where it happened. */
+  storeName: string | null;
   channel: string;
   sourceName: string | null;
   externalOrderId: string | null;
@@ -73,6 +75,9 @@ export interface OrderLineItem {
   quantity: number;
   price: string;
   totalDiscount: string;
+  /** Resolved server-side: first products.images entry (or null if none). */
+  productImageUrl: string | null;
+  brand: { code: string; displayName: string };
 }
 
 export interface Recommendation {

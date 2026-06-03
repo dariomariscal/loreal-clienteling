@@ -6,7 +6,9 @@ import {
   integer,
   timestamp,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { customers } from "./customers";
 import { users } from "./auth";
 import { products } from "./products";
@@ -67,5 +69,17 @@ export const wishlistItems = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("wishlist_items_wishlist_idx").on(table.wishlistId)],
+  (table) => [
+    index("wishlist_items_wishlist_idx").on(table.wishlistId),
+    // Dedup: same product+variant inside the same wishlist is one row.
+    // Two partial uniques because NULLs are distinct in standard unique
+    // indexes — we want (wishlistId, productId) without a variant to also
+    // collapse to one row.
+    uniqueIndex("wishlist_items_dedup_with_variant_idx")
+      .on(table.wishlistId, table.productId, table.variantId)
+      .where(sql`${table.variantId} IS NOT NULL`),
+    uniqueIndex("wishlist_items_dedup_no_variant_idx")
+      .on(table.wishlistId, table.productId)
+      .where(sql`${table.variantId} IS NULL`),
+  ],
 );

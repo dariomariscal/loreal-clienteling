@@ -36,6 +36,8 @@ import { OrderSheet } from "./order/order-sheet";
 import { AppointmentSheet } from "@/components/appointment/appointment-sheet";
 import { RecommendationSheet } from "./recommendation/recommendation-sheet";
 import { MessageSheet } from "./message/message-sheet";
+import { ScannerSheet } from "./scanner-sheet";
+import { CartProvider } from "./order/cart-context";
 import type { SessionUser } from "@/lib/auth";
 
 interface Props {
@@ -121,6 +123,7 @@ export function CustomerProfileShell({ customerId, user }: Props) {
   );
 
   return (
+    <CartProvider customerId={customerId}>
     <div className="flex h-full w-full flex-col overflow-hidden">
       <ProfileTopBar
         user={user}
@@ -257,9 +260,21 @@ export function CustomerProfileShell({ customerId, user }: Props) {
             initialBody={aiDraft?.body}
             initialFromAi={!!aiDraft}
           />
+          <ScannerSheet
+            open={openSheet === "scan"}
+            onOpenChange={(open) => !open && closeSheet()}
+            customer={{
+              id: customer.id,
+              firstName: customer.firstName,
+              lastName: customer.lastName,
+              phone: customer.phone,
+              avatarUrl: customer.avatarUrl,
+            }}
+          />
         </>
       ) : null}
     </div>
+    </CartProvider>
   );
 }
 
