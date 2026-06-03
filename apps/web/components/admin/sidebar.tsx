@@ -10,6 +10,7 @@ import { useSidebar } from "@/components/admin/sidebar-context";
 import { LorealLogo } from "@/components/ui/brand-logos";
 import { Avatar } from "@/components/ui/avatar";
 import { CreateMenuButton } from "@/components/admin/create-menu-button";
+import { ProfileSwitcherTrigger } from "@/components/auth/profile-switcher-trigger";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -246,17 +247,21 @@ function SidebarContent({ user }: SidebarProps) {
             </Link>
           )}
           {!collapsed && (
-            <button
-              onClick={handleSignOut}
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/30 transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              aria-label="Cerrar sesión"
-            >
-              <LogOutIcon className="size-3.5" />
-            </button>
+            <>
+              <ProfileSwitcherTrigger variant="admin" />
+              <button
+                onClick={handleSignOut}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/30 transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                aria-label="Cerrar sesión"
+              >
+                <LogOutIcon className="size-3.5" />
+              </button>
+            </>
           )}
         </div>
         {collapsed && (
-          <div className="flex justify-center pt-1.5">
+          <div className="flex flex-col items-center gap-1.5 pt-1.5">
+            <ProfileSwitcherTrigger variant="admin" collapsed />
             <Tooltip.Provider>
               <Tooltip.Root>
                 <Tooltip.Trigger

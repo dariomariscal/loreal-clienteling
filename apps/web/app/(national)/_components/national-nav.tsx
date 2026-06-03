@@ -26,6 +26,7 @@ import {
   ZonesGlyph,
 } from "@/components/ui/glyphs";
 import type { SessionUser } from "@/lib/auth";
+import { ProfileSwitcherTrigger } from "@/components/auth/profile-switcher-trigger";
 
 const ACCOUNT_HREF = "/advisor/account";
 
@@ -198,40 +199,43 @@ export function NationalNav({ user, onNavigate, collapsed = false }: Props) {
             </div>
           </Link>
         )}
-        {collapsed ? (
-          <Tooltip.Provider>
-            <Tooltip.Root>
-              <Tooltip.Trigger
-                render={
-                  <button
-                    type="button"
-                    onClick={handleSignOut}
-                    aria-label="Cerrar sesión"
-                    className="mt-1 flex h-10 w-full items-center justify-center rounded-md text-[color:var(--ba-sidebar-foreground)] transition-colors hover:bg-[color:var(--ba-sidebar-active)]"
-                  >
-                    <SignOutGlyph className="size-4 opacity-80" aria-hidden />
-                  </button>
-                }
-              />
-              <Tooltip.Portal>
-                <Tooltip.Positioner side="right" sideOffset={10}>
-                  <Tooltip.Popup className="rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-background shadow-lg">
-                    Cerrar sesión
-                  </Tooltip.Popup>
-                </Tooltip.Positioner>
-              </Tooltip.Portal>
-            </Tooltip.Root>
-          </Tooltip.Provider>
-        ) : (
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-[color:var(--ba-sidebar-foreground)] transition-colors hover:bg-[color:var(--ba-sidebar-active)]"
-          >
-            <SignOutGlyph className="size-4 opacity-80" aria-hidden />
-            Cerrar sesión
-          </button>
-        )}
+        <div className={cn("mt-1 flex gap-1", collapsed ? "flex-col" : "items-center")}>
+          <ProfileSwitcherTrigger variant="role" collapsed={collapsed} />
+          {collapsed ? (
+            <Tooltip.Provider>
+              <Tooltip.Root>
+                <Tooltip.Trigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      aria-label="Cerrar sesión"
+                      className="flex h-10 w-full items-center justify-center rounded-md text-[color:var(--ba-sidebar-foreground)] transition-colors hover:bg-[color:var(--ba-sidebar-active)]"
+                    >
+                      <SignOutGlyph className="size-4 opacity-80" aria-hidden />
+                    </button>
+                  }
+                />
+                <Tooltip.Portal>
+                  <Tooltip.Positioner side="right" sideOffset={10}>
+                    <Tooltip.Popup className="rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-background shadow-lg">
+                      Cerrar sesión
+                    </Tooltip.Popup>
+                  </Tooltip.Positioner>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-[color:var(--ba-sidebar-foreground)] transition-colors hover:bg-[color:var(--ba-sidebar-active)]"
+            >
+              <SignOutGlyph className="size-4 opacity-80" aria-hidden />
+              Cerrar sesión
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -127,6 +127,15 @@ export function CloseGlyph(props: GlyphProps) {
   );
 }
 
+export function SwitchProfileGlyph(props: GlyphProps) {
+  return (
+    <Glyph label="Cambiar de perfil" {...props}>
+      <path d="M4 7h13l-3-3" />
+      <path d="M20 17H7l3 3" />
+    </Glyph>
+  );
+}
+
 export function CheckGlyph(props: GlyphProps) {
   return (
     <Glyph label="Hecho" {...props}>
