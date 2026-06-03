@@ -1,4 +1,6 @@
+import { NextResponse } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { homeForRole } from "@/lib/auth/home-for-role";
 
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
@@ -6,12 +8,21 @@ const isPublicRoute = createRouteMatcher([
   "/forgot-password(.*)",
 ]);
 
+const isRootRoute = createRouteMatcher(["/"]);
+
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
 
-  const { userId, redirectToSignIn } = await auth();
+  const { userId, sessionClaims, redirectToSignIn } = await auth();
   if (!userId) {
     return redirectToSignIn({ returnBackUrl: req.url });
+  }
+
+  // Send each role to its own home so "/" never renders an empty shell.
+  // Reading the role from sessionClaims avoids a DB roundtrip at the edge.
+  if (isRootRoute(req)) {
+    const role = sessionClaims?.metadata?.role;
+    return NextResponse.redirect(new URL(homeForRole(role), req.url));
   }
 });
 
