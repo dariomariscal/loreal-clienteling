@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ScanViewfinder } from "./scan-viewfinder";
+import { ScanLiveCamera } from "./scan-live-camera";
 import {
   ScanRecentStrip,
   type ScanRecentItem,
@@ -447,10 +448,15 @@ export function ScanCameraStage({
         </Button>
       </div>
 
-      {/* Camera placeholder — production swaps this for a <video> element
-          and a barcode detection lib. Tinted backdrop preserves the visual
-          weight so the viewfinder mask still reads. */}
-      <div className="relative flex-1 bg-gradient-to-b from-foreground/95 via-foreground to-foreground">
+      {/* Live camera feed with auto-detection. Pauses while the result sheet
+          is open so we don't burn battery decoding behind a modal and so the
+          customer's product doesn't get re-scanned the instant the BA puts
+          the camera down. */}
+      <div className="relative flex-1 overflow-hidden bg-foreground">
+        <ScanLiveCamera
+          onDetected={resolveBarcode}
+          paused={sheetOpen}
+        />
         <ScanViewfinder state={lookup.isPending ? "captured" : "scanning"} />
 
         {/* Manual barcode entry — the bottom controls dock. */}
