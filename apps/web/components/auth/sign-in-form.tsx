@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth, useSignIn } from "@clerk/nextjs";
-import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { EyeGlyph, EyeOffGlyph } from "@/components/ui/glyphs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +19,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { getFieldError, getGlobalError } from "@/lib/auth/clerk-errors";
+import { formatFieldError } from "@/lib/auth/clerk-errors";
 
 const signInSchema = z.object({
   email: z.string().email("Correo inválido"),
@@ -30,13 +29,18 @@ const signInSchema = z.object({
 type SignInValues = z.infer<typeof signInSchema>;
 
 export function SignInForm() {
-  const { isLoaded, signIn, setActive } = useSignIn();
+  // Clerk v7 (Core 3) — `useSignIn` now returns the SignInFuture signal:
+  // sign-in actions live on `signIn.<method>`, the activation step is
+  // `signIn.finalize` (replaces `setActive({ session: createdSessionId })`),
+  // and errors arrive structured as `{ fields, global, raw }`.
+  const { signIn, errors, fetchStatus } = useSignIn();
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const loading = fetchStatus === "fetching";
 
   // If Clerk already has an active session (e.g. user hit /sign-in directly
   // while still authenticated), bounce them to the dashboard so they don't
@@ -53,51 +57,49 @@ export function SignInForm() {
   });
 
   async function attemptSignIn(email: string, password: string) {
-    if (!isLoaded) return;
-
     setError(null);
-    setLoading(true);
 
-    try {
-      const attempt = await signIn.create({
-        strategy: "password",
-        identifier: email.trim(),
-        password,
-      });
+    const passwordResult = await signIn.password({
+      identifier: email.trim(),
+      password,
+    });
 
-      if (attempt.status === "complete") {
-        const redirectUrl = searchParams.get("redirect_url") ?? "/";
-        await setActive({
-          session: attempt.createdSessionId,
-          navigate: async ({ session }) => {
-            if (session?.currentTask) {
-              router.push(`/tasks/${session.currentTask.key}`);
-              return;
-            }
-            router.push(redirectUrl);
-          },
-        });
-        return;
-      }
+    if (passwordResult.error) {
+      applyErrorsToForm();
+      return;
+    }
 
-      setError(`Estado inesperado: ${attempt.status}`);
-      setLoading(false);
-    } catch (err) {
-      if (isClerkAPIResponseError(err)) {
-        const emailError = getFieldError(err.errors, "identifier");
-        const passwordError = getFieldError(err.errors, "password");
-        const globalError = getGlobalError(err.errors);
+    if (signIn.status !== "complete") {
+      setError(`Estado inesperado: ${signIn.status}`);
+      return;
+    }
 
-        if (emailError) form.setError("email", { message: emailError });
-        if (passwordError) form.setError("password", { message: passwordError });
-        if (globalError) setError(globalError);
-        else if (!emailError && !passwordError) {
-          setError("Error al iniciar sesión");
+    const redirectUrl = searchParams.get("redirect_url") ?? "/";
+    const finalizeResult = await signIn.finalize({
+      navigate: async ({ session }) => {
+        if (session?.currentTask) {
+          router.push(`/tasks/${session.currentTask.key}`);
+          return;
         }
-      } else {
-        setError("Ocurrió un error. Intenta de nuevo.");
-      }
-      setLoading(false);
+        router.push(redirectUrl);
+      },
+    });
+
+    if (finalizeResult.error) {
+      applyErrorsToForm();
+    }
+  }
+
+  function applyErrorsToForm() {
+    const emailMessage = formatFieldError(errors.fields.identifier);
+    const passwordMessage = formatFieldError(errors.fields.password);
+    const globalMessage = errors.global?.[0]?.message;
+
+    if (emailMessage) form.setError("email", { message: emailMessage });
+    if (passwordMessage) form.setError("password", { message: passwordMessage });
+    if (globalMessage) setError(globalMessage);
+    if (!emailMessage && !passwordMessage && !globalMessage) {
+      setError("Error al iniciar sesión");
     }
   }
 
@@ -196,7 +198,7 @@ export function SignInForm() {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={!isLoaded || loading}
+              disabled={loading}
             >
               {loading ? "Ingresando..." : "Iniciar Sesión"}
             </Button>

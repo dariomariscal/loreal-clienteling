@@ -6,7 +6,7 @@ import {
   isClerkAPIResponseError,
   isReverificationCancelledError,
 } from "@clerk/nextjs/errors";
-import type { SessionVerificationLevel } from "@clerk/types";
+import type { SessionVerificationLevel } from "@clerk/nextjs/types";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";

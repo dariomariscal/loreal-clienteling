@@ -6,7 +6,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useSignUp } from "@clerk/nextjs";
-import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,7 +17,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { getFieldError, getGlobalError } from "@/lib/auth/clerk-errors";
+import { formatFieldError } from "@/lib/auth/clerk-errors";
 
 const acceptSchema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres"),
@@ -27,7 +26,11 @@ const acceptSchema = z.object({
 type AcceptValues = z.infer<typeof acceptSchema>;
 
 export function AcceptInvitationForm() {
-  const { isLoaded, signUp, setActive } = useSignUp();
+  // Clerk v7 (Core 3) — `useSignUp` exposes the SignUpFuture signal. Ticket
+  // redemption is now two steps: `signUp.ticket({ ticket })` consumes the
+  // invitation, then `signUp.password({ password })` sets the credentials
+  // for the new account. `signUp.finalize()` activates the new session.
+  const { signUp, errors, fetchStatus } = useSignUp();
   const router = useRouter();
   const searchParams = useSearchParams();
   const ticket = searchParams.get("__clerk_ticket");
@@ -55,43 +58,50 @@ export function AcceptInvitationForm() {
   }
 
   async function handleSubmit(data: AcceptValues) {
-    if (!isLoaded) return;
     setError(null);
 
-    try {
-      const attempt = await signUp.create({
-        strategy: "ticket",
-        ticket: ticket!,
-        password: data.password,
-      });
+    const ticketResult = await signUp.ticket({ ticket: ticket! });
+    if (ticketResult.error) {
+      surfaceError("No pudimos validar la invitación.");
+      return;
+    }
 
-      if (attempt.status === "complete") {
-        await setActive({
-          session: attempt.createdSessionId,
-          navigate: async ({ session }) => {
-            if (session?.currentTask) {
-              router.push(`/tasks/${session.currentTask.key}`);
-              return;
-            }
-            router.push("/");
-          },
-        });
-        return;
-      }
+    const passwordResult = await signUp.password({ password: data.password });
+    if (passwordResult.error) {
+      surfaceError("No pudimos activar tu cuenta.");
+      return;
+    }
 
-      setError(`Estado inesperado: ${attempt.status}`);
-    } catch (err) {
-      if (isClerkAPIResponseError(err)) {
-        const passwordError = getFieldError(err.errors, "password");
-        const globalError = getGlobalError(err.errors);
-        if (passwordError) form.setError("password", { message: passwordError });
-        if (globalError) setError(globalError);
-        else if (!passwordError) setError("No pudimos activar tu cuenta.");
-      } else {
-        setError("Ocurrió un error. Intenta de nuevo.");
-      }
+    if (signUp.status !== "complete") {
+      setError(`Estado inesperado: ${signUp.status}`);
+      return;
+    }
+
+    const finalizeResult = await signUp.finalize({
+      navigate: async ({ session }) => {
+        if (session?.currentTask) {
+          router.push(`/tasks/${session.currentTask.key}`);
+          return;
+        }
+        router.push("/");
+      },
+    });
+    if (finalizeResult.error) {
+      surfaceError("No pudimos iniciar la sesión.");
     }
   }
+
+  function surfaceError(fallback: string) {
+    const passwordMessage = formatFieldError(errors.fields.password);
+    const globalMessage = errors.global?.[0]?.message;
+    if (passwordMessage) {
+      form.setError("password", { message: passwordMessage });
+      return;
+    }
+    setError(globalMessage ?? fallback);
+  }
+
+  const loading = fetchStatus === "fetching";
 
   return (
     <div className="space-y-8">
@@ -141,9 +151,9 @@ export function AcceptInvitationForm() {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={!isLoaded || form.formState.isSubmitting}
+              disabled={loading}
             >
-              {form.formState.isSubmitting ? "Activando..." : "Activar cuenta"}
+              {loading ? "Activando..." : "Activar cuenta"}
             </Button>
           </div>
 

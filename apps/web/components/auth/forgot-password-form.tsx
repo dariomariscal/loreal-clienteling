@@ -6,8 +6,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useSignIn } from "@clerk/nextjs";
-import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
-import type { ClerkAPIError } from "@clerk/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,7 +17,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { getFieldError, getGlobalError } from "@/lib/auth/clerk-errors";
+import { formatFieldError } from "@/lib/auth/clerk-errors";
 
 type Step = "request" | "verify";
 
@@ -36,12 +34,20 @@ type RequestValues = z.infer<typeof requestSchema>;
 type VerifyValues = z.infer<typeof verifySchema>;
 
 export function ForgotPasswordForm() {
-  const { isLoaded, signIn, setActive } = useSignIn();
+  // Clerk v7 (Core 3) password reset is a three-step namespace flow:
+  //   1. `signIn.create({ identifier })` — anchors the future resource to
+  //      the email so subsequent steps know whose account is being reset.
+  //   2. `signIn.resetPasswordEmailCode.sendCode()` — mails the code.
+  //   3. `signIn.resetPasswordEmailCode.verifyCode({ code })` then
+  //      `submitPassword({ password })` — finalizes the new password and
+  //      `signIn.status` becomes `'complete'`.
+  //   4. `signIn.finalize()` activates the new session.
+  const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
 
   const [step, setStep] = useState<Step>("request");
   const [email, setEmail] = useState("");
-  const [globalError, setGlobalErrorState] = useState<string | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
 
   const requestForm = useForm<RequestValues>({
     resolver: zodResolver(requestSchema),
@@ -53,92 +59,97 @@ export function ForgotPasswordForm() {
     defaultValues: { code: "", password: "" },
   });
 
-  function applyClerkErrors(
-    errors: ClerkAPIError[],
+  function surfaceErrors(
     form: typeof requestForm | typeof verifyForm,
-    fieldMap: Record<string, string>,
-  ) {
+    fieldMap: Partial<Record<"identifier" | "code" | "password", string>>,
+  ): boolean {
     let handled = false;
     for (const [clerkField, formField] of Object.entries(fieldMap)) {
-      const fieldErr = getFieldError(errors, clerkField);
-      if (fieldErr) {
-        form.setError(formField as never, { message: fieldErr });
+      const message = formatFieldError(
+        errors.fields[clerkField as keyof typeof errors.fields],
+      );
+      if (message) {
+        form.setError(formField as never, { message });
         handled = true;
       }
     }
-    const gErr = getGlobalError(errors);
-    if (gErr) {
-      setGlobalErrorState(gErr);
+    const globalMessage = errors.global?.[0]?.message;
+    if (globalMessage) {
+      setGlobalError(globalMessage);
       handled = true;
     }
     return handled;
   }
 
   async function handleRequestCode(data: RequestValues) {
-    if (!isLoaded) return;
-    setGlobalErrorState(null);
+    setGlobalError(null);
+    const identifier = data.email.trim();
 
-    try {
-      await signIn.create({
-        strategy: "reset_password_email_code",
-        identifier: data.email.trim(),
-      });
-      setEmail(data.email.trim());
-      setStep("verify");
-    } catch (err) {
-      if (isClerkAPIResponseError(err)) {
-        if (
-          !applyClerkErrors(err.errors, requestForm, { identifier: "email" })
-        ) {
-          setGlobalErrorState("No pudimos enviar el código.");
-        }
-      } else {
-        setGlobalErrorState("Ocurrió un error. Intenta de nuevo.");
+    // Anchor the SignInFuture to the email so resetPasswordEmailCode knows
+    // which account to send the code to.
+    const createResult = await signIn.create({ identifier });
+    if (createResult.error) {
+      if (!surfaceErrors(requestForm, { identifier: "email" })) {
+        setGlobalError("No pudimos enviar el código.");
       }
+      return;
     }
+
+    const sendResult = await signIn.resetPasswordEmailCode.sendCode();
+    if (sendResult.error) {
+      if (!surfaceErrors(requestForm, { identifier: "email" })) {
+        setGlobalError("No pudimos enviar el código.");
+      }
+      return;
+    }
+
+    setEmail(identifier);
+    setStep("verify");
   }
 
   async function handleVerifyCode(data: VerifyValues) {
-    if (!isLoaded) return;
-    setGlobalErrorState(null);
+    setGlobalError(null);
 
-    try {
-      const attempt = await signIn.attemptFirstFactor({
-        strategy: "reset_password_email_code",
-        code: data.code.trim(),
-        password: data.password,
-      });
-
-      if (attempt.status === "complete") {
-        await setActive({
-          session: attempt.createdSessionId,
-          navigate: async ({ session }) => {
-            if (session?.currentTask) {
-              router.push(`/tasks/${session.currentTask.key}`);
-              return;
-            }
-            router.push("/");
-          },
-        });
-        return;
+    const verifyResult = await signIn.resetPasswordEmailCode.verifyCode({
+      code: data.code.trim(),
+    });
+    if (verifyResult.error) {
+      if (!surfaceErrors(verifyForm, { code: "code" })) {
+        setGlobalError("No pudimos verificar el código.");
       }
+      return;
+    }
 
-      setGlobalErrorState(`Estado inesperado: ${attempt.status}`);
-    } catch (err) {
-      if (isClerkAPIResponseError(err)) {
-        if (
-          !applyClerkErrors(err.errors, verifyForm, {
-            code: "code",
-            password: "password",
-          })
-        ) {
-          setGlobalErrorState("No pudimos restablecer la contraseña.");
+    const submitResult = await signIn.resetPasswordEmailCode.submitPassword({
+      password: data.password,
+    });
+    if (submitResult.error) {
+      if (!surfaceErrors(verifyForm, { password: "password" })) {
+        setGlobalError("No pudimos restablecer la contraseña.");
+      }
+      return;
+    }
+
+    if (signIn.status !== "complete") {
+      setGlobalError(`Estado inesperado: ${signIn.status}`);
+      return;
+    }
+
+    const finalizeResult = await signIn.finalize({
+      navigate: async ({ session }) => {
+        if (session?.currentTask) {
+          router.push(`/tasks/${session.currentTask.key}`);
+          return;
         }
-      } else {
-        setGlobalErrorState("Ocurrió un error. Intenta de nuevo.");
-      }
+        router.push("/");
+      },
+    });
+    if (finalizeResult.error) {
+      setGlobalError("No pudimos iniciar la sesión.");
     }
   }
+
+  const loading = fetchStatus === "fetching";
 
   if (step === "request") {
     return (
@@ -188,11 +199,9 @@ export function ForgotPasswordForm() {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={!isLoaded || requestForm.formState.isSubmitting}
+                disabled={loading}
               >
-                {requestForm.formState.isSubmitting
-                  ? "Enviando..."
-                  : "Enviar código"}
+                {loading ? "Enviando..." : "Enviar código"}
               </Button>
             </div>
           </form>
@@ -269,11 +278,9 @@ export function ForgotPasswordForm() {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={!isLoaded || verifyForm.formState.isSubmitting}
+              disabled={loading}
             >
-              {verifyForm.formState.isSubmitting
-                ? "Cambiando..."
-                : "Cambiar contraseña"}
+              {loading ? "Cambiando..." : "Cambiar contraseña"}
             </Button>
 
             <Button
@@ -282,7 +289,7 @@ export function ForgotPasswordForm() {
               className="w-full"
               onClick={() => {
                 setStep("request");
-                setGlobalErrorState(null);
+                setGlobalError(null);
                 verifyForm.reset();
               }}
             >

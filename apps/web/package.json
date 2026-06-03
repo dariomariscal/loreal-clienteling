@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
-    "@clerk/localizations": "^3.10.0",
-    "@clerk/nextjs": "^6.21.0",
+    "@clerk/localizations": "^4.7.1",
+    "@clerk/nextjs": "^7.4.3",
     "@hookform/resolvers": "^5.2.2",
     "@loreal/contracts": "workspace:*",
     "@loreal/utils": "workspace:*",
@@ -32,7 +32,6 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
-    "@clerk/types": "^4.101.0",
     "@loreal/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/mapbox-gl": "^3",

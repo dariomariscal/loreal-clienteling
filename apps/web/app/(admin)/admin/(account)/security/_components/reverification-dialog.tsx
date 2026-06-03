@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSession } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
-import type { SessionVerificationLevel } from "@clerk/types";
+import type { SessionVerificationLevel } from "@clerk/nextjs/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

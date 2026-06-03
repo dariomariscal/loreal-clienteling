@@ -2,75 +2,105 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useClerk, useSignIn } from "@clerk/nextjs";
+import { useClerk, useSessionList, useSignIn } from "@clerk/nextjs";
 import { homeForRole } from "@/lib/auth/home-for-role";
 import type { DemoProfile } from "@/lib/auth/demo-profiles";
 
 /**
  * Streaming-style profile swap (Netflix-like "who's watching" picker).
  *
- * Requires multi-session handling to be enabled in the Clerk Dashboard
- * (Configure → Sessions → Multi-session handling). With that flag on, a new
- * `signIn.create` adds a session alongside the active one instead of
- * erroring with `session_exists`, and `setActive` swaps the active session
- * in place — no `signOut` round trip, no middleware-driven flash to
- * `/sign-in`.
+ * Built on Clerk v7's Future API (Core 3 signals). Two paths depending on
+ * whether the picked profile already has a cached session on this client:
  *
- * If we ever match an already-signed-in profile (sessions[].user.email),
- * we skip the sign-in step entirely and just call `setActive` with the
- * existing session id.
+ *   1. **Existing session** — pull `setActive` from `useSessionList()` and
+ *      flip the active session in place. Instant, no network round trip.
+ *   2. **First-time pick** — call `signIn.password({ identifier, password })`
+ *      then `signIn.finalize({ navigate })`. v7's `finalize` is what
+ *      "promotes" a completed sign-in to the active session — the equivalent
+ *      of v6's `setActive({ session: createdSessionId })`.
  *
- * Reference: https://clerk.com/docs/guides/development/custom-flows/authentication/multi-session-applications
+ * Multi-session must be enabled in the Clerk Dashboard
+ * (Configure → Sessions → Multi-session handling) so a fresh `signIn`
+ * adds a session alongside the active one instead of erroring with
+ * `session_exists`.
+ *
+ * References:
+ *   - https://clerk.com/docs/guides/development/custom-flows/authentication/multi-session-applications
+ *   - https://clerk.com/changelog/2026-03-03-core-3
  */
 export function useProfileSwitch() {
   const router = useRouter();
   const { client } = useClerk();
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const { signIn } = useSignIn();
+  const sessionList = useSessionList();
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const isReady = sessionList.isLoaded;
+
   async function switchTo(profile: DemoProfile) {
-    if (!isLoaded || switchingTo) return;
+    if (!isReady || switchingTo) return;
 
     setError(null);
     setSwitchingTo(profile.email);
 
     try {
       const destination = homeForRole(profile.role);
-
-      // Reuse an existing session for this profile if one is already cached
-      // on the client — avoids a needless network round trip.
       const existingSessionId = findSessionIdByEmail(client, profile.email);
 
-      const sessionId =
-        existingSessionId ??
-        (await createSessionForProfile(signIn, profile));
+      if (existingSessionId) {
+        // Hot path: profile is already cached on the client. Flip the active
+        // session in place — Clerk's setActive accepts a navigate callback
+        // that fires once the new cookie is fully propagated, which is the
+        // piece that prevents the "stuck on loading" race we hit in v6.
+        await sessionList.setActive({
+          session: existingSessionId,
+          navigate: async () => {
+            router.replace(destination);
+          },
+        });
+        return;
+      }
 
-      if (!sessionId) {
+      // Cold path: authenticate from scratch. `signIn.password` populates
+      // the SignInFuture resource; check its status before finalizing.
+      const passwordResult = await signIn.password({
+        identifier: profile.email,
+        password: profile.password,
+      });
+      if (passwordResult.error) {
         setError("No se pudo cambiar de perfil. Intenta de nuevo.");
         setSwitchingTo(null);
         return;
       }
+      if (signIn.status !== "complete") {
+        setError(`Estado inesperado: ${signIn.status}`);
+        setSwitchingTo(null);
+        return;
+      }
 
-      await setActive({
-        session: sessionId,
+      // `finalize` is v7's "make this sign-in the active session". Its
+      // navigate callback runs after the session cookie is in place.
+      const finalizeResult = await signIn.finalize({
         navigate: async () => {
-          // Replace (not push) so the previous role's URL doesn't survive in
-          // history and a Back press lands the user on the correct shell.
           router.replace(destination);
         },
       });
+      if (finalizeResult.error) {
+        setError("No se pudo cambiar de perfil. Intenta de nuevo.");
+        setSwitchingTo(null);
+        return;
+      }
     } catch {
       setError("No se pudo cambiar de perfil. Intenta de nuevo.");
       setSwitchingTo(null);
     }
   }
 
-  return { switchTo, switchingTo, error, isReady: isLoaded };
+  return { switchTo, switchingTo, error, isReady };
 }
 
 type ClerkClient = ReturnType<typeof useClerk>["client"];
-type SignInResource = ReturnType<typeof useSignIn>["signIn"];
 
 function findSessionIdByEmail(
   client: ClerkClient,
@@ -84,18 +114,4 @@ function findSessionIdByEmail(
     if (match) return session.id;
   }
   return null;
-}
-
-async function createSessionForProfile(
-  signIn: SignInResource,
-  profile: DemoProfile,
-): Promise<string | null> {
-  if (!signIn) return null;
-  const attempt = await signIn.create({
-    strategy: "password",
-    identifier: profile.email,
-    password: profile.password,
-  });
-  if (attempt.status !== "complete") return null;
-  return attempt.createdSessionId;
 }
