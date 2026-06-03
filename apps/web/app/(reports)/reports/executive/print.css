@@ -1,0 +1,90 @@
+/* ============================================================================
+   Executive briefing — print stylesheet
+   ============================================================================
+   Loaded only by /reports/executive. Sets letter-size pages with 18mm margins,
+   tabular numerals everywhere, and a page-break-after rule so every section
+   prints as its own page. Hides screen-only chrome (filter pills, buttons).
+   ============================================================================ */
+
+@page {
+  size: letter;
+  margin: 18mm 16mm 22mm 16mm;
+}
+
+@media print {
+  html, body {
+    background: #ffffff !important;
+    color: #1a1a1a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Drop interactive chrome that doesn't belong in a printed brief. */
+  .print\:hidden,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  /* Each major section becomes its own page. */
+  .briefing-page {
+    page-break-after: always;
+    break-after: page;
+  }
+  .briefing-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* Never split a card/table row across two pages. */
+  .briefing-no-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Repeat table headers when a table spans multiple pages. */
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Screen preview — same layout as print so the user sees what they'll get.
+   ---------------------------------------------------------------------------- */
+.briefing-root {
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  color: #1a1a1a;
+  background: #fafaf7;
+}
+
+.briefing-page {
+  background: #ffffff;
+  width: 215.9mm; /* letter width */
+  min-height: 279.4mm; /* letter height */
+  padding: 18mm 16mm 22mm 16mm;
+  margin: 0 auto 12mm;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+@media print {
+  .briefing-root {
+    background: #ffffff !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+  .briefing-page {
+    /* The @page rule already sets letter size + margins; the page box must
+       fill it without its own width/min-height (which would otherwise add
+       padding inside the printable area, leaving the bottom half blank). */
+    width: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+}

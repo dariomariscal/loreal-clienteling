@@ -5,6 +5,7 @@ import {
   HeroCard,
   KpiStrip,
   ExportToolbar,
+  ExecutivePdfButton,
 } from "@/components/reports";
 import { AreaManagerFilterBar } from "@/components/filters";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -40,7 +41,12 @@ export function AreaDashboardReport() {
       title="Mi zona hoy"
       description="Avance agregado de tu zona"
       filters={<AreaManagerFilterBar />}
-      toolbar={<ExportToolbar type="sales" />}
+      toolbar={
+        <div className="flex items-center gap-2">
+          <ExecutivePdfButton scopeLabel="Zona" />
+          <ExportToolbar type="sales" />
+        </div>
+      }
     >
       <HeroCard
         eyebrow="Objetivo de venta"
