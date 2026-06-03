@@ -26,11 +26,20 @@ interface AnalyticsQuery {
 // Drops empty / non-parseable values instead of producing an Invalid Date,
 // which Drizzle's PgTimestamp.mapToDriverValue blows up on with "Invalid time
 // value" the moment it tries to .toISOString() the bound parameter.
-function parseDateParam(raw?: string): Date | undefined {
+//
+// When `endOfDay` is true and the input is a bare YYYY-MM-DD, we snap to
+// 23:59:59.999Z so a `?from=2026-06-03&to=2026-06-03` range covers the full
+// day instead of collapsing to a single instant at midnight (which yields
+// zero rows).
+function parseDateParam(raw?: string, endOfDay = false): Date | undefined {
   if (!raw) return undefined;
   const trimmed = raw.trim();
   if (!trimmed) return undefined;
-  const d = new Date(trimmed);
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+  const iso = isDateOnly
+    ? `${trimmed}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`
+    : trimmed;
+  const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
@@ -89,7 +98,7 @@ export class AnalyticsController {
   private parseDateRange(from?: string, to?: string) {
     return {
       from: parseDateParam(from),
-      to: parseDateParam(to),
+      to: parseDateParam(to, true),
     };
   }
 
