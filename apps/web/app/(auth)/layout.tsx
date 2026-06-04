@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LorealLogo, LancomeLogo, YslLogo } from "@/components/ui/brand-logos";
+import { LorealLogo } from "@/components/ui/brand-logos";
 
 export default function AuthLayout({
   children,
@@ -32,25 +32,6 @@ export default function AuthLayout({
             <p className="text-xs tracking-widest text-primary-foreground/50 uppercase">
               Clienteling
             </p>
-          </div>
-        </div>
-
-        {/* Center: Zen-inspired typographic composition — Ma (breathing room) */}
-        <div className="relative z-10 space-y-8">
-          <div className="space-y-4">
-            <div className="h-px w-12 bg-accent/40" />
-            <blockquote className="text-xl leading-relaxed font-light tracking-wide text-primary-foreground/90">
-              La belleza comienza en el momento en que decides ser tú misma.
-            </blockquote>
-            <p className="text-xs tracking-widest text-accent uppercase">
-              — Coco Chanel
-            </p>
-          </div>
-
-          {/* Brand logos — Zen: quiet, aligned presence */}
-          <div className="flex items-center gap-8 pt-4">
-            <LancomeLogo width={100} className="text-primary-foreground/40" />
-            <YslLogo width={120} className="text-primary-foreground/40" />
           </div>
         </div>
 
